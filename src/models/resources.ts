@@ -85,7 +85,7 @@ export const MOCK_RESOURCES: Resource[] = [
   {
     id: 'r7',
     title: 'Sponsor Prospectus 2027',
-    description: 'Sponsorship tiers and community partners supporting the summit.',
+    description: 'Sponsorship tiers and community partners supporting the Summit.',
     category: 'Sponsors',
     type: 'PDF',
     size: '3.1 MB',

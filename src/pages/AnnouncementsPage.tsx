@@ -24,7 +24,7 @@ export default function AnnouncementsPage() {
       <PageHeader
         label="Live Updates"
         title="Announcements"
-        sub="Logistics, schedule changes, and summit news — with downloadable forms and guides posted alongside them."
+        sub="Logistics, schedule changes, and Summit news — with downloadable forms and guides posted alongside them."
       />
       <AnnouncementsPanel announcements={MOCK_ANNOUNCEMENTS} variant="full" />
     </AppShell>

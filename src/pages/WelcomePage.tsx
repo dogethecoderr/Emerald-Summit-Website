@@ -373,10 +373,10 @@ export default function WelcomePage() {
               {...scrollIn}
             >
               <p className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-emerald-mint">
-                About the summit
+                About the Summit
               </p>
               <h2 className="mt-3 font-hero text-3xl font-bold leading-tight tracking-tight text-navy-bright sm:text-4xl lg:text-5xl">
-                One summit. <span className="text-gradient-emerald">Six universes.</span>
+                One Summit. <span className="text-gradient-emerald">Six universes.</span>
               </h2>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground lg:text-lg">
                 Emerald Summit is the Tri-Valley’s largest student-led STEAM

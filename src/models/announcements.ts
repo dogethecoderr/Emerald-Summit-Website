@@ -31,7 +31,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a1',
     title: 'Summit Date TBD — Stay Tuned!',
-    body: 'We are finalizing the summit date and will announce it as soon as it is confirmed. Please check back here for the official date and begin exploring the six discipline tracks.',
+    body: 'We are finalizing the Summit date and will announce it as soon as it is confirmed. Please check back here for the official date and begin exploring the six discipline tracks.',
     category: 'General',
     date: 'Jun 29',
     pinned: true,
@@ -41,7 +41,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a2',
     title: 'Discipline Track Sign-Ups Opening Soon',
-    body: 'Registration for TechVerse, BioSphere, ImagineX, NovaSphere, VentureVerse, and CivicVerse opens once the summit date is confirmed. Each track has limited spots — mark your interest now in the Schedule Builder.',
+    body: 'Registration for TechVerse, BioSphere, ImagineX, NovaSphere, VentureVerse, and CivicVerse opens once the Summit date is confirmed. Each track has limited spots — mark your interest now in the Schedule Builder.',
     category: 'General',
     date: 'Jun 29',
     pinned: true,
@@ -51,7 +51,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a3',
     title: 'Ambassador Applications Now Open',
-    body: 'Emerald High students interested in representing a discipline as a Student Ambassador can apply below. Applications close two weeks before the summit.',
+    body: 'Emerald High students interested in representing a discipline as a Student Ambassador can apply below. Applications close two weeks before the Summit.',
     category: 'Urgent',
     date: 'Jun 28',
     pinned: false,
@@ -64,7 +64,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a4',
     title: 'Volunteer Orientation Details Coming',
-    body: 'A dedicated volunteer orientation will be held on the morning of the summit. Details including time and location will be posted here once the date is set.',
+    body: 'A dedicated volunteer orientation will be held on the morning of the Summit. Details including time and location will be posted here once the date is set.',
     category: 'Logistics',
     date: 'Jun 27',
     pinned: false,
@@ -88,7 +88,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a6',
     title: 'Summit Promo Video Is Live',
-    body: "Get a preview of last year's summit — share it with friends and family who are curious what the day looks like.",
+    body: "Get a preview of last year's Summit — share it with friends and family who are curious what the day looks like.",
     category: 'General',
     date: 'Jun 24',
     pinned: false,

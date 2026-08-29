@@ -146,7 +146,7 @@ export default function AppShowcasePage() {
             transition={{ duration: 0.6, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
             className="mt-6 max-w-3xl font-hero text-4xl font-bold leading-[1.08] tracking-tight text-navy-bright sm:text-5xl lg:text-6xl"
           >
-            Everything for summit day,
+            Everything for Summit day,
             <br />
             <span className="text-gradient-emerald">in your pocket.</span>
           </motion.h1>
@@ -156,7 +156,7 @@ export default function AppShowcasePage() {
             transition={{ duration: 0.6, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg"
           >
-            One app, tailored to who you are on summit day — competitor,
+            One app, tailored to who you are on Summit day — competitor,
             attendee, volunteer, or judge. Sign in and it adapts.
           </motion.p>
           <motion.div
@@ -281,7 +281,7 @@ export default function AppShowcasePage() {
             Ready to build your day?
           </h2>
           <p className="max-w-md text-[15px] text-muted-foreground">
-            Pick your role, sign in, and your summit day starts taking shape.
+            Pick your role, sign in, and your Summit day starts taking shape.
           </p>
           <Button
             size="lg"
