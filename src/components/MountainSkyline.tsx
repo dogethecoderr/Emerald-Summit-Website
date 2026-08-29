@@ -162,6 +162,12 @@ export default function MountainSkyline({
     const start = performance.now();
     ctx.lineCap = 'round';
     let raf = 0;
+    // Offline frame capture (dev only). When the capture page sets this flag
+    // before mount, the sequence never self-schedules — the renderer drives it
+    // one frame at a time off its own clock, so the encoded video is exact
+    // rather than however the recording machine happened to keep up.
+    const capturing =
+      import.meta.env.DEV && (window as unknown as Record<string, unknown>).__SKY_CAPTURE__ === true;
     // Once the one-time arrival sequence has handed off to the settled sky
     // (or there was none to play), stop redrawing while the canvas is
     // scrolled out of view — nothing past the hero needs this loop running.
@@ -432,6 +438,9 @@ export default function MountainSkyline({
         el.style.strokeWidth = `${1.4 + rim * 2.4 * weight}`;
       }
 
+      // Under capture the renderer owns the clock and calls draw itself.
+      if (capturing) return;
+
       // Never pause mid-sequence — `cuedRef` only flips once the sequence has
       // reached the point of cueing the hero copy in, and scroll is still
       // locked at that point, so the canvas is guaranteed on-screen anyway.
@@ -442,7 +451,13 @@ export default function MountainSkyline({
       }
     };
 
-    raf = requestAnimationFrame(draw);
+    if (capturing) {
+      (window as unknown as Record<string, unknown>).__sky = {
+        renderAt: (seconds: number) => draw(start + seconds * 1000),
+      };
+    } else {
+      raf = requestAnimationFrame(draw);
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -610,6 +625,7 @@ export default function MountainSkyline({
       {/* soft fade into the light page below */}
       <div
         ref={fadeRef}
+        data-sky-fade
         className="absolute inset-x-0 bottom-0 h-24"
         style={{
           opacity: 0,

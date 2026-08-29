@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sky capture</title>
+    <style>
+      /* The renderer screenshots this page directly, so nothing may sit over
+         the sky and the page itself must not contribute any colour. */
+      html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+      /* The soft fade into the light page below belongs to the page, not the
+         sky — it is re-added over the video as a DOM layer. */
+      [data-sky-fade] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div id="sky"></div>
+    <script type="module" src="/src/capture/main.tsx"></script>
+  </body>
+</html>

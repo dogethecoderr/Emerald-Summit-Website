@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
-import MountainSkyline from '../components/MountainSkyline';
+import SkyVideo from '../components/SkyVideo';
 import PhotoMosaic from '../components/PhotoMosaic';
 import SummitLogo from '../components/SummitLogo';
 import FaqSection from '../components/FaqSection';
@@ -205,7 +205,7 @@ export default function WelcomePage() {
 
       {/* dark night-sky hero band — fills the full viewport so nothing below peeks in on load */}
       <div className="relative min-h-screen overflow-hidden">
-        <MountainSkyline
+        <SkyVideo
           playIntro={playingIntro}
           skip={skipped}
           onCueContent={() => setRevealed(true)}
