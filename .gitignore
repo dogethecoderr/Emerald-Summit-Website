@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Build artifacts / distributables (kept out of the repo)
+*.apk
+*.aab
+*.ipa
+
 # Symbolication related
 app.*.symbols
 
@@ -44,14 +49,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Supabase local development
-supabase/.branches
-supabase/.temp
-
-# Local secrets (copy from .env.example)
-.env
-
-# React / Vite (web app at repo root)
-node_modules/
-dist/
-*.tsbuildinfo
+# Widget Preview related
+.widget_preview/

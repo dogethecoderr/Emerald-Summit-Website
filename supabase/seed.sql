@@ -1,6 +1,0 @@
--- Seed data for local development only.
--- The first admin must be promoted via the Supabase SQL editor after sign-up:
---
---   update public.users
---   set role = 'admin'
---   where email = 'you@school.edu';
