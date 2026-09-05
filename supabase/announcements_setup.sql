@@ -27,7 +27,14 @@ create policy "Public read access"
   to anon, authenticated
   using (true);
 
--- 3. Sample data -------------------------------------------------------------
+-- 3. Expose to the Data API --------------------------------------------------
+-- This project has "Automatically expose new tables" turned OFF, so a new table
+-- gets NO Data API privileges by default and the anon key would get
+-- "permission denied". Grant read access explicitly. (The RLS policy above
+-- still governs WHICH rows come back — here, all of them, read-only.)
+grant select on public.announcements to anon, authenticated;
+
+-- 4. Sample data -------------------------------------------------------------
 insert into public.announcements (title, body, author, audience, pinned) values
   ('Welcome to Emerald Summit ''27!',
    'Doors open at 8:30 AM. Check in at the main entrance, then head to the opening ceremony in the auditorium at 9:00 AM.',

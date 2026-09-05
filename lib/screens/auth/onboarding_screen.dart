@@ -1,0 +1,300 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../app_state.dart';
+import '../../models/user_profile.dart';
+
+/// First-run account setup, shown once after a user's first sign-in (while
+/// `profiles.onboarded` is false).
+///
+/// Two steps:
+///   1. Name + role.
+///   2. Role-specific details — the questions come from the chosen role
+///      (see [SummitRoleX.onboardingFields]), so an ambassador is asked for
+///      full contact info while an expert is asked only the essentials.
+///
+/// On finish the profile is saved to Supabase and the auth gate moves the
+/// user into the app.
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  int _step = 0;
+
+  final _nameController = TextEditingController();
+  SummitRole _role = SummitRole.participant;
+
+  /// One controller per role-specific field, rebuilt when the role changes.
+  final Map<String, TextEditingController> _fieldControllers = {};
+
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill name if the profile already has one (e.g. re-running onboarding).
+    _nameController.text = appState.profile?.fullName ?? '';
+    _syncFieldControllers();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    for (final c in _fieldControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Ensures there's a controller for each field the current role asks for,
+  /// seeded from any previously-entered detail.
+  void _syncFieldControllers() {
+    final existing = appState.profile?.details ?? const {};
+    for (final field in _role.onboardingFields) {
+      _fieldControllers.putIfAbsent(
+        field.key,
+        () => TextEditingController(text: (existing[field.key] ?? '') as String),
+      );
+    }
+  }
+
+  void _goToDetails() {
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _error = 'Please enter your name.');
+      return;
+    }
+    setState(() {
+      _error = null;
+      _syncFieldControllers();
+      _step = 1;
+    });
+  }
+
+  Future<void> _finish() async {
+    // Validate required role fields.
+    for (final field in _role.onboardingFields) {
+      if (field.required &&
+          (_fieldControllers[field.key]?.text.trim().isEmpty ?? true)) {
+        setState(() => _error = '${field.label} is required.');
+        return;
+      }
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    final user = Supabase.instance.client.auth.currentUser;
+    final details = <String, dynamic>{
+      for (final field in _role.onboardingFields)
+        if ((_fieldControllers[field.key]?.text.trim() ?? '').isNotEmpty)
+          field.key: _fieldControllers[field.key]!.text.trim(),
+    };
+
+    final profile = UserProfile(
+      id: user?.id ?? appState.profile?.id ?? '',
+      email: user?.email ?? appState.profile?.email ?? '',
+      fullName: _nameController.text.trim(),
+      role: _role,
+      details: details,
+    );
+
+    try {
+      await appState.completeOnboarding(profile);
+      // Auth gate rebuilds on the notify and shows the app.
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not save your profile. Please try again.';
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_step == 0 ? 'Welcome' : 'A few details'),
+        leading: _step == 1
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _busy ? null : () => setState(() => _step = 0),
+              )
+            : null,
+        automaticallyImplyLeading: false,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: _step == 0 ? _stepOne(context) : _stepTwo(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- Step 1: name + role -------------------------------------------------
+  Widget _stepOne(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text("Let's set up your account",
+            style: theme.textTheme.headlineSmall),
+        const SizedBox(height: 6),
+        Text(
+          'Your name and role personalize the rest of setup.',
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _nameController,
+          enabled: !_busy,
+          textCapitalization: TextCapitalization.words,
+          autofillHints: const [AutofillHints.name],
+          decoration: const InputDecoration(
+            labelText: 'Full name',
+            prefixIcon: Icon(Icons.person_outline),
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text('I am a…', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 12),
+        ...SummitRole.values.map(_roleCard),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.error)),
+        ],
+        const SizedBox(height: 20),
+        FilledButton(
+          onPressed: _busy ? null : _goToDetails,
+          child: const Text('Continue'),
+        ),
+      ],
+    );
+  }
+
+  Widget _roleCard(SummitRole role) {
+    final theme = Theme.of(context);
+    final selected = _role == role;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _busy ? null : () => setState(() => _role = role),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+            color: selected
+                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(role.icon,
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(role.label, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(role.blurb,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+              if (selected)
+                Icon(Icons.check_circle, color: theme.colorScheme.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- Step 2: role-specific details ---------------------------------------
+  Widget _stepTwo(BuildContext context) {
+    final theme = Theme.of(context);
+    final fields = _role.onboardingFields;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(_role.icon, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Setting up as ${_role.label}',
+                  style: theme.textTheme.titleMedium),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          fields.isEmpty
+              ? "You're all set — no extra details needed for this role."
+              : 'Just a couple of role-specific details.',
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 20),
+        for (final field in fields) ...[
+          TextField(
+            controller: _fieldControllers[field.key],
+            enabled: !_busy,
+            keyboardType: field.keyboardType,
+            decoration: InputDecoration(
+              labelText: field.label,
+              hintText: field.hint,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 4),
+          Text(_error!,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.error)),
+          const SizedBox(height: 8),
+        ],
+        FilledButton(
+          onPressed: _busy ? null : _finish,
+          child: _busy
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Finish & enter the app'),
+        ),
+      ],
+    );
+  }
+}

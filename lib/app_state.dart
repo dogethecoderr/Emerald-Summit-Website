@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide Session;
 
+import 'data/profile_repository.dart';
 import 'data/sample_data.dart';
 import 'models/models.dart';
+import 'models/user_profile.dart';
 
 /// Result of trying to add a session to the day plan.
 enum AddOutcome { added, removed, conflict, full }
@@ -18,11 +21,54 @@ class AddResult {
 class AppState extends ChangeNotifier {
   final Set<String> _mySessionIds = {};
   bool notificationsEnabled = true;
-
-  // Demo profile — the signed-in user (spec: role picked on launch).
-  String userName = 'Alex Rivera';
-  String userRole = 'Participant';
   double volunteerHours = 6.5;
+
+  // ---- Signed-in user ------------------------------------------------------
+  // When Supabase is configured, [profile] is loaded from the backend after
+  // sign-in. In sample mode (no backend) it stays null and the demo values
+  // below are shown instead, so the UI skeleton still runs standalone.
+  UserProfile? profile;
+  bool profileLoading = false;
+
+  static const String _demoName = 'Alex Rivera';
+  static const String _demoRole = 'Participant';
+
+  String get userName =>
+      (profile?.fullName.isNotEmpty ?? false) ? profile!.fullName : _demoName;
+
+  String get userRole => profile != null ? profile!.role.label : _demoRole;
+
+  bool get isOnboarded => profile?.onboarded ?? false;
+
+  /// Loads the signed-in user's profile from Supabase. Called by the auth
+  /// gate once a session exists.
+  Future<void> loadProfile() async {
+    profileLoading = true;
+    notifyListeners();
+    try {
+      profile = await ProfileRepository.fetchMine();
+    } finally {
+      profileLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Saves the finished onboarding profile and marks the user onboarded, so
+  /// the auth gate moves them into the app.
+  Future<void> completeOnboarding(UserProfile updated) async {
+    updated.onboarded = true;
+    await ProfileRepository.save(updated);
+    profile = updated;
+    notifyListeners();
+  }
+
+  /// Signs the user out and clears their in-memory state.
+  Future<void> signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    profile = null;
+    _mySessionIds.clear();
+    notifyListeners();
+  }
 
   List<Session> get mySessions {
     final list = SampleData.allSessions

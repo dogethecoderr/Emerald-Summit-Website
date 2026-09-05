@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../supabase_config.dart';
 import '../theme.dart';
 
 /// "Profile" tab — the user's contact card, role, notification settings,
@@ -102,10 +103,42 @@ class _VisibilityCard extends StatelessWidget {
               value: appState.notificationsEnabled,
               onChanged: appState.setNotifications,
             ),
+            if (SupabaseConfig.isConfigured)
+              ListTile(
+                leading: Icon(Icons.logout, color: theme.colorScheme.error),
+                title: Text('Sign out',
+                    style: TextStyle(color: theme.colorScheme.error)),
+                onTap: () => _confirmSignOut(context),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+            "You'll need to enter a fresh email code to sign back in. Your "
+            'data stays safe in your account.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await appState.signOut();
+    }
   }
 }
 

@@ -1,22 +1,23 @@
 /// Supabase connection settings.
 ///
-/// Paste your project's values below. Both are safe to keep in client code:
-/// the anon (a.k.a. publishable) key is designed to ship in the app and is
-/// protected by Row Level Security on the server.
+/// Values are injected at build time from a gitignored `env.json` file via
+/// `--dart-define-from-file=env.json`, so no keys ever live in source control.
+/// See `env.example.json` for the template and README "Configuration".
 ///
-/// NEVER put the `service_role` (secret) key here — that key bypasses RLS and
-/// must stay on a server only.
-///
-/// Find these in the Supabase dashboard:
-///   Project → Settings → API
-///     • Project URL      → [supabaseUrl]
-///     • Project API keys → anon / public → [supabaseAnonKey]
+/// The publishable key is safe to ship in the app (Row Level Security protects
+/// the data). NEVER put a `secret` key (`sb_secret_...`, formerly
+/// `service_role`) in `env.json` — that key bypasses RLS and belongs on a
+/// server only.
 class SupabaseConfig {
-  static const String supabaseUrl = 'PASTE_YOUR_PROJECT_URL_HERE';
-  static const String supabaseAnonKey = 'PASTE_YOUR_ANON_PUBLIC_KEY_HERE';
+  static const String supabaseUrl =
+      String.fromEnvironment('SUPABASE_URL', defaultValue: '');
 
-  /// Whether real credentials have been filled in. When false, the app runs
-  /// entirely on local sample data and skips Supabase initialization.
+  static const String supabasePublishableKey =
+      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY', defaultValue: '');
+
+  /// Whether real credentials were provided at build time. When false, the app
+  /// runs entirely on local sample data and skips Supabase initialization —
+  /// e.g. if you forget the `--dart-define-from-file=env.json` flag.
   static bool get isConfigured =>
-      !supabaseUrl.startsWith('PASTE_') && !supabaseAnonKey.startsWith('PASTE_');
+      supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 }

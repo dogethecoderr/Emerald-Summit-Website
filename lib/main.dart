@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_config.dart';
 import 'theme.dart';
+import 'screens/auth/auth_gate.dart';
 import 'screens/root_nav.dart';
 
 Future<void> main() async {
@@ -13,8 +14,7 @@ Future<void> main() async {
   if (SupabaseConfig.isConfigured) {
     await Supabase.initialize(
       url: SupabaseConfig.supabaseUrl,
-      // ignore: deprecated_member_use
-      anonKey: SupabaseConfig.supabaseAnonKey,
+      publishableKey: SupabaseConfig.supabasePublishableKey,
     );
   }
 
@@ -55,7 +55,9 @@ class EmeraldSummitApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const RootNav(),
+      // When the backend is configured, gate the app behind sign-in. In sample
+      // mode (no backend) go straight to the app on demo data.
+      home: SupabaseConfig.isConfigured ? const AuthGate() : const RootNav(),
     );
   }
 }
