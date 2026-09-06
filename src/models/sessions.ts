@@ -30,6 +30,29 @@ export const TIME_SLOTS = [
   '5:00 PM',
 ];
 
+/**
+ * Placeholder volunteer assignments for the schedule prototype. These
+ * intentionally vary per event while the real volunteer sign-up data is
+ * connected; every event can have at most ten volunteers.
+ */
+export const VOLUNTEER_CAPACITY = 10;
+
+export const MOCK_VOLUNTEER_COUNTS: Record<string, number> = {
+  s1: 8,
+  s2: 5,
+  s3: 3,
+  s4: 10,
+  s5: 7,
+  s6: 4,
+  s7: 9,
+  s8: 2,
+  s9: 6,
+  s10: 10,
+  s11: 1,
+  s12: 8,
+  s13: 5,
+};
+
 /** Minutes to walk between rooms; only pairs worth warning about are listed. */
 export const WALKING_TIME: Record<string, Record<string, number>> = {
   A: { B: 3, C: 5, D: 4, E: 6, F: 7, G: 5, H: 8, I: 6, J: 4 },
