@@ -9,7 +9,6 @@ import {
   LogOut,
   FolderOpen,
   Gavel,
-  BookUser,
   QrCode,
   type LucideIcon,
 } from 'lucide-react';
@@ -40,7 +39,6 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: '/judging', label: 'Judging', icon: Gavel, roles: ['expert'] },
   { to: '/volunteer', label: 'Volunteer Hub', icon: Users, roles: ['volunteer'] },
-  { to: '/student', label: 'My Student', icon: BookUser, roles: ['volunteer'] },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/directory', label: 'Directory', icon: Users },
   { to: '/resources', label: 'Resources', icon: FolderOpen },
