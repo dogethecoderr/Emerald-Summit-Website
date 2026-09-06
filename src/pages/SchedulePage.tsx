@@ -10,6 +10,7 @@ import {
   Clock,
   MapPin,
   GripVertical,
+  HandHeart,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import AppShell from '../components/AppShell';
@@ -21,7 +22,9 @@ import { useSchedule } from '../context/ScheduleContext';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import {
   MOCK_SESSIONS,
+  MOCK_VOLUNTEER_COUNTS,
   TIME_SLOTS,
+  VOLUNTEER_CAPACITY,
   WALKING_TIME,
   type Session,
 } from '../models/sessions';
@@ -40,6 +43,7 @@ export default function SchedulePage() {
   const { mySchedule, setMySchedule, spectating, setSpectating } =
     useSchedule();
   const [disciplineFilter, setDisciplineFilter] = useState('All');
+  const [volunteering, setVolunteering] = useState<string[]>([]);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -86,6 +90,20 @@ export default function SchedulePage() {
         : [...spectating, id],
     );
     setMySchedule(mySchedule.filter((x) => x !== id));
+  };
+
+  const volunteerCountFor = (id: string) =>
+    (MOCK_VOLUNTEER_COUNTS[id] ?? 0) + (volunteering.includes(id) ? 1 : 0);
+
+  const toggleVolunteer = (id: string) => {
+    if (volunteering.includes(id)) {
+      setVolunteering(volunteering.filter((volunteerId) => volunteerId !== id));
+      return;
+    }
+
+    if (volunteerCountFor(id) < VOLUNTEER_CAPACITY) {
+      setVolunteering([...volunteering, id]);
+    }
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -186,6 +204,13 @@ export default function SchedulePage() {
                           const full = s.enrolled >= s.capacity;
                           const spectatorFull = s.spectators >= s.spectatorCap;
                           const near = !full && s.enrolled / s.capacity >= 0.8;
+                          const volunteeringHere = volunteering.includes(s.id);
+                          const volunteerCount = volunteerCountFor(s.id);
+                          const volunteerFull = volunteerCount >= VOLUNTEER_CAPACITY;
+                          const volunteerSpots = Math.max(
+                            0,
+                            VOLUNTEER_CAPACITY - volunteerCount,
+                          );
                           const isDragDisabled = isAdded || isSpectating || full || !!conflict;
 
                           return (
@@ -273,6 +298,58 @@ export default function SchedulePage() {
                                           label="Spectator seats"
                                         />
                                       )}
+                                      <div className="mt-3 rounded-xl border border-emerald/15 bg-emerald/5 p-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-mint">
+                                            <HandHeart className="h-3.5 w-3.5" />
+                                            Volunteer team
+                                          </div>
+                                          <span
+                                            className={cn(
+                                              'text-xs font-medium',
+                                              volunteeringHere
+                                                ? 'text-emerald-mint'
+                                                : volunteerFull
+                                                  ? 'text-red-400'
+                                                  : 'text-muted-foreground',
+                                            )}
+                                          >
+                                            {volunteeringHere
+                                              ? "You're volunteering"
+                                              : volunteerFull
+                                                ? 'Volunteer team full'
+                                                : `${volunteerSpots} spot${volunteerSpots === 1 ? '' : 's'} open`}
+                                          </span>
+                                        </div>
+                                        <CapacityBar
+                                          enrolled={volunteerCount}
+                                          capacity={VOLUNTEER_CAPACITY}
+                                          label="Volunteer spots"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleVolunteer(s.id)}
+                                          disabled={!volunteeringHere && volunteerFull}
+                                          aria-label={
+                                            volunteeringHere
+                                              ? `Stop volunteering for ${s.title}`
+                                              : `Volunteer for ${s.title}`
+                                          }
+                                          className={cn(
+                                            'mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                                            volunteeringHere
+                                              ? 'border-transparent bg-emerald text-white hover:bg-emerald-deep'
+                                              : 'border-emerald/30 bg-background/50 text-emerald-mint hover:border-emerald-glow hover:bg-emerald/10',
+                                          )}
+                                        >
+                                          <HandHeart className="h-3.5 w-3.5" />
+                                          {volunteeringHere
+                                            ? 'Stop volunteering'
+                                            : volunteerFull
+                                              ? 'No spots left'
+                                              : 'Volunteer for this event'}
+                                        </button>
+                                      </div>
                                     </div>
 
                                     <div className="flex shrink-0 flex-col gap-2">
