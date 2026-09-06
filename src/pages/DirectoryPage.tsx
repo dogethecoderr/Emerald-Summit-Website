@@ -51,7 +51,7 @@ export default function DirectoryPage() {
       <PageHeader
         label="Emerald High School · Dublin, CA"
         title="Directory"
-        sub="Browse participants, attendees, volunteers, experts, and summit staff. Contact info respects each person's visibility settings."
+        sub="Browse participants, attendees, volunteers, experts, and Summit staff. Contact info respects each person's visibility settings."
       />
 
       <div className="mb-6 space-y-3">

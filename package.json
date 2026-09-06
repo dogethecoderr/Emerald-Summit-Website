@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "capture:sky": "node scripts/capture-sky.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -46,7 +47,9 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.5.2",
+    "ffmpeg-static": "^5.3.0",
     "jsdom": "^24.1.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.5.17",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",

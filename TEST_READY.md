@@ -1,67 +1,58 @@
-# Test Suite & Infrastructure Ready — Emerald Summit App
+# Test Suite & Infrastructure — Emerald Summit Web Prototype
 
 ## Overview
-The testing infrastructure for Emerald Summit App has been established using **Vitest**, **React Testing Library**, and **JSDOM**. Component test suites covering Tier 1 through Tier 4 have been implemented for both the **Mentor Dashboard** (`src/pages/MentorDashboard.tsx`) and **Parent Spectator View** (`src/pages/ParentSpectatorView.tsx`).
+The testing infrastructure for the Emerald Summit web prototype uses **Vitest**, **React Testing Library**, and **JSDOM**. The current component test suite covers the **Volunteer Dashboard** (`src/pages/VolunteerDashboard.tsx`) across Tiers 1–4.
+
+> **History:** This test setup was originally scaffolded by an automated agent run (2026-07-27) that built a *"Mentor Dashboard"* and *"Parent Spectator View"*. Those features were later renamed — *Mentor* became the **Volunteer** role/dashboard and *Parent* became the **Attendee** role — so the earlier `MentorDashboard.test.tsx` / `ParentSpectatorView.test.tsx` suites no longer exist. This document reflects the **current** state of the code. (See `.agents/README.md` for context on that run.)
 
 ---
 
-## 1. Test Infrastructure Setup
+## 1. Test Infrastructure
 
-- **Runner**: Vitest 2.0+
-- **DOM Environment**: JSDOM 24.0+
-- **Assertion & Queries**: `@testing-library/react` 16.0+, `@testing-library/jest-dom` 6.4+, `@testing-library/user-event` 14.5+
-- **Setup File**: `./src/test/setup.ts` (imports `@testing-library/jest-dom` matchers)
-- **Configuration**: `vite.config.ts` configured with `globals: true`, `environment: 'jsdom'`, `setupFiles: ['./src/test/setup.ts']`, and alias `@/*` pointing to `./src/*`.
-- **NPM Command**: `npm run test` (executes `vitest run`)
-
----
-
-## 2. Test Suite Summary & Execution Command
-
-- **Runner Command**: `npm run test` or `npx vitest run`
-- **Build Verification Command**: `npm run build` (`tsc && vite build`)
-- **Total Test Suites**: 2
-- **Total Tests**: 13 test cases across Tiers 1–4
+- **Runner**: Vitest 2.x (`vitest run`)
+- **DOM Environment**: JSDOM 24.x
+- **Assertion & Queries**: `@testing-library/react` 16.x, `@testing-library/jest-dom` 6.x, `@testing-library/user-event` 14.x
+- **Setup File**: `src/test/setup.ts` (imports `@testing-library/jest-dom` matchers)
+- **Configuration**: `vite.config.ts` sets `test: { globals: true, environment: 'jsdom', setupFiles: ['./src/test/setup.ts'] }`, with the `@` → `./src` path alias.
+- **NPM Command**: `npm run test` (runs `vitest run`)
 
 ---
 
-## 3. Tier Breakdown & Test Coverage
+## 2. Commands
 
-### Mentor Dashboard (`src/pages/__tests__/MentorDashboard.test.tsx`)
-- **Tier 1 (Feature Coverage)**:
-  - Renders assigned track ("Novasphere" / track pill), participant roster (Priya Sharma, etc.), and check-in tools.
-  - Toggles check-in status when "Check In" / "Undo Check-in" buttons are clicked.
-  - Filters participant list when status tab ("All", "Checked In", "Pending") is clicked.
-- **Tier 2 (Boundary & Corner Cases)**:
-  - Handles empty participant roster gracefully with empty state banner ("No participants assigned to this track").
-  - Handles unassigned track cleanly with fallback message ("No assigned track found").
-- **Tier 3 (Cross-Feature & Security)**:
-  - Enforces role gating (`useRequireRole(['mentor'])`) and redirects unauthorized non-mentor users to `/home`.
-- **Tier 4 (Design System Adherence)**:
-  - Uses `AppShell`, `PageHeader` eyebrow label, display font (`font-display`), and `.glass` card styling.
-
-### Parent Spectator View (`src/pages/__tests__/ParentSpectatorView.test.tsx`)
-- **Tier 1 (Feature Coverage)**:
-  - Renders mock linked student schedule timeline, student card ("Priya Sharma"), live activity feed, and daily progress bar (2 of 4 sessions completed).
-- **Tier 2 (Boundary & Corner Cases)**:
-  - Handles empty student schedule gracefully with empty state banner ("No scheduled sessions for this student").
-  - Handles missing linked student cleanly with unlinked fallback state ("No linked student found").
-- **Tier 3 (Cross-Feature & Read-only Security)**:
-  - Verifies spectator mode notice banner ("Spectator View Mode") is present.
-  - Explicitly verifies NO registration, add session, enroll, edit schedule, or check-in buttons exist (strictly read-only spectator lens).
-  - Enforces role gating (`useRequireRole(['parent'])`) and redirects unauthorized non-parent users.
-- **Tier 4 (Design System Adherence)**:
-  - Uses `AppShell`, `PageHeader` eyebrow label, display font (`font-display`), and `.glass` card styling.
+- **Run tests**: `npm run test` (or `npx vitest run`)
+- **Build verification**: `npm run build` (`tsc && vite build`)
 
 ---
 
-## 4. Verification Instructions
+## 3. Current Coverage
 
-Run the following commands in the root directory `c:\Users\arush\Downloads\Emerald-Summit-App-main`:
+### Volunteer Dashboard (`src/pages/__tests__/VolunteerDashboard.test.tsx`)
+**1 suite · 10 tests across Tiers 1–4.**
+
+- **Tier 1 — Feature Coverage** (3 tests):
+  - Renders the assigned track ("NovaSphere"), participant roster (e.g. Priya Sharma), and check-in tools.
+  - Toggles check-in status when the "Check In" / "Undo Check-in" button is clicked.
+  - Filters the participant list when a status tab ("Checked In") is selected.
+- **Tier 2 — Boundary & Corner Cases** (5 tests):
+  - Empty participant roster → "No participants assigned to this track".
+  - Unassigned track (`null`) → "No assigned track found".
+  - Unknown track string → falls back cleanly without throwing.
+  - `null` participants prop → treated as an empty roster.
+  - Search input filtering, including a "no matches" state.
+- **Tier 3 — Cross-Feature & Role Gating** (1 test):
+  - Enforces role gating via `useRequireRole` and hides content when a non-volunteer is redirected.
+- **Tier 4 — Design System Adherence** (1 test):
+  - Uses `PageHeader` eyebrow, the display font (`font-display`), and `.glass` card styling.
+
+---
+
+## 4. Verification
+
 ```bash
-# 1. Run all tests
+# Run the test suite
 npm run test
 
-# 2. Run TypeScript build verification
+# Type-check + production build
 npm run build
 ```

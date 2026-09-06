@@ -37,7 +37,7 @@ export default function LandingFooter() {
               subtitleClassName="text-[11px] text-white/50"
             />
             <p className="mt-4 text-sm leading-relaxed text-white/60">
-              A student-run STEAM summit for Tri-Valley high schoolers — six
+              A student-run STEAM Summit for Tri-Valley high schoolers — six
               universes, one day, 100% free.
             </p>
             <p className="mt-3 text-xs text-white/40">

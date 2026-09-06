@@ -97,7 +97,7 @@ export default function VolunteerDashboard({
       <PageHeader
         label="Volunteer Dashboard"
         title="Volunteer Hub & Track Management"
-        sub="Manage your assigned track, review participant check-ins, and support summit attendees."
+        sub="Manage your assigned track, review participant check-ins, and support Summit attendees."
       />
 
       <div className="space-y-6">
@@ -218,7 +218,7 @@ export default function VolunteerDashboard({
                 No assigned track
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Please contact the summit coordinator to assign a track to your volunteer account.
+                Please contact the Summit coordinator to assign a track to your volunteer account.
               </p>
             </div>
           ) : filteredRoster.length === 0 ? (

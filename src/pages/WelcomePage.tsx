@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
-import MountainSkyline from '../components/MountainSkyline';
+import SkyVideo from '../components/SkyVideo';
 import PhotoMosaic from '../components/PhotoMosaic';
 import SummitLogo from '../components/SummitLogo';
 import FaqSection from '../components/FaqSection';
@@ -205,7 +205,7 @@ export default function WelcomePage() {
 
       {/* dark night-sky hero band — fills the full viewport so nothing below peeks in on load */}
       <div className="relative min-h-screen overflow-hidden">
-        <MountainSkyline
+        <SkyVideo
           playIntro={playingIntro}
           skip={skipped}
           onCueContent={() => setRevealed(true)}
@@ -373,10 +373,10 @@ export default function WelcomePage() {
               {...scrollIn}
             >
               <p className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-emerald-mint">
-                About the summit
+                About the Summit
               </p>
               <h2 className="mt-3 font-hero text-3xl font-bold leading-tight tracking-tight text-navy-bright sm:text-4xl lg:text-5xl">
-                One summit. <span className="text-gradient-emerald">Six universes.</span>
+                One Summit. <span className="text-gradient-emerald">Six universes.</span>
               </h2>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground lg:text-lg">
                 Emerald Summit is the Tri-Valley’s largest student-led STEAM

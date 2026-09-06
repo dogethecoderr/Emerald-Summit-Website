@@ -93,23 +93,19 @@ function RolePicker() {
         <div className="mt-14 pt-4 lg:mt-24 lg:flex lg:items-start lg:gap-16 lg:pt-8 xl:gap-24">
           <div className="lg:sticky lg:top-12 lg:w-[min(100%,420px)] lg:shrink-0">
             <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl lg:text-[2.75rem] lg:leading-tight">
-              Who are you at the summit?
+              Who are you at the Summit?
             </h1>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground md:text-[15px] lg:text-base">
               Your role shapes what you see — pick the one that fits and sign in.
             </p>
           </div>
 
-          <div className="mt-10 grid flex-1 gap-3 sm:gap-4 md:grid-cols-2 lg:mt-0 xl:gap-5">
+          <div className="mt-10 grid flex-1 gap-3 sm:gap-4 lg:mt-0 xl:gap-5">
             {SIGN_IN_ROLES.map((r, i) => (
               <button
                 key={r.name}
                 onClick={() => navigate(`/login/${r.name}`)}
-                className={`glass animate-fade-up group flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all hover:translate-x-1 hover:border-emerald-glow/40 sm:p-5 lg:hover:translate-x-0 lg:hover:-translate-y-0.5 ${
-                  r.name === 'participant' || r.name === 'attendee'
-                    ? 'md:col-span-2'
-                    : ''
-                }`}
+                className="glass animate-fade-up group flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all hover:translate-x-1 hover:border-emerald-glow/40 sm:p-5 lg:hover:translate-x-0 lg:hover:-translate-y-0.5"
                 style={{ animationDelay: `${i * 70}ms` }}
               >
                 <span
@@ -195,7 +191,7 @@ export default function HomePage() {
       <PageHeader
         label="Emerald High School · Dublin, CA"
         title={`Welcome back, ${firstName}.`}
-        sub="Everything about your summit day — schedule, people, and live updates — in one place."
+        sub="Everything about your Summit day — schedule, people, and live updates — in one place."
       />
 
       {/* stat tiles */}

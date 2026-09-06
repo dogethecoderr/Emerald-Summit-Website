@@ -1,4 +1,5 @@
-// Ported from flutter/lib/core/models/user_role.dart
+// User roles for the Emerald Summit web prototype. Mirrors the roles used in
+// the separate Emerald Summit Flutter app so the two stay conceptually aligned.
 import {
   GraduationCap,
   HeartHandshake,
@@ -30,7 +31,7 @@ export const USER_ROLES: RoleInfo[] = [
   {
     name: 'attendee',
     label: 'Attendee',
-    description: 'Explore the summit, browse event updates, and see what is happening.',
+    description: 'Explore the Summit, browse event updates, and see what is happening.',
     icon: Eye,
     color: '#2563EB',
   },
@@ -54,7 +55,7 @@ export const USER_ROLES: RoleInfo[] = [
     name: 'volunteer',
     label: 'Volunteer',
     description:
-      'Manage your assigned track, check in participants, and support summit attendees.',
+      'Manage your assigned track, check in participants, and support Summit attendees.',
     icon: Users,
     color: '#E11D48',
   },

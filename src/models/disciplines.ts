@@ -1,4 +1,5 @@
-// Ported from flutter/lib/core/models/discipline.dart
+// Disciplines for the Emerald Summit web prototype. Mirrors the disciplines
+// used in the separate Emerald Summit Flutter app so the two stay aligned.
 
 export interface DisciplineInfo {
   name: string;

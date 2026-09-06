@@ -295,7 +295,7 @@ function ProfileSettings({
             <EyeOff className="mb-3 h-8 w-8 text-muted-foreground" />
             <p className="text-sm font-semibold">Hidden from directory</p>
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              Your profile is saved, but other summit attendees won&apos;t see
+              Your profile is saved, but other Summit attendees won&apos;t see
               you in the directory until you turn listing back on.
             </p>
           </div>
