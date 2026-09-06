@@ -4,7 +4,7 @@ import SummitLogo from './SummitLogo';
 import { cn } from '@/lib/utils';
 
 /**
- * Clickable "Emerald Summit" wordmark + logo, always routing back to "/".
+ * Clickable "webby" wordmark + logo, always routing back to "/".
  * Shared across the landing nav, in-app sidebar, and every auth screen so
  * the logo behaves consistently as a "home" control everywhere it appears.
  */
@@ -30,7 +30,7 @@ export default function BrandMark({
   return (
     <Link
       to="/"
-      aria-label="Emerald Summit — back to home"
+      aria-label="webby — back to home"
       className={cn('group flex items-center', gap, className)}
     >
       <div
@@ -42,7 +42,7 @@ export default function BrandMark({
         <SummitLogo />
       </div>
       <div className={textWrapperClassName}>
-        <div className={cn('font-display', titleClassName)}>Emerald Summit</div>
+        <div className={cn('font-display', titleClassName)}>webby</div>
         {showSubtitle && <div className={subtitleClassName}>{subtitle}</div>}
       </div>
     </Link>
