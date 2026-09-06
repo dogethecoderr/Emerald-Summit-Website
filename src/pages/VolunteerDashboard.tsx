@@ -8,10 +8,12 @@ import {
   UserX,
   Users,
   AlertCircle,
+  QrCode,
 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
+import VolunteerQrScannerModal from '../components/VolunteerQrScannerModal';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { MOCK_PEOPLE, type Person } from '../models/people';
 import { disciplineByName } from '../models/disciplines';
@@ -39,6 +41,7 @@ export default function VolunteerDashboard({
   const [roster, setRoster] = useState<Person[]>(initialRoster ?? []);
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -51,6 +54,17 @@ export default function VolunteerDashboard({
   }
 
   const trackInfo = assignedTrack ? disciplineByName(assignedTrack) : undefined;
+
+  const handleCheckInSuccess = (user: { id: string; name: string; checked_in_at?: string | null }) => {
+    setRoster((prev) =>
+      prev.map((p) => {
+        if (p.id === user.id || p.name.toLowerCase() === user.name.toLowerCase()) {
+          return { ...p, status: 'checkedIn' };
+        }
+        return p;
+      }),
+    );
+  };
 
   const toggleCheckIn = (personId: string) => {
     setRoster((prev) =>
@@ -124,14 +138,25 @@ export default function VolunteerDashboard({
         {/* Participant Management Tools */}
         <section className="glass rounded-2xl p-6 space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-emerald-mint" />
-              <h2 className="font-display text-lg font-semibold">
-                Participant Roster
-              </h2>
-              <span className="rounded-full bg-emerald/15 px-2.5 py-0.5 text-xs font-bold text-emerald-mint">
-                {totalCount} Total
-              </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-emerald-mint" />
+                <h2 className="font-display text-lg font-semibold">
+                  Participant Roster
+                </h2>
+                <span className="rounded-full bg-emerald/15 px-2.5 py-0.5 text-xs font-bold text-emerald-mint">
+                  {totalCount} Total
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-deep transition-all"
+              >
+                <QrCode className="h-4 w-4" />
+                <span>Scan QR Code</span>
+              </button>
             </div>
 
             {/* Filter Tabs & Search */}
@@ -290,6 +315,12 @@ export default function VolunteerDashboard({
           )}
         </section>
       </div>
+
+      <VolunteerQrScannerModal
+        open={isScannerOpen}
+        onOpenChange={setIsScannerOpen}
+        onCheckInSuccess={handleCheckInSuccess}
+      />
     </AppShell>
   );
 }

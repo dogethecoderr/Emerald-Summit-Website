@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gavel,
   BookUser,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +19,7 @@ import { signOut } from '../services/auth';
 import { roleByName, USER_ROLES } from '../models/roles';
 import { MOCK_ANNOUNCEMENTS } from '../models/announcements';
 import BrandMark from './BrandMark';
+import QrPassModal from './QrPassModal';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -105,6 +107,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
     ...otherItems.slice(0, 4),
     ...(settingsItem ? [settingsItem] : []),
   ];
+  const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
+  const [qrPassOpen, setQrPassOpen] = useState(false);
+
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -134,6 +139,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <SidebarLink key={item.to} {...item} />
           ))}
         </nav>
+
+        {isQrEligible && (
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={() => setQrPassOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-glow/40 bg-emerald/10 px-3.5 py-2.5 text-xs font-semibold text-emerald-mint hover:bg-emerald/20 transition-all shadow-sm"
+            >
+              <QrCode className="h-4 w-4 text-emerald shrink-0" />
+              <span>My QR Pass</span>
+            </button>
+          </div>
+        )}
 
         <div className="border-t border-border/70 p-3">
           <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
@@ -170,12 +188,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
           showSubtitle={false}
           gap="gap-2"
         />
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="h-3.5 w-3.5" /> Sign out
-        </button>
+        <div className="flex items-center gap-2">
+          {isQrEligible && (
+            <button
+              type="button"
+              onClick={() => setQrPassOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-glow/40 bg-emerald/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-mint hover:bg-emerald/25 transition-colors"
+            >
+              <QrCode className="h-3.5 w-3.5 text-emerald" />
+              <span>My QR Pass</span>
+            </button>
+          )}
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Sign out
+          </button>
+        </div>
       </div>
 
       {/* Mobile bottom nav — Settings last */}
@@ -200,6 +230,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <main className="min-w-0 flex-1 px-4 pb-24 pt-16 sm:px-6 lg:ml-60 lg:px-12 lg:pb-12 lg:pt-10">
         <div className="mx-auto max-w-[1400px]">{children}</div>
       </main>
+
+      {isQrEligible && (
+        <QrPassModal
+          open={qrPassOpen}
+          onOpenChange={setQrPassOpen}
+          profile={profile}
+        />
+      )}
     </div>
   );
 }
