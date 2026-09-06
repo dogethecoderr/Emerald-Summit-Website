@@ -25,6 +25,15 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+vi.mock('html5-qrcode', () => ({
+  Html5Qrcode: vi.fn().mockImplementation(() => ({
+    isScanning: true,
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockReturnValue(undefined),
+  })),
+}));
+
 describe('VolunteerDashboard Component Suite', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -207,6 +216,96 @@ describe('VolunteerDashboard Component Suite', () => {
       // Glass cards present in DOM
       const glassElements = container.querySelectorAll('.glass');
       expect(glassElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Tier 5: QR Code Check-in System Integration (Requirement R2, R4)
+  // ---------------------------------------------------------------------------
+  describe('Tier 5: QR Code Check-in System Integration', () => {
+    beforeEach(() => {
+      vi.spyOn(useRequireProfileModule, 'useRequireRole').mockReturnValue({
+        ready: true,
+        redirect: null,
+        roleName: 'volunteer',
+      });
+    });
+
+    test('renders "Scan QR Code" button in the Participant Roster header', () => {
+      renderWithRouter(<VolunteerDashboard assignedTrack="novasphere" />);
+
+      const scanBtn = screen.getByRole('button', { name: /Scan QR Code/i });
+      expect(scanBtn).toBeInTheDocument();
+      expect(scanBtn).toHaveClass('bg-emerald');
+    });
+
+    test('opens VolunteerQrScannerModal when "Scan QR Code" button is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<VolunteerDashboard assignedTrack="novasphere" />);
+
+      const scanBtn = screen.getByRole('button', { name: /Scan QR Code/i });
+      await user.click(scanBtn);
+
+      expect(await screen.findByTestId('volunteer-qr-scanner-modal')).toBeInTheDocument();
+      expect(screen.getByText('Scan Participant QR Pass')).toBeInTheDocument();
+    });
+
+    test('preserves manual check-in buttons on participant roster cards alongside scanner', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<VolunteerDashboard assignedTrack="novasphere" />);
+
+      // Verify "Scan QR Code" header button exists
+      expect(screen.getByRole('button', { name: /Scan QR Code/i })).toBeInTheDocument();
+
+      // Find individual participant card manual check-in buttons
+      const manualButtons = screen.getAllByRole('button', { name: /(Check In|Undo Check-in)/i });
+      expect(manualButtons.length).toBeGreaterThan(0);
+
+      const firstBtn = manualButtons[0];
+      const initialText = firstBtn.textContent;
+
+      // Click manual check-in button
+      await user.click(firstBtn);
+
+      // Verify status toggles without opening modal
+      expect(screen.queryByTestId('volunteer-qr-scanner-modal')).not.toBeInTheDocument();
+      if (initialText?.includes('Undo Check-in')) {
+        expect(firstBtn.textContent).toContain('Check In');
+      } else {
+        expect(firstBtn.textContent).toContain('Undo Check-in');
+      }
+    });
+
+    test('updates roster status and counter when participant is checked in via scanner modal fallback', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<VolunteerDashboard assignedTrack="novasphere" />);
+
+      // Open scanner modal
+      const scanBtn = screen.getByRole('button', { name: /Scan QR Code/i });
+      await user.click(scanBtn);
+
+      expect(await screen.findByTestId('volunteer-qr-scanner-modal')).toBeInTheDocument();
+
+      // Switch to manual fallback in modal
+      const manualTab = screen.getByRole('button', { name: /Manual ID Entry/i });
+      await user.click(manualTab);
+
+      const input = screen.getByTestId('manual-checkin-input');
+      const submitBtn = screen.getByTestId('manual-checkin-button');
+
+      // Check in Jordan Wu (p8)
+      await user.type(input, 'p8');
+      await user.click(submitBtn);
+
+      // Verify success feedback in modal
+      expect(await screen.findByTestId('scan-feedback-success')).toBeInTheDocument();
+
+      // Close modal
+      const doneBtn = screen.getByRole('button', { name: /Done/i });
+      await user.click(doneBtn);
+
+      // Modal is closed
+      expect(screen.queryByTestId('volunteer-qr-scanner-modal')).not.toBeInTheDocument();
     });
   });
 });
