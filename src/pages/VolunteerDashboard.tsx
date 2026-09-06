@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
+  Bot,
   CheckCircle2,
   Clock,
+  Dna,
+  Lightbulb,
+  MapPin,
+  Rocket,
   Search,
+  Sun,
+  Sunset,
+  TrendingUp,
   UserCheck,
   UserX,
   Users,
   AlertCircle,
   QrCode,
+  type LucideIcon,
 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
@@ -18,12 +27,56 @@ import { useRequireRole } from '../hooks/useRequireProfile';
 import { MOCK_PEOPLE, type Person } from '../models/people';
 import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import {
+  VOLUNTEER_TRACKS,
+  volunteerTrackById,
+  type VolunteerShift,
+  type VolunteerTrackId,
+} from '../models/volunteerSchedule';
 
 export interface VolunteerDashboardProps {
   assignedTrack?: string | null;
   participants?: Person[] | null;
 }
+
+const TRACK_ICONS: Record<VolunteerTrackId, LucideIcon> = {
+  techverse: Bot,
+  biosphere: Dna,
+  imaginex: Lightbulb,
+  novasphere: Rocket,
+  ventureverse: TrendingUp,
+};
+
+const SHIFT_OPTIONS: Array<{
+  id: VolunteerShift;
+  label: string;
+  time: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: 'morning',
+    label: 'Morning shift',
+    time: '7:30 AM – 11:30 AM',
+    description: 'Setup, check-in, opening activities, and the first sessions.',
+    icon: Sun,
+  },
+  {
+    id: 'afternoon',
+    label: 'Afternoon shift',
+    time: '11:30 AM – 3:00 PM',
+    description: 'Midday sessions, closing, cleanup, and guest support.',
+    icon: Sunset,
+  },
+];
 
 export default function VolunteerDashboard({
   assignedTrack = 'novasphere',
@@ -42,6 +95,11 @@ export default function VolunteerDashboard({
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isShiftDialogOpen, setIsShiftDialogOpen] = useState(false);
+  const [volunteerShift, setVolunteerShift] = useState<VolunteerShift | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<VolunteerTrackId>(
+    () => volunteerTrackById(assignedTrack)?.id ?? 'techverse',
+  );
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -54,6 +112,8 @@ export default function VolunteerDashboard({
   }
 
   const trackInfo = assignedTrack ? disciplineByName(assignedTrack) : undefined;
+  const selectedTrack = volunteerTrackById(selectedTrackId) ?? VOLUNTEER_TRACKS[0];
+  const selectedShift = SHIFT_OPTIONS.find((shift) => shift.id === volunteerShift);
 
   const handleCheckInSuccess = (user: { id: string; name: string; checked_in_at?: string | null }) => {
     setRoster((prev) =>
@@ -101,6 +161,124 @@ export default function VolunteerDashboard({
       />
 
       <div className="space-y-6">
+        {/* Color-coded volunteer schedule: swapping tracks stays on this page. */}
+        <section className="overflow-hidden rounded-2xl border border-emerald-glow/20 bg-gradient-to-br from-emerald-deep to-emerald p-6 text-white shadow-lg shadow-emerald/10">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/70">
+                Your Summit shift
+              </p>
+              <h2 className="mt-1 font-display text-2xl font-bold tracking-tight">
+                Find your verse. Make it happen.
+              </h2>
+              <p className="mt-1.5 max-w-xl text-sm text-white/80">
+                Preview every volunteer track without leaving the hub, then choose the time that works for you.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsShiftDialogOpen(true)}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-deep shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-emerald"
+            >
+              {selectedShift ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+              {selectedShift
+                ? `${selectedShift.label} · ${selectedShift.time}`
+                : 'Choose morning or afternoon'}
+            </button>
+          </div>
+        </section>
+
+        <section className="glass rounded-2xl p-4 sm:p-6" aria-label="Volunteer track schedule">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-display text-xl font-bold tracking-tight">Explore a track</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select a color to switch the schedule here in the Volunteer Hub.
+              </p>
+            </div>
+            {assignedTrack && (
+              <p className="text-xs text-muted-foreground">
+                Your assigned roster remains in <span className="font-semibold text-foreground">{trackInfo?.label ?? assignedTrack}</span>.
+              </p>
+            )}
+          </div>
+
+          <div
+            className="mt-5 flex gap-2 overflow-x-auto pb-2 scrollbar-none"
+            role="tablist"
+            aria-label="Volunteer tracks"
+          >
+            {VOLUNTEER_TRACKS.map((track) => {
+              const Icon = TRACK_ICONS[track.id];
+              const isSelected = track.id === selectedTrack.id;
+              return (
+                <button
+                  key={track.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-label={`${track.label} schedule`}
+                  onClick={() => setSelectedTrackId(track.id)}
+                  className={cn(
+                    'min-w-[126px] rounded-xl border px-3 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-glow focus:ring-offset-2',
+                    isSelected ? 'shadow-md' : 'opacity-70 hover:opacity-100',
+                  )}
+                  style={{
+                    backgroundColor: track.color,
+                    borderColor: isSelected ? '#0A5F43' : track.color,
+                    color: '#16211C',
+                  }}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="mt-2 block text-xs font-extrabold">{track.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-border/70 bg-background/50 p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-3 w-3 rounded-full ring-2 ring-background"
+                    style={{ backgroundColor: selectedTrack.color }}
+                    aria-hidden
+                  />
+                  <h3 className="font-display text-lg font-bold">{selectedTrack.label} schedule</h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{selectedTrack.tagline}</p>
+              </div>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-bold text-secondary-foreground">
+                {selectedTrack.schedule.length} volunteer touchpoints
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {selectedTrack.schedule.map((item) => (
+                <article
+                  key={`${selectedTrack.id}-${item.title}-${item.time}`}
+                  className="rounded-lg border border-border/70 bg-card p-3.5"
+                  style={{ borderLeftWidth: 4, borderLeftColor: selectedTrack.color }}
+                >
+                  <div className="flex items-start gap-3">
+                    <time className="w-[78px] shrink-0 text-xs font-extrabold leading-5 text-foreground">
+                      {item.time}
+                    </time>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-foreground">{item.title}</h4>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        {item.location} · {item.assignment}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Track Banner */}
         <section className="glass rounded-2xl p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -321,6 +499,47 @@ export default function VolunteerDashboard({
         onOpenChange={setIsScannerOpen}
         onCheckInSuccess={handleCheckInSuccess}
       />
+
+      <Dialog open={isShiftDialogOpen} onOpenChange={setIsShiftDialogOpen}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl font-bold">Choose your volunteer shift</DialogTitle>
+            <DialogDescription>
+              Pick the time that works best for you. You can update this choice before the Summit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 pt-2">
+            {SHIFT_OPTIONS.map((shift) => {
+              const Icon = shift.icon;
+              const isSelected = volunteerShift === shift.id;
+              return (
+                <button
+                  key={shift.id}
+                  type="button"
+                  onClick={() => {
+                    setVolunteerShift(shift.id);
+                    setIsShiftDialogOpen(false);
+                  }}
+                  className={cn(
+                    'flex items-start gap-3 rounded-xl border p-4 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-glow',
+                    isSelected
+                      ? 'border-emerald bg-emerald/10'
+                      : 'border-border hover:border-emerald-glow/60 hover:bg-secondary/50',
+                  )}
+                >
+                  <Icon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-deep" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-foreground">{shift.label}</span>
+                    <span className="mt-0.5 block text-xs font-semibold text-emerald-deep">{shift.time}</span>
+                    <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">{shift.description}</span>
+                  </span>
+                  {isSelected && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald" />}
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

@@ -62,7 +62,7 @@ describe('VolunteerDashboard Component Suite', () => {
       expect(screen.getByText('Volunteer Dashboard')).toBeInTheDocument();
       expect(screen.getByText('Volunteer Hub & Track Management')).toBeInTheDocument();
       expect(screen.getByText('Assigned Track')).toBeInTheDocument();
-      expect(screen.getByText('NovaSphere')).toBeInTheDocument();
+      expect(screen.getByText('Assigned Track').parentElement).toHaveTextContent('NovaSphere');
 
       // Verify Participant Roster header
       expect(screen.getByText('Participant Roster')).toBeInTheDocument();
@@ -91,6 +91,21 @@ describe('VolunteerDashboard Component Suite', () => {
       } else {
         expect(firstBtn.textContent).toContain('Undo Check-in');
       }
+    });
+
+    test('switches the color-coded track schedule and selects a volunteer shift', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<VolunteerDashboard assignedTrack="novasphere" />);
+
+      expect(screen.getByRole('tab', { name: 'TechVerse schedule' })).toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: 'BioSphere schedule' }));
+      expect(screen.getByText('Psychology Exhibit')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Choose morning or afternoon' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /Morning shift/i }));
+
+      expect(screen.getByRole('button', { name: /Morning shift · 7:30 AM/i })).toBeInTheDocument();
     });
 
     test('filters participant list when status tab is selected', async () => {
