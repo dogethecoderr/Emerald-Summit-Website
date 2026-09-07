@@ -17,7 +17,6 @@ const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const DirectoryPage = lazy(() => import('./pages/DirectoryPage'));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
-const JudgingPage = lazy(() => import('./pages/JudgingPage'));
 const VolunteerDashboard = lazy(() => import('./pages/VolunteerDashboard'));
 
 export default function App() {
@@ -38,7 +37,7 @@ export default function App() {
           <Route path="/settings/:section" element={<SettingsPage />} />
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/judging" element={<JudgingPage />} />
+          <Route path="/judging" element={<Navigate to="/schedule" replace />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -17,6 +17,7 @@ import PageHeader from '../components/PageHeader';
 import CapacityBar from '../components/CapacityBar';
 import TrackPill from '../components/TrackPill';
 import { useRequireRole } from '../hooks/useRequireProfile';
+import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import {
@@ -36,9 +37,22 @@ function filterLabel(name: string): string {
 }
 
 export default function SchedulePage() {
-  const { ready, redirect } = useRequireRole(['participant']);
-  const { mySchedule, setMySchedule, spectating, setSpectating } =
-    useSchedule();
+  const { ready, redirect } = useRequireRole(['participant', 'expert']);
+  const { profile } = useAuth();
+  const roleName = profile?.role ?? 'participant';
+  const isExpert = roleName === 'expert';
+  const canSeeExpertCapacity = roleName === 'expert' || roleName === 'volunteer';
+  const {
+    mySchedule,
+    setMySchedule,
+    expertSchedule,
+    setExpertSchedule,
+    spectating,
+    setSpectating,
+    sessionCounts,
+    updateSessionCount,
+  } = useSchedule();
+  const activeSchedule = isExpert ? expertSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
 
   if (redirect) return <Navigate to={redirect} replace />;
@@ -53,7 +67,7 @@ export default function SchedulePage() {
 
   const getConflict = (session: Session): Session | null => {
     const competing = MOCK_SESSIONS.find(
-      (s) => mySchedule.includes(s.id) && s.time === session.time,
+      (s) => activeSchedule.includes(s.id) && s.time === session.time,
     );
     return competing ?? null;
   };
@@ -63,7 +77,7 @@ export default function SchedulePage() {
     if (prevSlotIdx < 0) return null;
     const prevSlot = TIME_SLOTS[prevSlotIdx];
     const prevSession = MOCK_SESSIONS.find(
-      (s) => mySchedule.includes(s.id) && s.time === prevSlot,
+      (s) => activeSchedule.includes(s.id) && s.time === prevSlot,
     );
     if (!prevSession) return null;
     const mins = WALKING_TIME[prevSession.room]?.[session.room];
@@ -71,21 +85,33 @@ export default function SchedulePage() {
   };
 
   const toggle = (id: string) => {
-    setMySchedule(
-      mySchedule.includes(id)
-        ? mySchedule.filter((x) => x !== id)
-        : [...mySchedule, id],
-    );
+    const isRemoving = activeSchedule.includes(id);
+    if (isExpert) {
+      setExpertSchedule(
+        isRemoving
+          ? expertSchedule.filter((x) => x !== id)
+          : [...expertSchedule, id],
+      );
+    } else {
+      setMySchedule(
+        mySchedule.includes(id)
+          ? mySchedule.filter((x) => x !== id)
+          : [...mySchedule, id],
+      );
+    }
+    updateSessionCount(id, isExpert ? 'expertsEnrolled' : 'enrolled', isRemoving ? -1 : 1);
     setSpectating(spectating.filter((x) => x !== id));
   };
 
   const toggleSpectate = (id: string) => {
+    const isRemoving = spectating.includes(id);
     setSpectating(
-      spectating.includes(id)
+      isRemoving
         ? spectating.filter((x) => x !== id)
         : [...spectating, id],
     );
     setMySchedule(mySchedule.filter((x) => x !== id));
+    updateSessionCount(id, 'spectators', isRemoving ? -1 : 1);
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -96,10 +122,12 @@ export default function SchedulePage() {
       const session = MOCK_SESSIONS.find((s) => s.id === sessionId);
       if (!session) return;
       
-      const isAdded = mySchedule.includes(session.id);
+      const isAdded = activeSchedule.includes(session.id);
       const isSpec = spectating.includes(session.id);
       const conflict = !isAdded && getConflict(session);
-      const full = session.enrolled >= session.capacity;
+      const full = isExpert
+        ? session.expertsEnrolled >= session.expertCapacity
+        : session.enrolled >= session.capacity;
       
       if (!isAdded && !isSpec && !full && !conflict) {
         toggle(session.id);
@@ -108,7 +136,7 @@ export default function SchedulePage() {
   };
 
   const added = MOCK_SESSIONS.filter(
-    (s) => mySchedule.includes(s.id) || spectating.includes(s.id),
+    (s) => activeSchedule.includes(s.id) || spectating.includes(s.id),
   ).sort((a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time));
 
   const filteredSessions =
@@ -122,8 +150,12 @@ export default function SchedulePage() {
     <AppShell>
       <PageHeader
         label="Emerald High School · Dublin, CA"
-        title="Build Your Schedule"
-        sub="Add sessions to your agenda. The builder prevents time conflicts, flags near-full tracks, and warns about long walks between rooms. Drag and drop a session to your schedule!"
+        title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
+        sub={
+          isExpert
+            ? 'Sign up for sessions independently of participant capacity. Expert spots are limited per session.'
+            : 'Add sessions to your agenda. The builder prevents time conflicts, flags near-full tracks, and warns about long walks between rooms. Drag and drop a session to your schedule!'
+        }
       />
 
       {/* discipline filters */}
@@ -178,15 +210,19 @@ export default function SchedulePage() {
                       </div>
                       <div className="space-y-3">
                         {slotSessions.map((s) => {
+                          const counts = sessionCounts[s.id] ?? s;
                           const globalIndex = filteredSessions.indexOf(s);
-                          const isAdded = mySchedule.includes(s.id);
+                          const isAdded = activeSchedule.includes(s.id);
                           const isSpectating = spectating.includes(s.id);
                           const conflict = !isAdded && getConflict(s);
                           const walkWarn = getWalkWarning(s);
-                          const full = s.enrolled >= s.capacity;
-                          const spectatorFull = s.spectators >= s.spectatorCap;
-                          const near = !full && s.enrolled / s.capacity >= 0.8;
-                          const isDragDisabled = isAdded || isSpectating || full || !!conflict;
+                          const full = counts.enrolled >= s.capacity;
+                          const expertFull = counts.expertsEnrolled >= s.expertCapacity;
+                          const spectatorFull = counts.spectators >= s.spectatorCap;
+                          const near = !full && counts.enrolled / s.capacity >= 0.8;
+                          const capacityFull = isExpert ? expertFull : full;
+                          const isDragDisabled =
+                            isAdded || isSpectating || capacityFull || !!conflict;
 
                           return (
                             <Draggable
@@ -243,6 +279,11 @@ export default function SchedulePage() {
                                             Full
                                           </span>
                                         )}
+                                        {isExpert && expertFull && (
+                                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                                            Expert spots full
+                                          </span>
+                                        )}
                                         {near && (
                                           <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
                                             Nearly full
@@ -262,13 +303,20 @@ export default function SchedulePage() {
                                         <MapPin className="h-3 w-3" /> {s.location}
                                       </div>
                                       <CapacityBar
-                                        enrolled={s.enrolled}
+                                        enrolled={counts.enrolled}
                                         capacity={s.capacity}
                                         label="Competitor seats"
                                       />
+                                      {canSeeExpertCapacity && (
+                                        <CapacityBar
+                                          enrolled={counts.expertsEnrolled}
+                                          capacity={s.expertCapacity}
+                                          label="Expert spots"
+                                        />
+                                      )}
                                       {s.spectatorCap > 0 && (
                                         <CapacityBar
-                                          enrolled={s.spectators}
+                                          enrolled={counts.spectators}
                                           capacity={s.spectatorCap}
                                           label="Spectator seats"
                                         />
@@ -278,15 +326,19 @@ export default function SchedulePage() {
                                     <div className="flex shrink-0 flex-col gap-2">
                                       <button
                                         onClick={() => toggle(s.id)}
-                                        disabled={!isAdded && (full || !!conflict)}
+                                        disabled={!isAdded && (capacityFull || !!conflict)}
                                         title={
                                           isAdded
                                             ? 'Remove'
-                                            : full
-                                              ? 'Session full'
+                                            : capacityFull
+                                              ? isExpert
+                                                ? 'Expert spots full'
+                                                : 'Session full'
                                               : conflict
                                                 ? 'Time conflict'
-                                                : 'Add as competitor'
+                                                : isExpert
+                                                  ? 'Sign up as expert'
+                                                  : 'Add as competitor'
                                         }
                                         className={cn(
                                           'flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-35',
@@ -354,7 +406,7 @@ export default function SchedulePage() {
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-mint/80">
-                      My Schedule
+                      {isExpert ? 'Expert Signups' : 'My Schedule'}
                     </div>
                     <div className="font-display text-lg font-semibold">
                       {added.length} session{added.length !== 1 ? 's' : ''}
@@ -366,8 +418,8 @@ export default function SchedulePage() {
                   <div className="flex flex-col items-center gap-2 py-10 text-center">
                     <CalendarDays className="h-8 w-8 text-muted-foreground/60" />
                     <div className="text-sm font-medium">No sessions added yet.</div>
-                    <div className="text-xs text-muted-foreground">
-                      Drag sessions here or use + to compete.
+                      <div className="text-xs text-muted-foreground">
+                      Drag sessions here or use {isExpert ? 'the award button to sign up as an expert.' : '+ to compete.'}
                     </div>
                   </div>
                 ) : (

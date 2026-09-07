@@ -8,7 +8,6 @@ import {
   Megaphone,
   LogOut,
   FolderOpen,
-  Gavel,
   QrCode,
   type LucideIcon,
 } from 'lucide-react';
@@ -35,9 +34,8 @@ const NAV_ITEMS: NavItem[] = [
     to: '/schedule',
     label: 'Schedule',
     icon: CalendarDays,
-    roles: ['participant'],
+    roles: ['participant', 'expert'],
   },
-  { to: '/judging', label: 'Judging', icon: Gavel, roles: ['expert'] },
   { to: '/volunteer', label: 'Volunteer Hub', icon: Users, roles: ['volunteer'] },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/directory', label: 'Directory', icon: Users },
@@ -50,7 +48,8 @@ export function navItemsForRole(roleName: string): NavItem[] {
 }
 
 function NavBadge({ to }: { to: string }) {
-  const { mySchedule, spectating } = useSchedule();
+  const { profile } = useAuth();
+  const { mySchedule, expertSchedule, spectating } = useSchedule();
   if (to === '/announcements') {
     const pinned = MOCK_ANNOUNCEMENTS.filter((a) => a.pinned).length;
     if (pinned === 0) return null;
@@ -61,7 +60,11 @@ function NavBadge({ to }: { to: string }) {
     );
   }
   if (to === '/schedule') {
-    const count = mySchedule.length + spectating.length;
+    const scheduleCount =
+      profile?.role === 'expert'
+        ? (expertSchedule?.length ?? 0)
+        : mySchedule.length;
+    const count = scheduleCount + spectating.length;
     if (count === 0) return null;
     return (
       <span className="ml-auto rounded-full border border-emerald-glow/50 px-1.5 py-0.5 text-[10px] font-bold leading-none text-emerald-mint">
