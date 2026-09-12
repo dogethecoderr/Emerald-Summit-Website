@@ -40,6 +40,17 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
 
 const PENDING_ROLE_KEY = 'pending_user_role';
 
+/** Every real-auth path needs a configured client; bypass never does. */
+function requireSupabase() {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Set VITE_SUPABASE_URL and ' +
+        'VITE_SUPABASE_ANON_KEY, or use bypass sign-in.',
+    );
+  }
+  return supabase;
+}
+
 export function savePendingRole(roleName: string): void {
   localStorage.setItem(PENDING_ROLE_KEY, roleName);
 }
@@ -56,7 +67,7 @@ export function takePendingRole(): string | null {
  * If the row doesn't exist yet, it creates it using the pending role if available.
  */
 export async function getCurrentProfile(user: User): Promise<Profile | null> {
-  let { data, error } = await supabase
+  let { data, error } = await requireSupabase()
     .from('users')
     .select('*')
     .eq('id', user.id)
@@ -72,7 +83,7 @@ export async function getCurrentProfile(user: User): Promise<Profile | null> {
       role: pendingRole,
       profile_setup_complete: false,
     };
-    const { data: inserted, error: insertError } = await supabase
+    const { data: inserted, error: insertError } = await requireSupabase()
       .from('users')
       .insert(newProfile)
       .select('*')
@@ -91,7 +102,7 @@ export async function getCurrentProfile(user: User): Promise<Profile | null> {
   // If they have a pending role, and they are not fully set up, we could update their role.
   const pendingRole = takePendingRole();
   if (pendingRole && data && !data.profile_setup_complete && data.role !== pendingRole) {
-    const { data: updated, error: updateError } = await supabase
+    const { data: updated, error: updateError } = await requireSupabase()
       .from('users')
       .update({ role: pendingRole })
       .eq('id', user.id)
@@ -146,7 +157,7 @@ export function clearBypass(): void {
 
 export async function signInWithGoogle(roleName: string): Promise<void> {
   savePendingRole(roleName);
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error } = await requireSupabase().auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: window.location.origin + '/home',
@@ -174,7 +185,7 @@ export interface SaveProfileInput {
 }
 
 export async function saveProfile(input: SaveProfileInput): Promise<void> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await requireSupabase().auth.getSession();
   if (!session) throw new Error('Not signed in.');
 
   const updatePayload: any = {
@@ -186,7 +197,7 @@ export async function saveProfile(input: SaveProfileInput): Promise<void> {
   if (input.discipline) updatePayload.discipline = input.discipline;
   if (input.bio) updatePayload.bio = input.bio;
 
-  const { error } = await supabase
+  const { error } = await requireSupabase()
     .from('users')
     .update(updatePayload)
     .eq('id', session.user.id);
@@ -202,7 +213,7 @@ export function needsProfileSetup(profile: Profile | null): boolean {
 export async function updateProfileSettings(
   input: Partial<SaveProfileInput>,
 ): Promise<void> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await requireSupabase().auth.getSession();
   if (!session) throw new Error('Not signed in.');
   
   const payload: any = {};
@@ -211,7 +222,7 @@ export async function updateProfileSettings(
   if (input.discipline !== undefined) payload.discipline = input.discipline;
   if (input.bio !== undefined) payload.bio = input.bio;
 
-  const { error } = await supabase
+  const { error } = await requireSupabase()
     .from('users')
     .update(payload)
     .eq('id', session.user.id);
@@ -220,7 +231,8 @@ export async function updateProfileSettings(
 }
 
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+  // Optional: with no client configured there is nothing but bypass to clear.
+  await supabase?.auth.signOut();
   clearBypass();
   localStorage.removeItem(PENDING_ROLE_KEY);
 }

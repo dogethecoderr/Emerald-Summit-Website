@@ -68,6 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      // With no configured client there is no real session to restore — the
+      // app runs bypass-only, and the loading state must still resolve.
+      if (!supabase) {
+        setSession(null);
+        setProfile(null);
+        setLoadingProfile(false);
+        return;
+      }
+
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (mounted) {
           if (getBypassSession()) return; // Avoid race condition if bypass was set
@@ -79,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     sync();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const subscription = supabase?.auth.onAuthStateChange(
       (_event, newSession) => {
         if (mounted) {
           if (getBypassSession()) return;
@@ -87,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           refreshProfile(newSession);
         }
       }
-    );
+    ).data.subscription;
 
     const handleStorage = () => {
       sync();
@@ -96,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
       window.removeEventListener('storage', handleStorage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
