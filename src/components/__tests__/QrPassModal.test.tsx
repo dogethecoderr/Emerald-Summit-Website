@@ -13,6 +13,21 @@ vi.mock('../../context/ScheduleContext', () => ({
     spectating: [],
   }),
 }));
+vi.mock('../../context/AnnouncementsContext', () => ({
+  useAnnouncements: () => ({
+    announcements: [],
+    loading: false,
+    error: null,
+    canManage: false,
+    live: false,
+    configured: false,
+    refresh: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    togglePinned: vi.fn(),
+  }),
+}));
 
 describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
   beforeEach(() => {

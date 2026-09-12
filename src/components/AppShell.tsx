@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
+import { useAnnouncements } from '../context/AnnouncementsContext';
 import { signOut } from '../services/auth';
 import { roleByName, USER_ROLES } from '../models/roles';
-import { MOCK_ANNOUNCEMENTS } from '../models/announcements';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
 import { cn } from '@/lib/utils';
@@ -50,8 +50,9 @@ export function navItemsForRole(roleName: string): NavItem[] {
 function NavBadge({ to }: { to: string }) {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
+  const { announcements } = useAnnouncements();
   if (to === '/announcements') {
-    const pinned = MOCK_ANNOUNCEMENTS.filter((a) => a.pinned).length;
+    const pinned = announcements.filter((a) => a.pinned).length;
     if (pinned === 0) return null;
     return (
       <span className="ml-auto rounded-full bg-emerald px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">

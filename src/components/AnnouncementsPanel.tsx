@@ -1,30 +1,25 @@
 import { useMemo, useState } from 'react';
 import {
   Pin,
+  PinOff,
   Bell,
   Search,
   ChevronRight,
-  FileText,
   Link2,
-  Play,
-  BookOpen,
   Download,
-  type LucideIcon,
+  Pencil,
+  Trash2,
+  Plus,
 } from 'lucide-react';
 import type {
   Announcement,
   AnnouncementAttachment,
   AnnouncementCategory,
-  AttachmentType,
 } from '../models/announcements';
+import { formatBytes, INLINE_ATTACHMENT_TYPES } from '../models/announcements';
+import { ATTACHMENT_ICON, AttachmentBlock } from './AttachmentPreview';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
-const ATTACHMENT_ICON: Record<AttachmentType, LucideIcon> = {
-  PDF: FileText,
-  Link: Link2,
-  Video: Play,
-  Form: BookOpen,
-};
 
 const CATEGORY_STYLE: Record<AnnouncementCategory, string> = {
   Urgent: 'bg-red-500/15 text-red-400 ring-red-500/30',
@@ -37,12 +32,28 @@ const CATEGORIES = ['All', 'Logistics', 'General', 'Urgent', 'Workshop'] as cons
 
 const COMPACT_COUNT = 3;
 
+/** Admin-only controls; omitted entirely for every other role. */
+export interface AnnouncementAdminProps {
+  canManage?: boolean;
+  onCompose?: () => void;
+  onEdit?: (announcement: Announcement) => void;
+  onDelete?: (announcement: Announcement) => void;
+  onTogglePin?: (announcement: Announcement) => void;
+}
+
 function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
   const Icon = ATTACHMENT_ICON[attachment.type];
-  const isOpen = attachment.type === 'Link' || attachment.type === 'Video';
+  const isOpen = attachment.type === 'Link' || attachment.type === 'Form';
+  const size = formatBytes(attachment.bytes) ?? attachment.size;
 
   return (
-    <button className="group flex w-full items-center gap-3 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2.5 text-left transition-colors hover:border-emerald-glow/40 hover:bg-accent/50">
+    <a
+      href={attachment.url ?? '#'}
+      target="_blank"
+      rel="noreferrer"
+      {...(isOpen ? {} : { download: attachment.title })}
+      className="group flex w-full items-center gap-3 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2.5 text-left transition-colors hover:border-emerald-glow/40 hover:bg-accent/50"
+    >
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald/15 text-emerald-mint">
         <Icon className="h-4 w-4" />
       </span>
@@ -52,22 +63,33 @@ function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
         </span>
         <span className="block text-[11px] text-muted-foreground">
           {attachment.type}
-          {attachment.size ? ` · ${attachment.size}` : ''}
+          {size ? ` · ${size}` : ''}
         </span>
       </span>
       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-mint opacity-70 transition-opacity group-hover:opacity-100">
         {isOpen ? <Link2 className="h-3 w-3" /> : <Download className="h-3 w-3" />}
         {isOpen ? 'Open' : 'Get'}
       </span>
-    </button>
+    </a>
   );
 }
 
 export function AnnouncementItem({
   announcement,
+  canManage = false,
+  onEdit,
+  onDelete,
+  onTogglePin,
 }: {
   announcement: Announcement;
-}) {
+} & AnnouncementAdminProps) {
+  const attachments = announcement.attachments ?? [];
+  // Media plays in the body of the post; documents and links stay as rows.
+  const inline = attachments.filter(
+    (a) => INLINE_ATTACHMENT_TYPES.includes(a.type) && a.url,
+  );
+  const listed = attachments.filter((a) => !inline.includes(a));
+
   return (
     <article className="border-b border-border/60 py-4 first:pt-0 last:border-0 last:pb-0">
       <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
@@ -90,17 +112,64 @@ export function AnnouncementItem({
       <h3 className="text-[15px] font-semibold leading-snug">
         {announcement.title}
       </h3>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
         {announcement.body}
       </p>
       <div className="mt-1.5 text-[11px] text-muted-foreground/80">
         Posted by {announcement.author}
+        {announcement.updatedAt &&
+          announcement.createdAt &&
+          announcement.updatedAt !== announcement.createdAt &&
+          ' · edited'}
       </div>
-      {announcement.attachments && announcement.attachments.length > 0 && (
+
+      {inline.length > 0 && (
         <div className="mt-3 space-y-2">
-          {announcement.attachments.map((a) => (
-            <AttachmentRow key={a.title} attachment={a} />
+          {inline.map((a) => (
+            <AttachmentBlock key={a.id} attachment={a} />
           ))}
+        </div>
+      )}
+
+      {listed.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {listed.map((a) => (
+            <AttachmentRow key={a.id} attachment={a} />
+          ))}
+        </div>
+      )}
+
+      {canManage && (
+        <div className="mt-3 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onEdit?.(announcement)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onTogglePin?.(announcement)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            {announcement.pinned ? (
+              <>
+                <PinOff className="h-3 w-3" /> Unpin
+              </>
+            ) : (
+              <>
+                <Pin className="h-3 w-3" /> Pin
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete?.(announcement)}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" /> Delete
+          </button>
         </div>
       )}
     </article>
@@ -111,13 +180,18 @@ export default function AnnouncementsPanel({
   announcements,
   variant = 'full',
   onViewAll,
+  canManage = false,
+  onCompose,
+  onEdit,
+  onDelete,
+  onTogglePin,
 }: {
   announcements: Announcement[];
   /** 'compact' = top-3 preview with a "View all" link (Dashboard use).
    *  'full' = the complete searchable/filterable list (Announcements tab). */
   variant?: 'compact' | 'full';
   onViewAll?: () => void;
-}) {
+} & AnnouncementAdminProps) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All');
 
@@ -149,13 +223,20 @@ export default function AnnouncementsPanel({
 
   return (
     <section className="glass rounded-2xl p-5">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="font-display text-base font-semibold">Announcements</h2>
-        {pinnedCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald/15 px-2 py-1 text-[11px] font-semibold text-emerald-mint">
-            <Bell className="h-3 w-3" /> {pinnedCount} pinned
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {pinnedCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald/15 px-2 py-1 text-[11px] font-semibold text-emerald-mint">
+              <Bell className="h-3 w-3" /> {pinnedCount} pinned
+            </span>
+          )}
+          {canManage && onCompose && (
+            <Button size="sm" className="h-8" onClick={onCompose}>
+              <Plus className="h-3.5 w-3.5" /> New
+            </Button>
+          )}
+        </div>
       </div>
 
       {isFull && (
@@ -191,7 +272,14 @@ export default function AnnouncementsPanel({
 
       <div>
         {visible.map((a) => (
-          <AnnouncementItem key={a.id} announcement={a} />
+          <AnnouncementItem
+            key={a.id}
+            announcement={a}
+            canManage={canManage}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onTogglePin={onTogglePin}
+          />
         ))}
         {isFull && filtered.length === 0 && (
           <div className="py-10 text-center text-sm text-muted-foreground">

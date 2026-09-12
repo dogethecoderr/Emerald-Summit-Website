@@ -7,15 +7,16 @@ import {
   Eye,
   Gavel,
   BookUser,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES } from '../models/roles';
 import { MOCK_SESSIONS, TIME_SLOTS } from '../models/sessions';
-import { MOCK_ANNOUNCEMENTS } from '../models/announcements';
 import type { PersonStatus } from '../models/personStatus';
 import { needsProfileSetup, profileToPerson } from '../services/auth';
 import { useSchedule } from '../context/ScheduleContext';
+import { useAnnouncements } from '../context/AnnouncementsContext';
 import BrandMark from '../components/BrandMark';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
@@ -59,6 +60,14 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
       label: 'Open Volunteer Hub',
       sub: 'Track roster, check-ins, and attendee support',
       icon: BookUser,
+    },
+  ],
+  admin: [
+    {
+      to: '/announcements',
+      label: 'Post an announcement',
+      sub: 'Share news, files, and media with every profile',
+      icon: Megaphone,
     },
   ],
 };
@@ -140,6 +149,7 @@ export default function HomePage() {
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { mySchedule, spectating } = useSchedule();
+  const { announcements, canManage } = useAnnouncements();
 
   const isSignedIn = session != null;
 
@@ -255,9 +265,11 @@ export default function HomePage() {
             />
           )}
           <AnnouncementsPanel
-            announcements={MOCK_ANNOUNCEMENTS}
+            announcements={announcements}
             variant="compact"
             onViewAll={() => navigate('/announcements')}
+            canManage={canManage}
+            onCompose={() => navigate('/announcements')}
           />
         </div>
       </div>

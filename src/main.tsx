@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { ScheduleProvider } from './context/ScheduleContext';
+import { AnnouncementsProvider } from './context/AnnouncementsContext';
 import { Toaster } from '@/components/ui/sonner';
 import App from './App';
 
@@ -15,8 +16,10 @@ createRoot(document.getElementById('root')!).render(
     >
       <AuthProvider>
         <ScheduleProvider>
-          <App />
-          <Toaster position="bottom-center" />
+          <AnnouncementsProvider>
+            <App />
+            <Toaster position="bottom-center" />
+          </AnnouncementsProvider>
         </ScheduleProvider>
       </AuthProvider>
     </BrowserRouter>

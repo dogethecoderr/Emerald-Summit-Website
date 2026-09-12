@@ -47,7 +47,7 @@ export const USER_ROLES: RoleInfo[] = [
     name: 'admin',
     label: 'Admin',
     description:
-      'Check in attendees, manage people, and broadcast announcements.',
+      'Post and edit announcements, share files, and broadcast Summit news.',
     icon: ShieldCheck, // admin_panel_settings_outlined
     color: '#0C7A55',
   },
@@ -69,12 +69,12 @@ export const USER_ROLES: RoleInfo[] = [
 ];
 
 /**
- * Roles that can sign in to the app. Ambassadors and admins are coordinated
- * offline and don't use the app; they stay in USER_ROLES so directory
- * listings still label those people correctly.
+ * Roles that can sign in to the app. Ambassadors are still coordinated
+ * offline; they stay in USER_ROLES so directory listings label those people
+ * correctly. Admins sign in because they author announcements in-app.
  */
 export const SIGN_IN_ROLES: RoleInfo[] = USER_ROLES.filter(
-  (r) => r.name !== 'ambassador' && r.name !== 'admin',
+  (r) => r.name !== 'ambassador',
 );
 
 export function roleByName(name: string | undefined): RoleInfo | undefined {
