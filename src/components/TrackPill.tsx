@@ -10,7 +10,15 @@ export default function TrackPill({ track }: { track: string }) {
     );
   }
   const discipline = disciplineByName(track);
-  if (!discipline) return null;
+  const label = discipline?.label
+    ?? track.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (!discipline) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-foreground ring-1 ring-border">
+        {label}
+      </span>
+    );
+  }
   return (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1"
@@ -21,7 +29,7 @@ export default function TrackPill({ track }: { track: string }) {
         boxShadow: `inset 0 0 0 1px ${discipline.color}55`,
       }}
     >
-      {discipline.label}
+      {label}
     </span>
   );
 }

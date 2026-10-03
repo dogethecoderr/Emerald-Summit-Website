@@ -13,6 +13,7 @@ import {
   type Profile,
 } from '../services/auth';
 import type { Session } from '@supabase/supabase-js';
+import { getDemoPeople, subscribeOfflineDemo } from '../services/offlineDemo';
 
 interface AuthContextValue {
   session: Session | null;
@@ -109,6 +110,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', handleStorage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!supabase || !userId || typeof supabase.channel !== 'function') return;
+
+    const client = supabase;
+    const channel = client
+      .channel(`profile-checkin-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${userId}` },
+        ({ new: updated }) => {
+          setProfile((current) => current
+            ? {
+                ...current,
+                checked_in_at: updated.checked_in_at,
+                discipline: updated.discipline,
+                is_front_desk: updated.is_front_desk,
+                is_volunteer: updated.is_volunteer,
+              }
+            : current);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    if (supabase) return;
+    return subscribeOfflineDemo(() => {
+      const activeProfile = getBypassProfile();
+      if (!activeProfile) return;
+      const person = getDemoPeople().find((candidate) => candidate.id === activeProfile.id);
+      if (!person) return;
+      setProfile((current) => current?.id === person.id
+        ? {
+            ...current,
+            name: person.name,
+            role: person.role,
+            discipline: person.discipline ?? null,
+            is_volunteer: person.is_volunteer ?? person.role === 'volunteer',
+            is_front_desk: person.is_front_desk ?? false,
+            checked_in_at: person.checked_in_at ?? undefined,
+          }
+        : current);
+    });
   }, []);
 
   return (

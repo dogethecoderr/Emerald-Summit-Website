@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { Person, Visibility } from '../models/people';
 import type { PersonStatus } from '../models/personStatus';
 import type { User } from '@supabase/supabase-js';
+import { saveDemoProfile } from './offlineDemo';
 
 export type Profile = {
   id: string;
@@ -10,6 +11,8 @@ export type Profile = {
   role?: string;
   phone?: string;
   discipline?: string | null;
+  is_front_desk?: boolean;
+  is_volunteer?: boolean;
   bio?: string;
   profile_setup_complete: boolean;
   org?: string;
@@ -176,6 +179,7 @@ export interface SaveProfileInput {
   name: string;
   phone?: string;
   discipline?: string | null;
+  disciplines?: string[];
   bio?: string;
   org?: string;
   directoryVisible?: boolean;
@@ -185,6 +189,34 @@ export interface SaveProfileInput {
 }
 
 export async function saveProfile(input: SaveProfileInput): Promise<void> {
+  if (!supabase) {
+    const profile = getBypassProfile();
+    if (!profile) throw new Error('Not signed in.');
+    const updatedProfile: Profile = {
+      ...profile,
+      name: input.name,
+      phone: input.phone ?? profile.phone,
+      discipline: input.discipline !== undefined ? input.discipline : profile.discipline,
+      bio: input.bio ?? profile.bio,
+      profile_setup_complete: true,
+    };
+    saveDemoProfile({
+      id: updatedProfile.id,
+      email: updatedProfile.email,
+      role: updatedProfile.role,
+      name: input.name,
+      phone: updatedProfile.phone,
+      discipline: updatedProfile.discipline,
+      disciplines: input.disciplines,
+      bio: updatedProfile.bio,
+      is_volunteer: updatedProfile.is_volunteer,
+      is_front_desk: updatedProfile.is_front_desk,
+    });
+    localStorage.setItem('bypass_profile', JSON.stringify(updatedProfile));
+    window.dispatchEvent(new Event('storage'));
+    return;
+  }
+
   const { data: { session } } = await requireSupabase().auth.getSession();
   if (!session) throw new Error('Not signed in.');
 
@@ -194,7 +226,7 @@ export async function saveProfile(input: SaveProfileInput): Promise<void> {
   };
   
   if (input.phone) updatePayload.phone = input.phone;
-  if (input.discipline) updatePayload.discipline = input.discipline;
+  if (input.discipline !== undefined) updatePayload.discipline = input.discipline;
   if (input.bio) updatePayload.bio = input.bio;
 
   const { error } = await requireSupabase()
@@ -203,6 +235,27 @@ export async function saveProfile(input: SaveProfileInput): Promise<void> {
     .eq('id', session.user.id);
     
   if (error) throw error;
+
+  if (input.disciplines) {
+    const { data: { session: currentSession } } = await requireSupabase().auth.getSession();
+    if (!currentSession) throw new Error('Not signed in.');
+
+    const { error: deleteError } = await requireSupabase()
+      .from('user_disciplines')
+      .delete()
+      .eq('user_id', currentSession.user.id);
+    if (deleteError) throw deleteError;
+
+    if (input.disciplines.length > 0) {
+      const { error: insertError } = await requireSupabase()
+        .from('user_disciplines')
+        .insert(input.disciplines.map((discipline) => ({
+          user_id: currentSession.user.id,
+          discipline,
+        })));
+      if (insertError) throw insertError;
+    }
+  }
 }
 
 export function needsProfileSetup(profile: Profile | null): boolean {

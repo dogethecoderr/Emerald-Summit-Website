@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Navigation,
@@ -19,7 +19,6 @@ import TrackPill from '../components/TrackPill';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
-import { USER_DISCIPLINES } from '../models/disciplines';
 import {
   MOCK_SESSIONS,
   TIME_SLOTS,
@@ -28,19 +27,28 @@ import {
 } from '../models/sessions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { fetchScheduleSessions } from '../services/adminManagement';
+import {
+  fetchUserSessionRegistrations,
+  saveSessionRegistration,
+} from '../services/sessionRegistrations';
+import { supabase } from '../lib/supabase';
+import { subscribeOfflineDemo } from '../services/offlineDemo';
+import { fetchTrackOptions, type TrackOption } from '../services/tracks';
 
-const FILTERS = ['All', ...USER_DISCIPLINES.map((d) => d.name)];
-
-function filterLabel(name: string): string {
+function filterLabel(name: string, tracks: TrackOption[]): string {
   if (name === 'All') return 'All';
-  return USER_DISCIPLINES.find((d) => d.name === name)?.label ?? name;
+  return tracks.find((track) => track.name === name)?.label
+    ?? name.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function SchedulePage() {
-  const { ready, redirect } = useRequireRole(['participant', 'expert']);
-  const { profile } = useAuth();
+  const { ready, redirect } = useRequireRole(['participant', 'expert', 'admin']);
+  const { profile, session } = useAuth();
   const roleName = profile?.role ?? 'participant';
   const isExpert = roleName === 'expert';
+  const isAdmin = roleName === 'admin';
   const canSeeExpertCapacity = roleName === 'expert' || roleName === 'volunteer';
   const {
     mySchedule,
@@ -54,6 +62,60 @@ export default function SchedulePage() {
   } = useSchedule();
   const activeSchedule = isExpert ? expertSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
+  const [sessions, setSessions] = useState(MOCK_SESSIONS);
+  const [tracks, setTracks] = useState<TrackOption[]>([]);
+  const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const [nextSessions, registrations, nextTracks] = await Promise.all([
+          fetchScheduleSessions(),
+          profile?.id
+            ? fetchUserSessionRegistrations(profile.id)
+            : Promise.resolve(null),
+          fetchTrackOptions(),
+        ]);
+        if (active) {
+          setSessions(nextSessions);
+          setTracks(nextTracks);
+          setSessionLoadError(null);
+          if (registrations) {
+            setMySchedule(registrations
+              .filter((registration) => registration.registration_type === 'competitor')
+              .map((registration) => registration.session_id));
+            setExpertSchedule(registrations
+              .filter((registration) => registration.registration_type === 'expert')
+              .map((registration) => registration.session_id));
+            setSpectating(registrations
+              .filter((registration) => registration.registration_type === 'spectator')
+              .map((registration) => registration.session_id));
+          }
+        }
+      } catch (error) {
+        if (active) setSessionLoadError(error instanceof Error ? error.message : 'Could not load schedule');
+      }
+    };
+    void load();
+    if (!supabase || typeof supabase.channel !== 'function') {
+      const unsubscribe = subscribeOfflineDemo(() => void load());
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    }
+    const client = supabase;
+    const channel = client
+      .channel('schedule-page-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'session_registrations' }, () => void load())
+      .subscribe();
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
+  }, [profile?.id, session?.user.id, setExpertSchedule, setMySchedule, setSpectating]);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -66,7 +128,7 @@ export default function SchedulePage() {
   }
 
   const getConflict = (session: Session): Session | null => {
-    const competing = MOCK_SESSIONS.find(
+    const competing = sessions.find(
       (s) => activeSchedule.includes(s.id) && s.time === session.time,
     );
     return competing ?? null;
@@ -76,7 +138,7 @@ export default function SchedulePage() {
     const prevSlotIdx = TIME_SLOTS.indexOf(session.time) - 1;
     if (prevSlotIdx < 0) return null;
     const prevSlot = TIME_SLOTS[prevSlotIdx];
-    const prevSession = MOCK_SESSIONS.find(
+    const prevSession = sessions.find(
       (s) => activeSchedule.includes(s.id) && s.time === prevSlot,
     );
     if (!prevSession) return null;
@@ -84,8 +146,18 @@ export default function SchedulePage() {
     return mins && mins >= 6 ? mins : null;
   };
 
-  const toggle = (id: string) => {
+  const toggle = async (id: string) => {
     const isRemoving = activeSchedule.includes(id);
+    try {
+      await saveSessionRegistration(
+        id,
+        isRemoving ? null : isExpert ? 'expert' : 'competitor',
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update session registration');
+      return;
+    }
+
     if (isExpert) {
       setExpertSchedule(
         isRemoving
@@ -100,16 +172,29 @@ export default function SchedulePage() {
       );
     }
     updateSessionCount(id, isExpert ? 'expertsEnrolled' : 'enrolled', isRemoving ? -1 : 1);
+    if (!isRemoving && spectating.includes(id)) {
+      updateSessionCount(id, 'spectators', -1);
+    }
     setSpectating(spectating.filter((x) => x !== id));
   };
 
-  const toggleSpectate = (id: string) => {
+  const toggleSpectate = async (id: string) => {
     const isRemoving = spectating.includes(id);
+    try {
+      await saveSessionRegistration(id, isRemoving ? null : 'spectator');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update spectator registration');
+      return;
+    }
+
     setSpectating(
       isRemoving
         ? spectating.filter((x) => x !== id)
         : [...spectating, id],
     );
+    if (!isRemoving && mySchedule.includes(id)) {
+      updateSessionCount(id, 'enrolled', -1);
+    }
     setMySchedule(mySchedule.filter((x) => x !== id));
     updateSessionCount(id, 'spectators', isRemoving ? -1 : 1);
   };
@@ -119,7 +204,7 @@ export default function SchedulePage() {
     
     if (result.destination.droppableId === 'my-schedule') {
       const sessionId = result.draggableId;
-      const session = MOCK_SESSIONS.find((s) => s.id === sessionId);
+      const session = sessions.find((s) => s.id === sessionId);
       if (!session) return;
       
       const isAdded = activeSchedule.includes(session.id);
@@ -135,37 +220,46 @@ export default function SchedulePage() {
     }
   };
 
-  const added = MOCK_SESSIONS.filter(
+  const added = sessions.filter(
     (s) => activeSchedule.includes(s.id) || spectating.includes(s.id),
   ).sort((a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time));
 
   const filteredSessions =
     disciplineFilter === 'All'
-      ? MOCK_SESSIONS
-      : MOCK_SESSIONS.filter(
+      ? sessions
+      : sessions.filter(
           (s) => s.track === disciplineFilter || s.track === 'keynote',
         );
+  const filters = ['All', ...new Set(sessions.map((session) => session.track))];
 
   return (
     <AppShell>
       <PageHeader
         label="Emerald High School · Dublin, CA"
-        title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
+        title={isAdmin ? 'Summit Schedule' : isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
         sub={
-          isExpert
+          isAdmin
+            ? 'Review the published schedule and monitor session capacity.'
+            : isExpert
             ? 'Sign up for sessions independently of participant capacity. Expert spots are limited per session.'
             : 'Add sessions to your agenda. The builder prevents time conflicts, flags near-full tracks, and warns about long walks between rooms. Drag and drop a session to your schedule!'
         }
       />
+      {isAdmin && (
+        <Link to="/admin" className="mb-6 inline-flex rounded-lg bg-emerald px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-deep">
+          Manage sessions and tracks
+        </Link>
+      )}
+      {sessionLoadError && <div role="alert" className="mb-5 rounded-xl border border-destructive/30 p-3 text-sm text-destructive">{sessionLoadError}</div>}
 
       {/* discipline filters */}
       <div className="scrollbar-none mb-6 flex gap-1.5 overflow-x-auto pb-1">
-        {FILTERS.map((f) => {
+        {filters.map((f) => {
           const active = disciplineFilter === f;
           const color =
             f === 'All'
               ? undefined
-              : USER_DISCIPLINES.find((d) => d.name === f)?.color;
+              : tracks.find((track) => track.name === f)?.color;
           return (
             <button
               key={f}
@@ -180,7 +274,7 @@ export default function SchedulePage() {
                 active && color ? { background: color, color: '#fff' } : undefined
               }
             >
-              {filterLabel(f)}
+              {filterLabel(f, tracks)}
             </button>
           );
         })}
@@ -221,7 +315,7 @@ export default function SchedulePage() {
                           const spectatorFull = counts.spectators >= s.spectatorCap;
                           const near = !full && counts.enrolled / s.capacity >= 0.8;
                           const capacityFull = isExpert ? expertFull : full;
-                          const isDragDisabled =
+                          const isDragDisabled = isAdmin ||
                             isAdded || isSpectating || capacityFull || !!conflict;
 
                           return (
@@ -323,7 +417,9 @@ export default function SchedulePage() {
                                       )}
                                     </div>
 
-                                    <div className="flex shrink-0 flex-col gap-2">
+                                    {isAdmin ? (
+                                      <Link to="/admin" className="shrink-0 self-start rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-accent">Manage</Link>
+                                    ) : <div className="flex shrink-0 flex-col gap-2">
                                       <button
                                         onClick={() => toggle(s.id)}
                                         disabled={!isAdded && (capacityFull || !!conflict)}
@@ -376,7 +472,7 @@ export default function SchedulePage() {
                                           <Eye className="h-4 w-4" />
                                         </button>
                                       )}
-                                    </div>
+                                    </div>}
                                   </div>
                                 </div>
                               )}

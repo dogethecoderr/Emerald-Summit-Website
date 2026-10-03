@@ -36,7 +36,11 @@ export function useRequireRole(allowed: string[]): {
   roleName: string;
 } {
   const base = useRequireProfile();
-  if (base.ready && !allowed.includes(base.roleName)) {
+  const { profile } = useAuth();
+  const hasAllowedRole =
+    allowed.includes(base.roleName) ||
+    (allowed.includes('volunteer') && profile?.is_volunteer === true);
+  if (base.ready && !hasAllowedRole) {
     return { ...base, ready: false, redirect: '/home' };
   }
   return base;

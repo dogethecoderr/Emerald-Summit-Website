@@ -111,6 +111,14 @@ vi.mock('html5-qrcode', () => ({
 vi.mock('../../lib/supabase', () => ({
   supabase: mockSupabaseClient,
 }));
+vi.mock('../../services/volunteerRoster', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/volunteerRoster')>();
+  return {
+    ...actual,
+    fetchVolunteerRoster: vi.fn(async () => actual.mockVolunteerRoster()),
+    subscribeToRosterChanges: vi.fn(() => () => undefined),
+  };
+});
 
 describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback Preservation', () => {
   beforeEach(() => {
@@ -190,7 +198,7 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     expect(screen.getByText('3 / 3')).toBeInTheDocument();
   });
 
-  test('scanning an attendee not in the current track roster does not corrupt roster list or counters', async () => {
+  test('scanning a valid participant outside the initial roster adds them and updates counters', async () => {
     const user = userEvent.setup();
     renderDashboard();
 
@@ -205,13 +213,13 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     await user.click(screen.getByTestId('manual-checkin-button'));
 
     expect(await screen.findByTestId('scan-feedback-success')).toBeInTheDocument();
-    expect(screen.getByText('External Attendee')).toBeInTheDocument();
 
     // Close modal
     await user.click(screen.getByRole('button', { name: /Done/i }));
 
-    // The local track roster counters should remain unaffected at 2 / 3
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    // The scanned participant is added to the visible roster immediately.
+    expect(screen.getByText('External Attendee')).toBeInTheDocument();
+    expect(screen.getByText('3 / 4')).toBeInTheDocument();
   });
 
   test('filtering roster by pending participants updates live when checked in via scanner', async () => {

@@ -50,10 +50,12 @@ Users sign in and pick a role, which is stored on their record and enforced with
 |---|---|
 | **Participant** | Build a schedule, register for tracks, follow their day |
 | **Attendee** | Explore the summit and browse updates (no competitor schedule) |
-| **Volunteer** | Manage an assigned track, check participants in, support attendees |
+| **Volunteer** | Front-desk volunteers can access the global check-in roster; track volunteers see and check in only participants registered for their assigned discipline. Admins control volunteer access and track assignments. |
 | **Expert** | View judging assignments and navigate between rooms |
 | **Ambassador** | Edit activity pages, post announcements, log volunteer hours |
-| **Admin** | Post and edit announcements, share files, broadcast Summit news |
+| **Admin** | Manage users, volunteer permissions, tracks, sessions, schedule capacity, and announcements |
+
+Admins can also grant a participant an additional volunteer role without replacing their participant role.
 
 Every role except **Ambassador** can sign in; ambassadors are still coordinated offline and exist only so directory listings label them correctly.
 
@@ -116,7 +118,9 @@ supabase/
 
 ## Backend
 
-Supabase provides hosted Postgres, authentication, file storage, realtime, and row-level security. Schema and policies live in `supabase/migrations/`. Row-level security keys off `users.role` so each role only reads and writes what it should. These same tables and policies are the shared source of truth that the production Flutter app integrates against.
+Supabase provides hosted Postgres, authentication, file storage, realtime, and row-level security. Schema and policies live in `supabase/migrations/`. Volunteer roster access is enforced by database policies and check-in RPCs, with admin-managed front-desk permissions and track assignments. Participant track registrations and global check-in status are stored centrally so roster views stay synchronized.
+
+The admin management page is available at `/admin`. To enable its user, track, schedule, and realtime features, apply the latest Supabase migrations:
 
 Apply pending migrations to the linked project with:
 
@@ -125,6 +129,10 @@ npx supabase db push
 ```
 
 Features that depend on a migration degrade to local/mock data until it is pushed, and say so in the UI rather than failing silently.
+
+The Admin Management and Volunteer Dashboard also include an in-memory preview roster and schedule when Supabase is not configured. This is for layout and interaction review only; preview edits reset when the page reloads and are not shared between users.
+
+Removing a discipline track cancels its associated session registrations, clears profile track assignments, and creates a recipient-specific in-app notification for each affected participant, expert, or spectator. The admin user table lists all profile roles rather than a subset.
 
 ---
 

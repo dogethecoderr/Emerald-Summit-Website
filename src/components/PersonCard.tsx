@@ -4,6 +4,7 @@ import { USER_ROLES, roleByName } from '../models/roles';
 import type { Person, Visibility } from '../models/people';
 import { personStatusLabel } from '../models/personStatus';
 import { cn } from '@/lib/utils';
+import { getDemoTracks } from '../services/offlineDemo';
 
 export function canSeeField(vis: Visibility, viewerRoleName: string): boolean {
   if (vis === 'public') return true;
@@ -35,6 +36,10 @@ export default function PersonCard({
     revealPrivate || canSeeField(person.emailVisible, viewerRoleName);
   const showPhone =
     revealPrivate || canSeeField(person.phoneVisible, viewerRoleName);
+  const registeredDisciplines = Array.from(new Set([
+    person.discipline,
+    ...(person.registeredDisciplines ?? []),
+  ].filter((discipline): discipline is string => Boolean(discipline))));
 
   return (
     <div className="glass relative flex flex-col rounded-2xl p-5 transition-colors hover:border-emerald-glow/30">
@@ -73,6 +78,25 @@ export default function PersonCard({
           >
             {role.label}
           </span>
+          {registeredDisciplines.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {registeredDisciplines.map((discipline) => {
+                const track = getDemoTracks().find((item) => item.name === discipline);
+                return (
+                  <span
+                    key={discipline}
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      backgroundColor: `${track?.color ?? '#64748B'}22`,
+                      color: track?.color ?? '#64748B',
+                    }}
+                  >
+                    {track?.label ?? discipline.replace(/[-_]/g, ' ')}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

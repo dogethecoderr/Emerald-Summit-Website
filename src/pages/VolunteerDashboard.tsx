@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -15,10 +15,23 @@ import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
 import VolunteerQrScannerModal from '../components/VolunteerQrScannerModal';
 import { useRequireRole } from '../hooks/useRequireProfile';
-import { MOCK_PEOPLE, type Person } from '../models/people';
+import type { Person } from '../models/people';
 import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import {
+  checkInParticipant,
+  undoParticipantCheckIn,
+  type ParticipantData,
+} from '../services/checkIn';
+import {
+  fetchVolunteerRoster,
+  mockVolunteerRoster,
+  subscribeToRosterChanges,
+} from '../services/volunteerRoster';
 
 export interface VolunteerDashboardProps {
   assignedTrack?: string | null;
@@ -26,22 +39,56 @@ export interface VolunteerDashboardProps {
 }
 
 export default function VolunteerDashboard({
-  assignedTrack = 'novasphere',
+  assignedTrack,
   participants: customParticipants,
 }: VolunteerDashboardProps) {
   const { ready, redirect } = useRequireRole(['volunteer']);
+  const { profile } = useAuth();
+  const isFrontDesk = profile?.is_front_desk === true;
+  const track = assignedTrack !== undefined
+    ? assignedTrack
+    : profile?.discipline ?? (supabase ? null : 'novasphere');
 
-  // Initial roster defaults to mock participants if custom list not provided
-  const initialRoster = customParticipants !== undefined
-    ? customParticipants
-    : MOCK_PEOPLE.filter(
-        (p) => p.role === 'participant' || p.role === 'attendee',
-      );
-
-  const [roster, setRoster] = useState<Person[]>(initialRoster ?? []);
+  const [roster, setRoster] = useState<Person[]>(
+    customParticipants !== undefined
+      ? customParticipants ?? []
+      : mockVolunteerRoster(),
+  );
+  const [rosterError, setRosterError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    if (customParticipants !== undefined) {
+      setRoster(customParticipants ?? []);
+      return;
+    }
+
+    let active = true;
+    const loadRoster = async () => {
+      try {
+        const nextRoster = await fetchVolunteerRoster(track, isFrontDesk);
+        if (active) {
+          setRoster(nextRoster);
+          setRosterError(null);
+        }
+      } catch (error) {
+        if (active) {
+          const message = error instanceof Error ? error.message : 'Could not load participant roster';
+          setRosterError(message);
+          toast.error(message);
+        }
+      }
+    };
+    void loadRoster();
+    const unsubscribe = subscribeToRosterChanges(() => void loadRoster());
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [customParticipants, track, isFrontDesk]);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -53,29 +100,58 @@ export default function VolunteerDashboard({
     );
   }
 
-  const trackInfo = assignedTrack ? disciplineByName(assignedTrack) : undefined;
+  const trackInfo = track ? disciplineByName(track) : undefined;
 
-  const handleCheckInSuccess = (user: { id: string; name: string; checked_in_at?: string | null }) => {
-    setRoster((prev) =>
-      prev.map((p) => {
-        if (p.id === user.id || p.name.toLowerCase() === user.name.toLowerCase()) {
-          return { ...p, status: 'checkedIn' };
-        }
-        return p;
-      }),
-    );
+  const handleCheckInSuccess = (user: ParticipantData) => {
+    setRoster((previous) => {
+      const existing = previous.find((person) => person.id === user.id);
+      const checkedInPerson: Person = existing
+        ? { ...existing, status: 'checkedIn', checked_in_at: user.checked_in_at }
+        : {
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            org: 'Emerald Summit',
+            email: user.email,
+            phone: '',
+            initials: user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase(),
+            bio: '',
+            discipline: user.discipline,
+            checked_in_at: user.checked_in_at,
+            emailVisible: 'private',
+            phoneVisible: 'private',
+            status: 'checkedIn',
+          };
+      return existing
+        ? previous.map((person) => person.id === user.id ? checkedInPerson : person)
+        : [checkedInPerson, ...previous];
+    });
   };
 
-  const toggleCheckIn = (personId: string) => {
-    setRoster((prev) =>
-      prev.map((p) => {
-        if (p.id === personId) {
-          const nextStatus = p.status === 'checkedIn' ? 'validated' : 'checkedIn';
-          return { ...p, status: nextStatus };
-        }
-        return p;
-      }),
-    );
+  const toggleCheckIn = async (personId: string) => {
+    const person = roster.find((entry) => entry.id === personId);
+    if (!person) return;
+
+    if (person.status === 'checkedIn') {
+      const result = await undoParticipantCheckIn(personId);
+      if (!result.success) {
+        toast.error(result.error ?? 'Could not undo check-in');
+        return;
+      }
+      setRoster((previous) => previous.map((entry) => entry.id === personId
+        ? { ...entry, checked_in_at: null, status: 'validated' }
+        : entry));
+      toast.success(`Check-in undone for ${person.name}.`);
+      return;
+    }
+
+    const result = await checkInParticipant(personId);
+    if (!result.success || !result.user) {
+      toast.error(result.error ?? 'Check-in failed');
+      return;
+    }
+    handleCheckInSuccess(result.user);
+    toast.success(`Successfully checked in ${result.user.name}!`);
   };
 
   const filteredRoster = (roster ?? []).filter((p) => {
@@ -100,6 +176,12 @@ export default function VolunteerDashboard({
         sub="Manage your assigned track, review participant check-ins, and support Summit attendees."
       />
 
+      {!supabase && (
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Preview mode — sample participant registrations and check-ins are in-memory only and reset when the page reloads.
+        </div>
+      )}
+
       <div className="space-y-6">
         {/* Track Banner */}
         <section className="glass rounded-2xl p-6">
@@ -109,9 +191,15 @@ export default function VolunteerDashboard({
                 <h2 className="font-display text-xl font-bold tracking-tight">
                   Assigned Track
                 </h2>
-                {assignedTrack && <TrackPill track={assignedTrack} />}
+                {isFrontDesk ? (
+                  <span className="rounded-full bg-emerald/15 px-2.5 py-1 text-xs font-semibold text-emerald-mint">Global Roster</span>
+                ) : track && <TrackPill track={track} />}
               </div>
-              {trackInfo ? (
+              {isFrontDesk ? (
+                <p className="text-sm text-muted-foreground">
+                  Global check-in access across all participant disciplines.
+                </p>
+              ) : trackInfo ? (
                 <p className="text-sm text-muted-foreground">
                   {trackInfo.description}
                 </p>
@@ -122,7 +210,7 @@ export default function VolunteerDashboard({
                 </div>
               )}
             </div>
-            {assignedTrack && (
+            {(track || isFrontDesk) && (
               <div className="flex items-center gap-4 rounded-xl bg-accent/40 px-4 py-2.5 text-xs">
                 <div className="text-center">
                   <span className="block font-bold text-foreground text-sm">
@@ -152,7 +240,8 @@ export default function VolunteerDashboard({
               <button
                 type="button"
                 onClick={() => setIsScannerOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-deep transition-all"
+                disabled={!isFrontDesk && !track}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-deep disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <QrCode className="h-4 w-4" />
                 <span>Scan QR Code</span>
@@ -211,7 +300,7 @@ export default function VolunteerDashboard({
           </div>
 
           {/* Participant List or Empty State */}
-          {!assignedTrack ? (
+          {!isFrontDesk && !track ? (
             <div className="rounded-xl border border-dashed border-border p-8 text-center">
               <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground" />
               <h3 className="mt-2 font-display text-base font-semibold">
@@ -221,6 +310,8 @@ export default function VolunteerDashboard({
                 Please contact the Summit coordinator to assign a track to your volunteer account.
               </p>
             </div>
+          ) : rosterError ? (
+            <div role="alert" className="rounded-xl border border-destructive/30 p-6 text-sm text-destructive">{rosterError}</div>
           ) : filteredRoster.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-8 text-center">
               <Users className="mx-auto h-8 w-8 text-muted-foreground" />
@@ -289,7 +380,7 @@ export default function VolunteerDashboard({
                         Status: <strong className="text-foreground">{isCheckedIn ? 'Checked In' : 'Pending'}</strong>
                       </span>
                       <button
-                        onClick={() => toggleCheckIn(p.id)}
+                        onClick={() => void toggleCheckIn(p.id)}
                         className={cn(
                           'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
                           isCheckedIn

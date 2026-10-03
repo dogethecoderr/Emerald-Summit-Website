@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES } from '../models/roles';
-import { MOCK_SESSIONS, TIME_SLOTS } from '../models/sessions';
+import { TIME_SLOTS, type Session } from '../models/sessions';
 import type { PersonStatus } from '../models/personStatus';
 import { needsProfileSetup, profileToPerson } from '../services/auth';
 import { useSchedule } from '../context/ScheduleContext';
@@ -24,9 +25,11 @@ import FeaturedSessionsCard from '../components/FeaturedSessionsCard';
 import PersonCard from '../components/PersonCard';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { checkInParticipant } from '../services/checkIn';
+import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
+import { getDemoSessions, subscribeOfflineDemo } from '../services/offlineDemo';
 
-// PLACEHOLDER: no backend field for validation/check-in status yet (see
-// src/models/personStatus.ts) — hardcoded until that flow is designed.
 const MOCK_STATUS: PersonStatus = 'validated';
 
 interface QuickAction {
@@ -150,6 +153,10 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { mySchedule, spectating } = useSchedule();
   const { announcements, canManage } = useAnnouncements();
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>(getDemoSessions());
+
+  useEffect(() => subscribeOfflineDemo(() => setSessions([...getDemoSessions()])), []);
 
   const isSignedIn = session != null;
 
@@ -176,13 +183,16 @@ export default function HomePage() {
   const roleName = (profile?.role as string | undefined) ?? 'participant';
 
   const myCount = mySchedule.length;
-  const nextSession = MOCK_SESSIONS.filter(
+  const nextSession = sessions.filter(
     (s) => mySchedule.includes(s.id) || spectating.includes(s.id),
   ).sort((a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time))[0];
 
   const actions = QUICK_ACTIONS[roleName] ?? [];
   const selfPerson = profile
-    ? { ...profileToPerson(profile), status: MOCK_STATUS }
+    ? {
+        ...profileToPerson(profile),
+        status: profile.checked_in_at ? 'checkedIn' as PersonStatus : MOCK_STATUS,
+      }
     : null;
 
   const stats = [
@@ -203,6 +213,35 @@ export default function HomePage() {
         title={`Welcome back, ${firstName}.`}
         sub="Everything about your Summit day — schedule, people, and live updates — in one place."
       />
+
+      {!supabase && profile?.role === 'participant' && (
+        <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-glow/30 bg-emerald/5 p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Participant check-in preview</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Check in your demo account and confirm its volunteer roster status updates too.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={checkingIn || Boolean(profile.checked_in_at)}
+            onClick={async () => {
+              setCheckingIn(true);
+              try {
+                await checkInParticipant(profile.id);
+                toast.success('You are checked in.');
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Could not check in.');
+              } finally {
+                setCheckingIn(false);
+              }
+            }}
+            className="rounded-xl bg-emerald px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {profile.checked_in_at ? 'Checked in' : checkingIn ? 'Checking in…' : 'Check in as participant'}
+          </button>
+        </section>
+      )}
 
       {/* stat tiles */}
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -246,7 +285,7 @@ export default function HomePage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-        <FeaturedSessionsCard sessions={MOCK_SESSIONS.slice(0, 6)} />
+        <FeaturedSessionsCard sessions={sessions.slice(0, 6)} />
         <div className="space-y-6">
           {selfPerson && (
             <PersonCard

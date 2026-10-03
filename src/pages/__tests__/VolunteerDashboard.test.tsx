@@ -5,6 +5,29 @@ import { MemoryRouter } from 'react-router-dom';
 import VolunteerDashboard from '../VolunteerDashboard';
 import * as useRequireProfileModule from '../../hooks/useRequireProfile';
 
+vi.mock('../../services/checkIn', () => ({
+  checkInParticipant: vi.fn(async (id: string) => ({
+    success: true,
+    user: {
+      id,
+      name: id === 'p8' ? 'Jordan Wu' : id === 'p7' ? 'Priya Sharma' : 'External Attendee',
+      role: 'participant',
+      email: 'participant@example.com',
+      checked_in_at: '2026-10-03T12:00:00.000Z',
+      discipline: 'novasphere',
+    },
+  })),
+  undoParticipantCheckIn: vi.fn(async () => ({ success: true })),
+}));
+vi.mock('../../services/volunteerRoster', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/volunteerRoster')>();
+  return {
+    ...actual,
+    fetchVolunteerRoster: vi.fn(async () => actual.mockVolunteerRoster()),
+    subscribeToRosterChanges: vi.fn(() => () => undefined),
+  };
+});
+
 // Mock schedule context to avoid missing context providers
 vi.mock('../../context/ScheduleContext', () => ({
   useSchedule: () => ({

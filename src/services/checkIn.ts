@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { MOCK_PEOPLE } from '../models/people';
+import {
+  checkInDemoPerson,
+  getActiveDemoUserId,
+  undoDemoCheckIn,
+} from './offlineDemo';
 
 export interface ParticipantData {
   id: string;
@@ -39,8 +44,9 @@ function mockParticipant(id: string): ParticipantData | null {
     name: person.name,
     role: person.role,
     email: person.email,
-    checked_in_at: person.status === 'checkedIn' ? new Date().toISOString() : null,
-    discipline: null,
+    checked_in_at: person.checked_in_at
+      ?? (person.status === 'checkedIn' ? new Date().toISOString() : null),
+    discipline: person.discipline ?? null,
   };
 }
 
@@ -105,13 +111,86 @@ export async function fetchParticipantById(
 }
 
 export async function checkInParticipant(id: string): Promise<CheckInResult> {
+  if (!validateParticipantId(id)) {
+    return { success: false, error: 'Invalid participant ID format' };
+  }
+
+  if (!supabase) {
+    try {
+      const { person, alreadyCheckedIn } = checkInDemoPerson(
+        id.trim(),
+        getActiveDemoUserId(),
+      );
+      const user: ParticipantData = {
+        id: person.id,
+        name: person.name,
+        role: person.role,
+        email: person.email,
+        checked_in_at: person.checked_in_at ?? null,
+        discipline: person.discipline ?? null,
+      };
+      return alreadyCheckedIn
+        ? {
+            success: false,
+            user,
+            alreadyCheckedIn: true,
+            error: `${user.name} is already checked in.`,
+          }
+        : { success: true, user };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Check-in failed',
+      };
+    }
+  }
+
+  if (supabase && typeof supabase.rpc === 'function') {
+    try {
+      const { data, error } = await supabase.rpc('check_in_participant', {
+        p_user_id: id.trim(),
+      });
+      if (error) return { success: false, error: error.message };
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) return { success: false, error: 'Participant not found' };
+
+      const user: ParticipantData = {
+        id: row.id,
+        name: row.name ?? 'Participant',
+        role: row.role ?? 'participant',
+        email: row.email ?? '',
+        checked_in_at: row.checked_in_at ?? null,
+        discipline: row.discipline ?? null,
+      };
+      if (row.already_checked_in) {
+        return {
+          success: false,
+          user,
+          alreadyCheckedIn: true,
+          error: `${user.name} is already checked in.`,
+        };
+      }
+      return { success: true, user };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to check in participant',
+      };
+    }
+  }
+
   const { data: user, error } = await fetchParticipantById(id);
 
-  if (error || !user) {
+  if (error && !user) {
     return {
       success: false,
-      error: error ?? 'Participant not found',
+      error,
     };
+  }
+
+  if (error || !user) {
+    return { success: false, error: error ?? 'Participant not found' };
   }
 
   if (user.checked_in_at) {
@@ -124,23 +203,6 @@ export async function checkInParticipant(id: string): Promise<CheckInResult> {
   }
 
   const checkInTimestamp = new Date().toISOString();
-
-  // Without a configured client the mock roster is the only state we can move.
-  if (!supabase) {
-    const mockIndex = MOCK_PEOPLE.findIndex((p) => p.id === user.id);
-    if (mockIndex !== -1) {
-      MOCK_PEOPLE[mockIndex].status = 'checkedIn';
-      return {
-        success: true,
-        user: { ...user, checked_in_at: checkInTimestamp },
-      };
-    }
-    return {
-      success: false,
-      user,
-      error: 'Supabase is not configured, so this check-in cannot be saved.',
-    };
-  }
 
   // Execute database update
   try {
@@ -193,6 +255,55 @@ export async function checkInParticipant(id: string): Promise<CheckInResult> {
       success: false,
       user,
       error: err?.message ?? 'Failed to update check-in status',
+    };
+  }
+}
+
+export async function undoParticipantCheckIn(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!validateParticipantId(id)) {
+    return { success: false, error: 'Invalid participant ID format' };
+  }
+
+  if (!supabase) {
+    try {
+      undoDemoCheckIn(id.trim(), getActiveDemoUserId());
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Could not undo check-in',
+      };
+    }
+  }
+
+  if (typeof supabase.rpc === 'function') {
+    try {
+      const { error } = await supabase.rpc('undo_participant_check_in', {
+        p_user_id: id.trim(),
+      });
+      return error
+        ? { success: false, error: error.message }
+        : { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to undo check-in',
+      };
+    }
+  }
+
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ checked_in_at: null })
+      .eq('id', id.trim());
+    return error ? { success: false, error: error.message } : { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to undo check-in',
     };
   }
 }
