@@ -75,6 +75,12 @@ npm run dev
 
 Then open the printed local URL (Vite defaults to `http://localhost:5173`).
 
+The dev server honours a `PORT` environment variable, so a second instance — another checkout, or a teammate's session on the same machine — can run alongside the first instead of colliding on 5173:
+
+```bash
+PORT=5174 npm run dev
+```
+
 ### Scripts
 
 ```bash
