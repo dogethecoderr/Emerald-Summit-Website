@@ -18,6 +18,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const DirectoryPage = lazy(() => import('./pages/DirectoryPage'));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
 const VolunteerDashboard = lazy(() => import('./pages/VolunteerDashboard'));
+const AdminManagementPage = lazy(() => import('./pages/AdminManagementPage'));
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/judging" element={<Navigate to="/schedule" replace />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
+          <Route path="/admin" element={<AdminManagementPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

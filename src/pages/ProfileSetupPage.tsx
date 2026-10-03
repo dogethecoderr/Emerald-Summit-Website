@@ -5,12 +5,14 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import { needsProfileSetup, saveProfile, signOut } from '../services/auth';
+import { fetchTrackOptions, type TrackOption } from '../services/tracks';
 import BrandMark from '../components/BrandMark';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { subscribeOfflineDemo } from '../services/offlineDemo';
 
 const BIO_WORD_LIMIT = 30;
 
@@ -27,12 +29,32 @@ export default function ProfileSetupPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string | null>(
-    null,
+  const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([]);
+  const [disciplineOptions, setDisciplineOptions] = useState<TrackOption[]>(
+    USER_DISCIPLINES.map((track) => ({ ...track, is_discipline: true })),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadTracks = () => {
+      void fetchTrackOptions()
+        .then((tracks) => {
+          if (active) setDisciplineOptions(tracks.filter((track) => track.is_discipline));
+        })
+        .catch((error) => {
+          if (active) toast.error(error instanceof Error ? error.message : 'Could not load summit tracks');
+        });
+    };
+    loadTracks();
+    const unsubscribe = subscribeOfflineDemo(loadTracks);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Prefill from an existing profile, else from the mock account's name hint.
   useEffect(() => {
@@ -46,7 +68,7 @@ export default function ProfileSetupPage() {
       const existingBio = (profile.bio as string | undefined)?.trim();
       if (existingBio) setBio(existingBio);
       const disciplineName = profile.discipline as string | undefined;
-      if (disciplineName) setSelectedDiscipline(disciplineName);
+      if (disciplineName) setSelectedDisciplines([disciplineName]);
       setPrefilled(true);
     } else {
       const metadataName = session?.user.user_metadata?.full_name?.trim();
@@ -89,7 +111,8 @@ export default function ProfileSetupPage() {
       await saveProfile({
         name: name.trim(),
         phone: phone.trim(),
-        discipline: selectedDiscipline,
+        discipline: selectedDisciplines[0] ?? null,
+        disciplines: profile?.role === 'participant' ? selectedDisciplines : undefined,
         bio: bio.trim(),
       });
       await refreshProfile();
@@ -174,25 +197,25 @@ export default function ProfileSetupPage() {
             </div>
           </div>
 
-          <div>
+          {profile?.role !== 'volunteer' && <div>
             <Label className="mb-1 block text-[13px]">
-              Discipline <span className="text-muted-foreground">(optional)</span>
+              Disciplines <span className="text-muted-foreground">(optional)</span>
             </Label>
             <p className="mb-3 text-xs text-muted-foreground">
-              Pick the universe that best fits you.
+              Select every discipline you are registered for.
             </p>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {USER_DISCIPLINES.map((d) => {
-                const selected = selectedDiscipline === d.name;
+              {disciplineOptions.map((d) => {
+                const selected = selectedDisciplines.includes(d.name);
                 return (
                   <button
                     key={d.name}
                     type="button"
-                    onClick={() =>
-                      setSelectedDiscipline((current) =>
-                        current === d.name ? null : d.name,
-                      )
-                    }
+                    onClick={() => setSelectedDisciplines((current) =>
+                      selected
+                        ? current.filter((name) => name !== d.name)
+                        : [...current, d.name],
+                    )}
                     className={cn(
                       'relative rounded-xl border p-3 text-left transition-all',
                       selected
@@ -228,7 +251,7 @@ export default function ProfileSetupPage() {
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           <div>
             <Label htmlFor="bio" className="mb-2 block text-[13px]">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import AppShell from '../components/AppShell';
@@ -7,18 +7,26 @@ import PersonCard from '../components/PersonCard';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { MOCK_PEOPLE } from '../models/people';
-import { SIGN_IN_ROLES, roleByName } from '../models/roles';
+import { USER_ROLES, roleByName } from '../models/roles';
 import { getProfileSettings, profileToPerson } from '../services/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { getDemoPeople, subscribeOfflineDemo } from '../services/offlineDemo';
+import { supabase } from '../lib/supabase';
 
-const ROLE_FILTERS = ['All', ...SIGN_IN_ROLES.map((r) => r.name)];
+const ROLE_FILTERS = ['All', ...USER_ROLES.map((r) => r.name)];
 
 export default function DirectoryPage() {
   const { ready, redirect } = useRequireProfile();
   const { profile } = useAuth();
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  const [people, setPeople] = useState(getDemoPeople());
+
+  useEffect(() => {
+    if (supabase) return;
+    return subscribeOfflineDemo(() => setPeople([...getDemoPeople()]));
+  }, []);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready || profile == null) {
@@ -34,7 +42,8 @@ export default function DirectoryPage() {
   const settings = getProfileSettings(profile);
   const selfPerson = settings.directoryVisible ? profileToPerson(profile) : null;
 
-  const filtered = MOCK_PEOPLE.filter((p) => {
+  const directorySource = supabase ? MOCK_PEOPLE : people;
+  const filtered = directorySource.filter((p) => {
     const q = query.trim().toLowerCase();
     const matchesQuery =
       !q || p.name.toLowerCase().includes(q) || p.org.toLowerCase().includes(q);

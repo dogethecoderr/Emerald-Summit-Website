@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,7 +18,15 @@ import { signOut } from '../services/auth';
 import { roleByName, USER_ROLES } from '../models/roles';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
+import UserNotifications from './UserNotifications';
 import { cn } from '@/lib/utils';
+import {
+  getActiveDemoUserId,
+  getDemoPeople,
+  subscribeOfflineDemo,
+  switchActiveDemoUser,
+} from '../services/offlineDemo';
+import { supabase } from '../lib/supabase';
 
 interface NavItem {
   to: string;
@@ -34,9 +42,10 @@ const NAV_ITEMS: NavItem[] = [
     to: '/schedule',
     label: 'Schedule',
     icon: CalendarDays,
-    roles: ['participant', 'expert'],
+    roles: ['participant', 'expert', 'admin'],
   },
   { to: '/volunteer', label: 'Volunteer Hub', icon: Users, roles: ['volunteer'] },
+  { to: '/admin', label: 'Admin Management', icon: Settings, roles: ['admin'] },
   { to: '/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/directory', label: 'Directory', icon: Users },
   { to: '/resources', label: 'Resources', icon: FolderOpen },
@@ -96,13 +105,19 @@ function SidebarLink({ to, label, icon: Icon }: NavItem) {
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const navigate = useNavigate();
   const name = (profile?.name as string | undefined) ?? 'Signed in';
   const email = (profile?.email as string | undefined) ?? '';
   const roleName = (profile?.role as string | undefined) ?? 'participant';
   const role = roleByName(roleName) ?? USER_ROLES[0];
-  const items = navItemsForRole(roleName);
+  const roles = new Set([
+    roleName,
+    ...(profile?.is_volunteer ? ['volunteer'] : []),
+  ]);
+  const items = NAV_ITEMS.filter(
+    (item) => !item.roles || item.roles.some((allowedRole) => roles.has(allowedRole)),
+  );
   const settingsItem = items.find((n) => n.to === '/settings');
   const otherItems = items.filter((n) => n.to !== '/settings');
   const mobileItems = [
@@ -111,6 +126,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
   ];
   const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
   const [qrPassOpen, setQrPassOpen] = useState(false);
+  const [demoPeople, setDemoPeople] = useState(getDemoPeople());
+  const [activeDemoUserId, setActiveDemoUserId] = useState(getActiveDemoUserId());
+  const isDemoMode =
+    !supabase &&
+    typeof window !== 'undefined' &&
+    Boolean(localStorage.getItem('bypass_session'));
+
+  useEffect(() => subscribeOfflineDemo(() => {
+    setDemoPeople([...getDemoPeople()]);
+    setActiveDemoUserId(getActiveDemoUserId());
+  }), []);
 
   const initials = name
     .split(/\s+/)
@@ -230,7 +256,39 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       <main className="min-w-0 flex-1 px-4 pb-24 pt-16 sm:px-6 lg:ml-60 lg:px-12 lg:pb-12 lg:pt-10">
-        <div className="mx-auto max-w-[1400px]">{children}</div>
+        <div className="mx-auto max-w-[1400px]">
+          {isDemoMode && (
+            <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3">
+              <label htmlFor="demo-active-user" className="text-xs font-semibold text-amber-200">
+                Offline preview identity
+              </label>
+              <select
+                id="demo-active-user"
+                value={demoPeople.some((person) => person.id === activeDemoUserId) ? activeDemoUserId ?? '' : ''}
+                onChange={(event) => {
+                  switchActiveDemoUser(event.target.value);
+                  setActiveDemoUserId(event.target.value);
+                  navigate('/home');
+                }}
+                className="min-w-56 rounded-lg border border-border bg-background px-3 py-2 text-xs"
+              >
+                <option value="" disabled>Select a demo user</option>
+                {demoPeople.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} · {person.role}{person.is_front_desk ? ' · Front Desk' : person.is_volunteer ? ' · Track Volunteer' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-muted-foreground">
+                Switch accounts to test admin, participant, and volunteer workflows.
+              </span>
+            </div>
+          )}
+          {(isDemoMode ? profile?.id : session?.user.id) && (
+            <UserNotifications userId={(isDemoMode ? profile?.id : session?.user.id) as string} />
+          )}
+          {children}
+        </div>
       </main>
 
       {isQrEligible && (

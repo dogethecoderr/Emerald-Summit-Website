@@ -17,8 +17,8 @@ import FaqSection from '../components/FaqSection';
 import CtaBand from '../components/CtaBand';
 import LandingFooter from '../components/LandingFooter';
 import OrbitalUniverses from '../components/OrbitalUniverses';
-import { USER_DISCIPLINES } from '../models/disciplines';
 import { Button } from '@/components/ui/button';
+import { getDemoTracks, subscribeOfflineDemo } from '../services/offlineDemo';
 
 const FACTS = [
   { icon: CalendarDays, text: 'January 2027' },
@@ -122,10 +122,16 @@ export default function WelcomePage() {
   const [revealed, setRevealed] = useState(() => !shouldPlayIntro());
   const [locked, setLocked] = useState(playingIntro);
   const [skipped, setSkipped] = useState(false);
+  const [landingTracks, setLandingTracks] = useState(getDemoTracks());
 
   useEffect(() => {
     if (playingIntro) markIntroPlayed();
   }, [playingIntro]);
+
+  useEffect(
+    () => subscribeOfflineDemo(() => setLandingTracks([...getDemoTracks()])),
+    [],
+  );
 
   const skipIntro = () => {
     setSkipped(true);
@@ -316,7 +322,7 @@ export default function WelcomePage() {
                   aria-hidden
                 />
                 <div className="relative flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-                  {USER_DISCIPLINES.map((d) => (
+                  {landingTracks.filter((track) => track.is_discipline).map((d) => (
                     <span
                       key={d.name}
                       className="inline-flex items-center gap-1.5 font-mono text-[12px] font-medium tracking-tight text-white/55 lg:gap-2 lg:text-[13px]"

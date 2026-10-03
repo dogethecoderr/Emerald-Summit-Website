@@ -18,14 +18,14 @@ import {
   Keyboard,
   ArrowRight,
 } from 'lucide-react';
-import { checkInParticipant, type CheckInResult } from '../services/checkIn';
+import { checkInParticipant, type CheckInResult, type ParticipantData } from '../services/checkIn';
 import { roleByName, USER_ROLES } from '../models/roles';
 import { cn } from '@/lib/utils';
 
 export interface VolunteerQrScannerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCheckInSuccess?: (user: { id: string; name: string; checked_in_at?: string | null }) => void;
+  onCheckInSuccess?: (user: ParticipantData) => void;
 }
 
 export default function VolunteerQrScannerModal({

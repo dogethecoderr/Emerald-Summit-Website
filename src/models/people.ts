@@ -17,6 +17,11 @@ export interface Person {
   phone: string;
   initials: string;
   bio: string;
+  discipline?: string | null;
+  registeredDisciplines?: string[];
+  is_volunteer?: boolean;
+  is_front_desk?: boolean;
+  checked_in_at?: string | null;
   emailVisible: Visibility;
   phoneVisible: Visibility;
   /** When set, controls whether the bio line appears on directory cards. */
@@ -112,6 +117,8 @@ export const MOCK_PEOPLE: Person[] = [
     phone: '(925) 555-0107',
     initials: 'PS',
     bio: 'Sophomore in NovaSphere — fascinated by astrophysics and computational math.',
+    discipline: 'novasphere',
+    registeredDisciplines: ['novasphere', 'techverse'],
     emailVisible: 'private',
     phoneVisible: 'private',
     status: 'checkedIn',
@@ -124,7 +131,9 @@ export const MOCK_PEOPLE: Person[] = [
     email: 'j.wu@emeraldhigh.edu',
     phone: '(925) 555-0108',
     initials: 'JW',
-    bio: 'Junior enrolled in CivicVerse; active in Dublin City Youth Advisory Committee.',
+    bio: 'Junior enrolled in NovaSphere; active in Dublin City Youth Advisory Committee.',
+    discipline: 'novasphere',
+    registeredDisciplines: ['novasphere'],
     emailVisible: 'private',
     phoneVisible: 'private',
     status: 'validated',
@@ -138,6 +147,8 @@ export const MOCK_PEOPLE: Person[] = [
     phone: '(925) 555-0109',
     initials: 'NE',
     bio: 'Senior in ImagineX with a focus on documentary filmmaking and digital journalism.',
+    discipline: 'imaginex',
+    registeredDisciplines: ['imaginex', 'novasphere'],
     emailVisible: 'private',
     phoneVisible: 'private',
     status: 'checkedIn',
@@ -151,6 +162,9 @@ export const MOCK_PEOPLE: Person[] = [
     phone: '(925) 555-0110',
     initials: 'RS',
     bio: 'Volunteer council co-chairs coordinating student support and Summit communications.',
+    discipline: 'novasphere',
+    is_volunteer: true,
+    is_front_desk: true,
     emailVisible: 'ambassadors',
     phoneVisible: 'private',
     status: 'none',
@@ -164,6 +178,9 @@ export const MOCK_PEOPLE: Person[] = [
     phone: '(925) 555-0111',
     initials: 'TM',
     bio: 'PTA treasurer and lead organizer for the Summit family luncheon.',
+    discipline: 'biosphere',
+    is_volunteer: true,
+    is_front_desk: false,
     emailVisible: 'ambassadors',
     phoneVisible: 'private',
     status: 'none',
