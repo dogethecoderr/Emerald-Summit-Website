@@ -152,6 +152,20 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 ---
 
+## Portal layout
+
+Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
+
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile.
+- **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a dot when something is pinned. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
+- **Mobile** uses the same navy for a compact top bar and a bottom tab bar.
+
+The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** timeline of reserved sessions in time order. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail, so neither column leaves empty space; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate three layers: that top section, a row of four quick links, and tinted featured-session cards in a three-column grid.
+
+The design source is the Figma file [Emerald Summit — Portal Redesign](https://www.figma.com/design/qqeSVs9y0OOfjFgnveZZTV). It holds the color variables and reusable components. Headings there use Plus Jakarta Sans as a stand-in for Satoshi, which Figma doesn't provide.
+
+---
+
 ## Brand
 
 | Name | Hex | Use |
@@ -160,6 +174,11 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 | Deep Emerald | `#0A5F43` | Pressed / accents |
 | Ink | `#16211C` | Text |
 | Mist | `#EEF5F1` | Surfaces |
+| Navy | `#101C36` | Portal sidebar, dark buttons |
+
+Display type is **Satoshi** (`font-display`); body text is **Instrument Sans**.
+
+Keep in-app copy functional: page headers carry a label and title only, with no taglines. Explanatory text stays only where it tells people how something works, such as the Bypass Login note on sign-in.
 
 ---
 

@@ -56,11 +56,6 @@ export default function AnnouncementsPage() {
       <PageHeader
         label="Live Updates"
         title="Announcements"
-        sub={
-          canManage
-            ? 'Post updates with photos, video, audio, and files — everyone sees them the moment you publish.'
-            : 'Logistics, schedule changes, and Summit news — with downloadable forms and guides posted alongside them.'
-        }
       />
       {canManage && error && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200">

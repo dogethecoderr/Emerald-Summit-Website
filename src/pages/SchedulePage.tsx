@@ -151,11 +151,6 @@ export default function SchedulePage() {
       <PageHeader
         label="Emerald High School · Dublin, CA"
         title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
-        sub={
-          isExpert
-            ? 'Sign up for sessions independently of participant capacity. Expert spots are limited per session.'
-            : 'Add sessions to your agenda. The builder prevents time conflicts, flags near-full tracks, and warns about long walks between rooms. Drag and drop a session to your schedule!'
-        }
       />
 
       {/* discipline filters */}

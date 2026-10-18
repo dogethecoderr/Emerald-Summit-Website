@@ -91,6 +91,11 @@ module.exports = {
         },
         // Light catching a cut stone: the highlight rests off the letters for
         // most of the cycle, then sweeps across once, left to right.
+        // Slow drift of the dashboard hero's emerald gradient.
+        'gradient-pan': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
         'glint': {
           '0%, 80%': { backgroundPosition: '100%' },
           '100%': { backgroundPosition: '0%' },
@@ -103,6 +108,7 @@ module.exports = {
         'fade-in': 'fade-in 0.4s ease both',
         drift: 'drift 7s ease-in-out infinite',
         glint: 'glint 4.5s linear infinite',
+        'gradient-pan': 'gradient-pan 12s ease-in-out infinite',
       },
     },
   },

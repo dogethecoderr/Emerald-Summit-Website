@@ -115,9 +115,6 @@ export default function LoginPage() {
                     <h1 className="font-display text-xl font-semibold tracking-tight lg:text-3xl">
                       Sign in as {role.label}
                     </h1>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground lg:mt-2 lg:text-base">
-                      {role.description}
-                    </p>
                   </div>
                 </div>
               </div>

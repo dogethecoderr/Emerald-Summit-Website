@@ -494,7 +494,6 @@ export default function SettingsPage() {
           <PageHeader
             label="Emerald High School · Dublin, CA"
             title="Settings"
-            sub="Manage your account, profile, and app preferences."
           />
           <div className="-mt-4 mb-8 border-t border-border/60" />
         </>

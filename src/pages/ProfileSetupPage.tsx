@@ -178,9 +178,6 @@ export default function ProfileSetupPage() {
             <Label className="mb-1 block text-[13px]">
               Discipline <span className="text-muted-foreground">(optional)</span>
             </Label>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Pick the universe that best fits you.
-            </p>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {USER_DISCIPLINES.map((d) => {
                 const selected = selectedDiscipline === d.name;

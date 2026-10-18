@@ -134,7 +134,6 @@ export default function JudgingPage() {
       <PageHeader
         label="Expert Day Plan"
         title="Your Judging Schedule"
-        sub="Every session you're judging, in order, with walking routes between rooms. Rubrics open 10 minutes before each block."
       />
 
       <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">

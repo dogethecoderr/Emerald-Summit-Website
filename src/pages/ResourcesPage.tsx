@@ -71,7 +71,6 @@ export default function ResourcesPage() {
       <PageHeader
         label="Document Library"
         title="Resources"
-        sub="The master schedule plus every map, brief, form, and deck — searchable, and attached to tracks so they surface in context."
       />
 
       <div className="mb-6 space-y-3">

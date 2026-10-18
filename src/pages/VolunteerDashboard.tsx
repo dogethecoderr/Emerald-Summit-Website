@@ -97,7 +97,6 @@ export default function VolunteerDashboard({
       <PageHeader
         label="Volunteer Dashboard"
         title="Volunteer Hub & Track Management"
-        sub="Manage your assigned track, review participant check-ins, and support Summit attendees."
       />
 
       <div className="space-y-6">

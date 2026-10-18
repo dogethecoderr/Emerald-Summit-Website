@@ -223,7 +223,12 @@ export default function AnnouncementsPanel({
 
   return (
     <section className="glass rounded-2xl p-5">
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div
+        className={cn(
+          'mb-4 flex items-center justify-between gap-2',
+          !isFull && 'border-b border-border pb-4',
+        )}
+      >
         <h2 className="font-display text-base font-semibold">Announcements</h2>
         <div className="flex items-center gap-2">
           {pinnedCount > 0 && (
