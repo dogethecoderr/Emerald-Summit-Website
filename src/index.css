@@ -95,3 +95,16 @@
     display: none;
   }
 }
+
+/* Hands the hero sky from the encoded arrival over to the live canvas. The
+   canvas seeds its stars randomly, so it never lines up with the video's
+   final frame — this dissolve is what keeps that reshuffle from reading as
+   a twitch. */
+@keyframes sky-handover {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

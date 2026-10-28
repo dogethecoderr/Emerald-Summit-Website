@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import MountainSkyline from './MountainSkyline';
 
 /**
  * Where the sun finishes setting in the encoded sequence — the same T_SET the
@@ -73,6 +75,14 @@ export default function SkyVideo({
   // Falls back to the still if the file errors — a broken background must not
   // leave the hero on a black rectangle.
   const [failed, setFailed] = useState(false);
+  /** Set once the arrival has finished playing, handing over to the live sky. */
+  const [ended, setEnded] = useState(false);
+  /** Drops the video element once the live sky has finished fading over it. */
+  const [videoRetired, setVideoRetired] = useState(false);
+
+  // Under reduced motion nothing should be moving at all, so that case keeps
+  // the flat still rather than the twinkling canvas.
+  const reduceMotion = useReducedMotion();
 
   const onCueRef = useRef(onCueContent);
   onCueRef.current = onCueContent;
@@ -93,6 +103,14 @@ export default function SkyVideo({
       window.removeEventListener('orientationchange', sync);
     };
   }, []);
+
+  // Held only until the dissolve completes: past that the element is a
+  // decoded frame sitting invisible under an opaque canvas.
+  useEffect(() => {
+    if (!ended) return;
+    const id = setTimeout(() => setVideoRetired(true), 900);
+    return () => clearTimeout(id);
+  }, [ended]);
 
   const cue = () => {
     if (cuedRef.current) return;
@@ -157,11 +175,16 @@ export default function SkyVideo({
   }, [playIntro, skip, failed]);
 
   const still = `/sky/${variant}-settled.jpg`;
-  const showVideo = playIntro && !skip && !failed;
+
+  // The arrival plays as video; everything after it is the live canvas, which
+  // is what keeps the stars twinkling. A frozen last frame reads as broken.
+  const showVideo =
+    playIntro && !skip && !failed && !reduceMotion && !videoRetired;
+  const showLiveSky = !reduceMotion && (ended || !playIntro || skip || failed);
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-black" aria-hidden>
-      {showVideo ? (
+      {showVideo && (
         <video
           ref={videoRef}
           className="absolute inset-0 h-full w-full object-cover"
@@ -169,19 +192,24 @@ export default function SkyVideo({
           muted
           playsInline
           preload="auto"
-          // No `loop`: the last frame is the settled sky and should hold.
+          // No `loop`: it hands over to the live sky rather than repeating.
           onTimeUpdate={(e) => {
             if (e.currentTarget.currentTime >= CUE_AT) cue();
           }}
           onPlaying={() => {
             startedRef.current = true;
           }}
-          onEnded={cue}
+          onEnded={() => {
+            setEnded(true);
+            cue();
+          }}
           onError={() => setFailed(true)}
         >
           <source src={`/sky/${videoVariant}.mp4`} type="video/mp4" />
         </video>
-      ) : (
+      )}
+
+      {reduceMotion && (
         <img
           src={still}
           alt=""
@@ -189,16 +217,37 @@ export default function SkyVideo({
         />
       )}
 
-      {/* Soft fade into the light page below. Kept out of the encode and
-          layered here so it tracks the page background rather than baking
-          one theme's colour into the video. */}
-      <div
-        className="absolute inset-x-0 bottom-0 h-24"
-        style={{
-          background:
-            'linear-gradient(to bottom, transparent, hsl(var(--background)))',
-        }}
-      />
+      {/*
+        Layered over the video and faded in rather than swapped in. The canvas
+        seeds its starfield randomly on mount, so its stars do not land where
+        the encoded ones did; a hard cut shows that reshuffle as a visible
+        twitch, and a short dissolve hides it. MountainSkyline paints its own
+        opaque sky, so it covers the video underneath once it is up.
+      */}
+      {showLiveSky && (
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: ended ? 0 : 1,
+            animation: ended ? 'sky-handover 700ms ease-out forwards' : undefined,
+          }}
+        >
+          <MountainSkyline />
+        </div>
+      )}
+
+      {/* Soft fade into the light page below. Only needed for the video and
+          the still — MountainSkyline brings its own, and stacking two would
+          darken the band. */}
+      {!showLiveSky && (
+        <div
+          className="absolute inset-x-0 bottom-0 h-24"
+          style={{
+            background:
+              'linear-gradient(to bottom, transparent, hsl(var(--background)))',
+          }}
+        />
+      )}
     </div>
   );
 }

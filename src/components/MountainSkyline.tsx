@@ -386,7 +386,11 @@ export default function MountainSkyline({
       const baseR = Math.min(w, h) * 0.15;
       const sunR = baseR * lerp(0.3, 1, easeOut(focus)) * (1 + beat * 0.16);
       const sunY = lerp(h * 0.42, h * 1.1, setting);
-      const sunA = focus * (1 - setting * 0.92);
+      // Must reach exactly zero, not 0.92 of the way there: any residual
+      // alpha keeps drawSun past its early return, so the settled sky would
+      // go on building three radial gradients a frame for a sun that is
+      // below the range and invisible.
+      const sunA = focus * (1 - setting);
       drawSun(cx, sunY, sunR, sunA, beat, t);
 
       // Sky washes deeper emerald as the flare swells.
