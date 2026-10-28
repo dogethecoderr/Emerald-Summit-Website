@@ -11,6 +11,7 @@ import WelcomePage from './pages/WelcomePage';
 const AppShowcasePage = lazy(() => import('./pages/AppShowcasePage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ApplyPage = lazy(() => import('./pages/ApplyPage'));
 const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
 const SchedulePage = lazy(() => import('./pages/SchedulePage'));
 const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'));
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/app" element={<AppShowcasePage />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/login/:role" element={<LoginPage />} />
+          <Route path="/apply/:role" element={<ApplyPage />} />
           <Route path="/profile" element={<ProfileSetupPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />

@@ -55,7 +55,7 @@ Users sign in and pick a role, which is stored on their record and enforced with
 | **Ambassador** | Edit activity pages, post announcements, log volunteer hours |
 | **Admin** | Post and edit announcements, share files, broadcast Summit news |
 
-Every role except **Ambassador** can sign in; ambassadors are still coordinated offline and exist only so directory listings label them correctly.
+Every role except **Ambassador** can sign in; ambassadors are still coordinated offline and exist only so directory listings label them correctly. **Experts** also need an admin's approval before their email works; see [Expert sign-up and approval](#expert-sign-up-and-approval).
 
 ---
 
@@ -65,6 +65,7 @@ Every role except **Ambassador** can sign in; ambassadors are still coordinated 
 
 - **Node.js 18+**
 - A **Supabase** project (copy `.env.example` to `.env.local` and fill in your keys). Without one, the app runs in a local auth-bypass mode for prototyping.
+- For expert sign-in by email, the approvals Apps Script deployed and its URL in `VITE_APPROVALS_URL` (see `apps-script/README.md`).
 
 ### Run the app
 
@@ -103,11 +104,13 @@ src/
 ├── context/              # React context providers (Auth, Schedule, Announcements)
 ├── hooks/                # Reusable hooks (e.g. useRequireProfile)
 ├── models/               # Domain models (roles, disciplines, sessions, people, …)
-├── services/             # Backend integration (auth)
+├── services/             # Backend integration (auth, announcements, approvals)
 └── index.css             # Tailwind + design-system globals
 
 supabase/
 └── migrations/           # Postgres schema + row-level security migrations
+
+apps-script/              # Google Apps Script backend for the expert sign-up sheet
 ```
 
 > The `.agents/` folder is a collaborator's Google Antigravity agent workspace and is unrelated to the web app — see `.agents/README.md`.
@@ -208,6 +211,28 @@ The design source is the Figma file [Emerald Summit — Portal Redesign](https:/
 
 ---
 
+## Expert sign-up and approval
+
+Experts sign in with their email, and an admin approves each one in a Google Sheet before that email works. The sheet is "Emerald Summit App - Experts": one row per applicant, with an **Approval Status** column of Awaiting Approval, Approved, or Rejected ("Yes"/"No" also work).
+
+| Step | What happens |
+|---|---|
+| Expert enters their email on `/login/expert` | The app looks it up in the sheet |
+| Email not in the sheet | They fill in the survey at `/apply/expert` (name, phone, universe, track, organization, bio, …), which adds an Awaiting Approval row. They return to the login page with a note that they will be emailed once approved |
+| Email awaiting or rejected | The login page says so and does not sign them in |
+| Admin sets the row to Approved | The applicant gets an email with a sign-in link |
+| Email approved | They are signed in as an expert |
+
+The app talks to the sheet through a small Apps Script web app (`apps-script/approvals.gs`) whose URL goes in `VITE_APPROVALS_URL`. Setup steps, including the trigger that sends approval emails, are in `apps-script/README.md`. Without that variable, the email step says the backend isn't configured, and Bypass Login still works.
+
+The survey questions live in `src/models/approvalSurveys.ts`, and the script finds sheet columns by header name. Gating volunteers the same way means adding a `volunteer` entry there and a `Volunteers` tab to the sheet.
+
+This is a prototype: the typed email is trusted without verification, and approved users get the same local session as Bypass Login. Once Google sign-in is turned back on, the same check should run against the verified Google email.
+
+Relevant files: `apps-script/approvals.gs`, `src/services/approvals.ts`, `src/models/approvalSurveys.ts`, `src/pages/LoginPage.tsx`, `src/pages/ApplyPage.tsx`.
+
+---
+
 ## Brand
 
 | Name | Hex | Use |
@@ -220,7 +245,7 @@ The design source is the Figma file [Emerald Summit — Portal Redesign](https:/
 
 Display type is **Satoshi** (`font-display`); body text is **Instrument Sans**.
 
-Keep in-app copy functional: page headers carry a label and title only, with no taglines. Explanatory text stays only where it tells people how something works, such as the Bypass Login note on sign-in.
+Keep in-app copy functional: page headers carry a label and title only, with no taglines. Explanatory text stays only where it tells people how something works, such as the expert approval note on sign-in.
 
 ---
 

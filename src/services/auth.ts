@@ -127,19 +127,38 @@ export function getBypassProfile(): Profile | null {
 }
 
 export function signInWithBypass(roleName: string): void {
+  startLocalSession(
+    roleName,
+    'bypass@example.com',
+    `Bypass ${roleName.charAt(0).toUpperCase() + roleName.slice(1)}`,
+  );
+}
+
+/**
+ * Prototype sign-in for roles gated by the approvals sheet (expert,
+ * volunteer): the caller has just confirmed this email is Approved there.
+ * Reuses the local bypass session, so nothing else needs to know about it.
+ */
+export function signInWithApprovedEmail(
+  roleName: string,
+  email: string,
+  name: string,
+): void {
+  startLocalSession(roleName, email, name || email);
+}
+
+function startLocalSession(roleName: string, email: string, name: string): void {
   const session = {
     user: {
       id: 'bypass_user_id',
-      email: 'bypass@example.com',
-      user_metadata: {
-        full_name: `Bypass ${roleName.charAt(0).toUpperCase() + roleName.slice(1)}`,
-      }
-    }
+      email,
+      user_metadata: { full_name: name },
+    },
   };
   const profile: Profile = {
     id: 'bypass_user_id',
-    email: 'bypass@example.com',
-    name: `Bypass ${roleName.charAt(0).toUpperCase() + roleName.slice(1)}`,
+    email,
+    name,
     role: roleName,
     profile_setup_complete: true,
   };
