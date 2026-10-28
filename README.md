@@ -128,6 +128,48 @@ Features that depend on a migration degrade to local/mock data until it is pushe
 
 ---
 
+## Volunteer and admin allowlist
+
+Who may hold the **volunteer**, **ambassador**, or **admin** role comes from two private Google Sheets, copied from the mobile app's sheets:
+
+| Sheet | Columns |
+|---|---|
+| Emerald Summit Website - Allowed Volunteers | `email`, `subtype` (`eaf_ambassador` / `parent_volunteer` / `student_volunteer`), `disciplines` (ids, or `all`), `can_edit_sessions`, `can_post_announcements`, `can_check_in_front_desk` |
+| Emerald Summit Website - Allowed Admins | `email` |
+
+A blank capability cell uses the subtype default: EAF ambassadors can edit sessions; everything else is off until set `TRUE`. Session editing and announcement rights only apply to the listed disciplines, so set them only on rows that have one.
+
+**How it's enforced.** The `sync-allowlist` Edge Function reads both sheets through a Google service account and copies them into `role_allowlist` every minute. A trigger on `users` (`users_role_allowlist`) then:
+
+- turns any volunteer, ambassador, or admin who isn't listed into a participant;
+- allows ambassador only for volunteer rows with subtype `eaf_ambassador`;
+- copies each volunteer's subtype, disciplines, and flags onto their row;
+- pins the row's email to the sign-in email, so nobody can borrow an admin's address.
+
+Editing a sheet takes effect within a minute. Removing someone demotes them. If a sheet suddenly reads back empty, or loses more than half its rows (and at least 5), the sync refuses to remove anyone and reports why. This port, from the mobile repo's `sync-allowlist`, drops the app's in-app admin notice.
+
+**One-time setup** (project `spsxfbvamwxsmtjkwxko`):
+
+1. In Google Cloud, enable the **Google Sheets API**, create a service account, and download a JSON key. Share both sheets with the service account's `client_email` as **Viewer**.
+2. Log in and link: `npx supabase login`, then `npx supabase link --project-ref spsxfbvamwxsmtjkwxko`.
+3. Apply `supabase/migrations/20261028120000_role_allowlist.sql` on its own: paste it into the SQL editor, or run `npx supabase db query --linked -f <file>`. It creates the table, the trigger, and the once-a-minute cron job. Don't use `db push` here. This project's earlier migrations were applied by hand, so it has no migration history and `db push` would try to replay all of them.
+4. Set the function's secrets (the private key stays on your machine; never commit it):
+   ```bash
+   npx supabase secrets set \
+     VOLUNTEERS_SHEET_ID=1NMQ1C3hCARPW6TBcQMHfhDD4K3EupNqNJqjkfG56LLQ \
+     ADMINS_SHEET_ID=1ZjCvL_COOEq94JMtwDywOj1vn08mIYzuBbZ3kYgTkSw \
+     GOOGLE_SERVICE_ACCOUNT_EMAIL="<client_email>" \
+     GOOGLE_PRIVATE_KEY="<private_key, keeping the \n escapes>" \
+     ALLOWLIST_SYNC_SECRET="<output of: select secret from private.allowlist_sync;>"
+   ```
+5. Deploy: `npx supabase functions deploy sync-allowlist --no-verify-jwt`.
+6. Check it once with `select private.flush_allowlist_sync();` and then `select * from role_allowlist;`.
+7. Re-check existing accounts, so anyone who already holds a gated role without being on a sheet is demoted: `update public.users set updated_at = now() where role in ('volunteer', 'ambassador', 'admin');`. Do this only after step 6 shows both lists filled.
+
+Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supabase/functions/sync-allowlist/index.ts`.
+
+---
+
 ## Announcements
 
 Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge.
