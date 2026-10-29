@@ -22,6 +22,8 @@ export interface Person {
   /** When set, controls whether the bio line appears on directory cards. */
   bioVisible?: Visibility;
   status: PersonStatus;
+  /** Discipline id the person is registered under (scopes volunteer rosters). */
+  discipline?: string;
 }
 
 export const MOCK_PEOPLE: Person[] = [
@@ -105,6 +107,7 @@ export const MOCK_PEOPLE: Person[] = [
   },
   {
     id: 'p7',
+    discipline: 'novasphere',
     name: 'Priya Sharma',
     role: 'participant',
     org: 'Emerald High School',
@@ -118,6 +121,7 @@ export const MOCK_PEOPLE: Person[] = [
   },
   {
     id: 'p8',
+    discipline: 'civicverse',
     name: 'Jordan Wu',
     role: 'participant',
     org: 'Emerald High School',
@@ -131,6 +135,7 @@ export const MOCK_PEOPLE: Person[] = [
   },
   {
     id: 'p9',
+    discipline: 'imaginex',
     name: 'Nadia El-Amin',
     role: 'participant',
     org: 'Emerald High School',

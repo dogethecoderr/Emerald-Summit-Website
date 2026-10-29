@@ -151,6 +151,17 @@ A blank capability cell uses the subtype default: EAF ambassadors can edit sessi
 
 Editing a sheet takes effect within a minute. Removing someone demotes them. If a sheet suddenly reads back empty, or loses more than half its rows (and at least 5), the sync refuses to remove anyone and reports why. This port, from the mobile repo's `sync-allowlist`, drops the app's in-app admin notice.
 
+**What each column does on the website.**
+
+| Sheet | Effect |
+|---|---|
+| Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. Ambassadors sign in as Volunteer; Ambassador isn't a sign-in choice. |
+| Disciplines | Scopes the Volunteer Hub roster to participants in those disciplines (`all` shows everyone). With no disciplines and no front desk, the hub asks them to get disciplines added to the sheet. |
+| `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons. Everyone else sees their roster read-only. The database enforces it (`20261028140000_front_desk_check_in.sql`): front-desk volunteers may change another person's `checked_in_at` and nothing else, and nobody checks themselves in. |
+| `can_edit_sessions`, `can_post_announcements` | Shown as badges in the hub. Nothing uses them yet: the website's sessions are still sample data, and only admins post announcements. |
+
+Bypass Login's demo volunteer gets every permission, so the whole hub can be previewed without the sheets.
+
 **One-time setup** (project `spsxfbvamwxsmtjkwxko`):
 
 1. In Google Cloud, enable the **Google Sheets API**, create a service account, and download a JSON key. Share both sheets with the service account's `client_email` as **Viewer**.
@@ -169,7 +180,9 @@ Editing a sheet takes effect within a minute. Removing someone demotes them. If 
 6. Check it once with `select private.flush_allowlist_sync();` and then `select * from role_allowlist;`.
 7. Re-check existing accounts, so anyone who already holds a gated role without being on a sheet is demoted: `update public.users set updated_at = now() where role in ('volunteer', 'ambassador', 'admin');`. Do this only after step 6 shows both lists filled.
 
-Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supabase/functions/sync-allowlist/index.ts`.
+**Testing it.** Sign in with **Continue with Google**. Bypass Login is a local demo session that never reaches the database, so it skips the sheets. A new Google account that picks Volunteer or Admin keeps that role only if its email is on the matching sheet. Otherwise it becomes a participant and sees "You aren't eligible to sign up as a volunteer/an admin." The role picked on the login page applies to existing accounts too: anyone can switch to Participant or Attendee, but Volunteer, Ambassador, and Admin need the email on that sheet (`20261028160000_switch_role_at_sign_in.sql`). If the switch is refused, the account keeps its current role and lands on the roles page with that message. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs**. Expert sign-in uses the approvals sheet's email flow instead of Google.
+
+Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supabase/migrations/20261028140000_front_desk_check_in.sql`, `supabase/migrations/20261028160000_switch_role_at_sign_in.sql`, `supabase/functions/sync-allowlist/index.ts`, `src/services/auth.ts` (`getCurrentProfile`, `takeDeniedRole`), `src/models/roles.ts` (`roleLabelFor`), `src/pages/LoginPage.tsx`, `src/pages/VolunteerDashboard.tsx`.
 
 ---
 
@@ -191,6 +204,8 @@ Files upload to the public `announcement-media` Supabase Storage bucket (100 MB 
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a post, edit, pin, or delete reaches every connected profile without a refresh.
 
+**Unread.** Each account's unread announcements show a red count on the sidebar's Announcements link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read, and the Announcements tab has "Mark all as read". Read state is kept in the browser per account (`AnnouncementsContext`), so it doesn't follow someone to another device.
+
 **Local fallback.** Writes need a real Supabase session, because row-level security has no credentials to check under bypass sign-in. With bypass — or with no backend configured at all — posts are kept in the browser's own storage and broadcast across that browser's tabs, and the composer says so rather than failing against an invisible policy. Admins also see a banner when the backend is configured but unreachable, quoting the error instead of silently showing stale content.
 
 Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsContext.tsx`, `src/components/AnnouncementComposer.tsx`, `src/components/AnnouncementsPanel.tsx`, `src/components/AttachmentPreview.tsx`.
@@ -201,9 +216,11 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile.
-- **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a dot when something is pinned. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
-- **Mobile** uses the same navy for a compact top bar and a bottom tab bar.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Sign out is only in Settings.
+- **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
+- **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
+
+**Roles page** (`/roles`, `src/pages/RolesPage.tsx`). This is the navy-and-card page shown at `/home` when signed out, and reachable from the sidebar when signed in. Signed out, a role leads to its sign-in page. Signed in, a role switches the account in place (`switchRole` in `src/services/auth.ts`), with the database checking the Google Sheets. A refused switch stays on the page with "You aren't eligible to sign up as …" and the role the account still has. Volunteer, Admin, and Expert are marked "Approval needed". Expert always goes through the experts sheet's email sign-in.
 
 The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** timeline of reserved sessions in time order. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail, so neither column leaves empty space; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate three layers: that top section, a row of four quick links, and tinted featured-session cards in a three-column grid.
 

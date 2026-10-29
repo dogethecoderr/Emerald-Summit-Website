@@ -10,6 +10,7 @@ import {
   Pencil,
   Trash2,
   Plus,
+  CheckCheck,
 } from 'lucide-react';
 import type {
   Announcement,
@@ -39,6 +40,13 @@ export interface AnnouncementAdminProps {
   onEdit?: (announcement: Announcement) => void;
   onDelete?: (announcement: Announcement) => void;
   onTogglePin?: (announcement: Announcement) => void;
+}
+
+/** Read state, owned by AnnouncementsContext; omit to show everything as read. */
+export interface AnnouncementReadProps {
+  isUnread?: (id: string) => boolean;
+  onMarkRead?: (id: string) => void;
+  onMarkAllRead?: () => void;
 }
 
 function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
@@ -76,12 +84,16 @@ function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
 
 export function AnnouncementItem({
   announcement,
+  unread = false,
+  onMarkRead,
   canManage = false,
   onEdit,
   onDelete,
   onTogglePin,
 }: {
   announcement: Announcement;
+  unread?: boolean;
+  onMarkRead?: (id: string) => void;
 } & AnnouncementAdminProps) {
   const attachments = announcement.attachments ?? [];
   // Media plays in the body of the post; documents and links stay as rows.
@@ -91,8 +103,23 @@ export function AnnouncementItem({
   const listed = attachments.filter((a) => !inline.includes(a));
 
   return (
-    <article className="border-b border-border/60 py-4 first:pt-0 last:border-0 last:pb-0">
-      <div className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+    // Opening an unread item (clicking anywhere in it) marks it read.
+    <article
+      onClick={unread && onMarkRead ? () => onMarkRead(announcement.id) : undefined}
+      className={cn(
+        'rounded-xl border p-4 transition-colors',
+        unread
+          ? 'cursor-pointer border-rose-200 bg-rose-50/70 hover:bg-rose-50'
+          : 'border-border/60 bg-card/50',
+      )}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+        {unread && (
+          <span className="inline-flex items-center gap-1.5 font-bold text-rose-600">
+            <span className="h-2 w-2 rounded-full bg-rose-600" aria-hidden />
+            New
+          </span>
+        )}
         {announcement.pinned && (
           <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
             <Pin className="h-3 w-3" fill="currentColor" /> Pinned
@@ -109,7 +136,12 @@ export function AnnouncementItem({
         <span className="text-muted-foreground">→ {announcement.audience}</span>
         <span className="ml-auto text-muted-foreground">{announcement.date}</span>
       </div>
-      <h3 className="text-[15px] font-semibold leading-snug">
+      <h3
+        className={cn(
+          'text-[15px] leading-snug',
+          unread ? 'font-bold' : 'font-semibold text-foreground/90',
+        )}
+      >
         {announcement.title}
       </h3>
       <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">
@@ -139,8 +171,21 @@ export function AnnouncementItem({
         </div>
       )}
 
+      {unread && onMarkRead && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMarkRead(announcement.id);
+          }}
+          className="mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+        >
+          <CheckCheck className="h-3 w-3" /> Mark as read
+        </button>
+      )}
+
       {canManage && (
-        <div className="mt-3 flex items-center gap-1.5">
+        <div className="mt-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => onEdit?.(announcement)}
@@ -185,17 +230,24 @@ export default function AnnouncementsPanel({
   onEdit,
   onDelete,
   onTogglePin,
+  isUnread,
+  onMarkRead,
+  onMarkAllRead,
 }: {
   announcements: Announcement[];
   /** 'compact' = top-3 preview with a "View all" link (Dashboard use).
    *  'full' = the complete searchable/filterable list (Announcements tab). */
   variant?: 'compact' | 'full';
   onViewAll?: () => void;
-} & AnnouncementAdminProps) {
+} & AnnouncementAdminProps &
+  AnnouncementReadProps) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All');
 
   const pinnedCount = announcements.filter((a) => a.pinned).length;
+  const unreadCount = isUnread
+    ? announcements.filter((a) => isUnread(a.id)).length
+    : 0;
 
   const sorted = useMemo(
     () =>
@@ -231,6 +283,20 @@ export default function AnnouncementsPanel({
       >
         <h2 className="font-display text-base font-semibold">Announcements</h2>
         <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-1 text-[11px] font-bold text-white">
+              {unreadCount} unread
+            </span>
+          )}
+          {isFull && unreadCount > 0 && onMarkAllRead && (
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <CheckCheck className="h-3 w-3" /> Mark all as read
+            </button>
+          )}
           {pinnedCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald/15 px-2 py-1 text-[11px] font-semibold text-emerald-mint">
               <Bell className="h-3 w-3" /> {pinnedCount} pinned
@@ -275,11 +341,13 @@ export default function AnnouncementsPanel({
         </div>
       )}
 
-      <div>
+      <div className="space-y-3">
         {visible.map((a) => (
           <AnnouncementItem
             key={a.id}
             announcement={a}
+            unread={isUnread?.(a.id) ?? false}
+            onMarkRead={onMarkRead}
             canManage={canManage}
             onEdit={onEdit}
             onDelete={onDelete}

@@ -20,7 +20,17 @@ export type Profile = {
   created_at?: string;
   updated_at?: string;
   checked_in_at?: string;
+  // Set from the Allowed Volunteers sheet by the users_role_allowlist trigger
+  // (README: Volunteer and admin allowlist). The client never writes these.
+  volunteer_subtype?: VolunteerSubtype | null;
+  /** Discipline ids this volunteer manages; ['*'] means every discipline. */
+  managed_disciplines?: string[];
+  can_edit_sessions?: boolean;
+  can_post_announcements?: boolean;
+  can_check_in_front_desk?: boolean;
 };
+
+export type VolunteerSubtype = 'eaf_ambassador' | 'student_volunteer' | 'parent_volunteer';
 
 export interface ProfileSettings {
   org: string;
@@ -51,6 +61,20 @@ function requireSupabase() {
   return supabase;
 }
 
+/** Roles the Google Sheets allowlist decides (see role_allowlist in README). */
+const GATED_ROLES = ['volunteer', 'ambassador', 'admin'];
+const ROLE_DENIED_KEY = 'role_denied';
+
+/**
+ * The gated role a new account asked for but wasn't granted, if any. Read
+ * once: the caller shows the message, and it isn't shown again.
+ */
+export function takeDeniedRole(): string | null {
+  const value = localStorage.getItem(ROLE_DENIED_KEY);
+  if (value) localStorage.removeItem(ROLE_DENIED_KEY);
+  return value;
+}
+
 export function savePendingRole(roleName: string): void {
   localStorage.setItem(PENDING_ROLE_KEY, roleName);
 }
@@ -74,7 +98,9 @@ export async function getCurrentProfile(user: User): Promise<Profile | null> {
     .single();
 
   if (error && error.code === 'PGRST116') {
-    // Row not found, create one.
+    // Row not found, create one. The role_allowlist trigger may quietly turn a
+    // volunteer/ambassador/admin request into participant, so compare what
+    // the server kept with what was asked for.
     const pendingRole = takePendingRole() || 'participant';
     const newProfile = {
       id: user.id,
@@ -94,14 +120,20 @@ export async function getCurrentProfile(user: User): Promise<Profile | null> {
       return null;
     }
     data = inserted;
+    if (GATED_ROLES.includes(pendingRole) && inserted?.role !== pendingRole) {
+      localStorage.setItem(ROLE_DENIED_KEY, pendingRole);
+    }
   } else if (error) {
     console.error('Failed to fetch user profile', error);
     return null;
   }
 
-  // If they have a pending role, and they are not fully set up, we could update their role.
+  // An existing account signing in with a different role: ask the server to
+  // switch. enforce_users_update_rules allows participant/attendee for anyone
+  // and volunteer/ambassador/admin only for emails on that Google Sheet; it
+  // refuses anything else, and the account keeps its current role.
   const pendingRole = takePendingRole();
-  if (pendingRole && data && !data.profile_setup_complete && data.role !== pendingRole) {
+  if (pendingRole && data && data.role !== pendingRole) {
     const { data: updated, error: updateError } = await requireSupabase()
       .from('users')
       .update({ role: pendingRole })
@@ -110,6 +142,9 @@ export async function getCurrentProfile(user: User): Promise<Profile | null> {
       .single();
     if (!updateError && updated) {
       data = updated;
+    }
+    if (GATED_ROLES.includes(pendingRole) && data?.role !== pendingRole) {
+      localStorage.setItem(ROLE_DENIED_KEY, pendingRole);
     }
   }
 
@@ -161,12 +196,49 @@ function startLocalSession(roleName: string, email: string, name: string): void 
     name,
     role: roleName,
     profile_setup_complete: true,
+    // The local demo never reaches the sheets, so a demo volunteer gets every
+    // sheet permission to show all of the Volunteer Hub.
+    ...(roleName === 'volunteer'
+      ? {
+          volunteer_subtype: 'student_volunteer' as const,
+          managed_disciplines: ['*'],
+          can_edit_sessions: true,
+          can_post_announcements: true,
+          can_check_in_front_desk: true,
+        }
+      : {}),
   };
   localStorage.setItem('bypass_session', JSON.stringify(session));
   localStorage.setItem('bypass_profile', JSON.stringify(profile));
   
   // Emit storage event to trigger AuthContext refresh
   window.dispatchEvent(new Event('storage'));
+}
+
+/**
+ * Switch the signed-in account to another role from the roles page. The
+ * database decides (enforce_users_update_rules): participant and attendee are
+ * open, volunteer/ambassador/admin need the email on that Google Sheet.
+ * Returns false when the switch was refused; the account keeps its role.
+ * A Bypass demo session switches locally, since it never reaches the sheets.
+ */
+export async function switchRole(roleName: string): Promise<boolean> {
+  if (getBypassSession()) {
+    signInWithBypass(roleName);
+    return true;
+  }
+  const client = requireSupabase();
+  const {
+    data: { session },
+  } = await client.auth.getSession();
+  if (!session) return false;
+  const { data, error } = await client
+    .from('users')
+    .update({ role: roleName })
+    .eq('id', session.user.id)
+    .select('role')
+    .single();
+  return !error && data?.role === roleName;
 }
 
 export function clearBypass(): void {

@@ -11,6 +11,7 @@ import WelcomePage from './pages/WelcomePage';
 const AppShowcasePage = lazy(() => import('./pages/AppShowcasePage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RolesPage = lazy(() => import('./pages/RolesPage'));
 const ApplyPage = lazy(() => import('./pages/ApplyPage'));
 const ProfileSetupPage = lazy(() => import('./pages/ProfileSetupPage'));
 const SchedulePage = lazy(() => import('./pages/SchedulePage'));
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/" element={<WelcomePage />} />
           <Route path="/app" element={<AppShowcasePage />} />
           <Route path="/home" element={<HomePage />} />
+          <Route path="/roles" element={<RolesPage />} />
           <Route path="/login/:role" element={<LoginPage />} />
           <Route path="/apply/:role" element={<ApplyPage />} />
           <Route path="/profile" element={<ProfileSetupPage />} />

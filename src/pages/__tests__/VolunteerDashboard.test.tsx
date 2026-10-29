@@ -28,14 +28,22 @@ vi.mock('../../context/AnnouncementsContext', () => ({
   }),
 }));
 
+// The signed-in volunteer; tests swap in other sheet permissions. Defaults to
+// a front-desk volunteer, who sees everyone and has the check-in tools.
+const FRONT_DESK_PROFILE = {
+  name: 'Demo Volunteer',
+  role: 'volunteer',
+  email: 'volunteer@example.com',
+  volunteer_subtype: 'student_volunteer',
+  managed_disciplines: ['novasphere'],
+  can_check_in_front_desk: true,
+};
+const authState = vi.hoisted(() => ({ profile: {} as Record<string, unknown> }));
+
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({
     session: { user: { email: 'volunteer@example.com' } },
-    profile: {
-      name: 'Demo Volunteer',
-      role: 'volunteer',
-      email: 'volunteer@example.com',
-    },
+    profile: authState.profile,
     loadingProfile: false,
   }),
 }));
@@ -52,6 +60,7 @@ vi.mock('html5-qrcode', () => ({
 describe('VolunteerDashboard Component Suite', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    authState.profile = { ...FRONT_DESK_PROFILE };
   });
 
   const renderWithRouter = (ui: React.ReactElement) => {
@@ -144,6 +153,7 @@ describe('VolunteerDashboard Component Suite', () => {
     });
 
     test('handles unassigned track cleanly with unassigned fallback message', () => {
+      authState.profile = { ...FRONT_DESK_PROFILE, can_check_in_front_desk: false };
       renderWithRouter(<VolunteerDashboard assignedTrack={null} />);
 
       expect(screen.getByText('No assigned track found')).toBeInTheDocument();
@@ -321,6 +331,86 @@ describe('VolunteerDashboard Component Suite', () => {
 
       // Modal is closed
       expect(screen.queryByTestId('volunteer-qr-scanner-modal')).not.toBeInTheDocument();
+    });
+  });
+  // ---------------------------------------------------------------------------
+  // Tier 6: Allowed Volunteers sheet permissions
+  // ---------------------------------------------------------------------------
+  describe('Tier 6: Volunteer sheet permissions', () => {
+    beforeEach(() => {
+      vi.spyOn(useRequireProfileModule, 'useRequireRole').mockReturnValue({
+        ready: true,
+        redirect: null,
+        roleName: 'volunteer',
+      });
+    });
+
+    test('without front-desk check-in: no scanner or check-in buttons, roster scoped to own disciplines', () => {
+      authState.profile = {
+        ...FRONT_DESK_PROFILE,
+        managed_disciplines: ['civicverse'],
+        can_check_in_front_desk: false,
+      };
+      renderWithRouter(<VolunteerDashboard />);
+
+      expect(screen.queryByRole('button', { name: /Scan QR Code/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /(Check In|Undo Check-in)/i })).not.toBeInTheDocument();
+      expect(screen.getByText('Check-in happens at the front desk.')).toBeInTheDocument();
+      expect(screen.getByText('Jordan Wu')).toBeInTheDocument();
+      expect(screen.queryByText('Priya Sharma')).not.toBeInTheDocument();
+      expect(screen.queryByText('Nadia El-Amin')).not.toBeInTheDocument();
+    });
+
+    test('front-desk check-in sees every participant regardless of disciplines', () => {
+      authState.profile = { ...FRONT_DESK_PROFILE, managed_disciplines: [] };
+      renderWithRouter(<VolunteerDashboard />);
+
+      expect(screen.getByRole('button', { name: /Scan QR Code/i })).toBeInTheDocument();
+      expect(screen.getByText('Priya Sharma')).toBeInTheDocument();
+      expect(screen.getByText('Jordan Wu')).toBeInTheDocument();
+      expect(screen.getByText('Nadia El-Amin')).toBeInTheDocument();
+    });
+
+    test('"all" disciplines shows everyone, read-only without front desk', () => {
+      authState.profile = {
+        ...FRONT_DESK_PROFILE,
+        managed_disciplines: ['*'],
+        can_check_in_front_desk: false,
+      };
+      renderWithRouter(<VolunteerDashboard />);
+
+      expect(screen.getByText('All disciplines')).toBeInTheDocument();
+      expect(screen.getByText('Priya Sharma')).toBeInTheDocument();
+      expect(screen.getByText('Jordan Wu')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Scan QR Code/i })).not.toBeInTheDocument();
+    });
+
+    test('no disciplines and no front desk shows the unassigned state', () => {
+      authState.profile = {
+        ...FRONT_DESK_PROFILE,
+        managed_disciplines: [],
+        can_check_in_front_desk: false,
+      };
+      renderWithRouter(<VolunteerDashboard />);
+
+      expect(screen.getByText('No assigned track')).toBeInTheDocument();
+      expect(screen.getByText('Ask an admin to add your disciplines to the volunteer sheet.')).toBeInTheDocument();
+    });
+
+    test('shows the sheet subtype and granted permissions', () => {
+      authState.profile = {
+        ...FRONT_DESK_PROFILE,
+        volunteer_subtype: 'eaf_ambassador',
+        can_edit_sessions: true,
+        can_post_announcements: true,
+      };
+      renderWithRouter(<VolunteerDashboard />);
+
+      // Shown in the hub banner and in the shell (sidebar, top bar).
+      expect(screen.getAllByText('EAF Ambassador').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByText('Front-desk check-in')).toBeInTheDocument();
+      expect(screen.getByText('Manage sessions')).toBeInTheDocument();
+      expect(screen.getByText('Post announcements')).toBeInTheDocument();
     });
   });
 });

@@ -81,3 +81,26 @@ export function roleByName(name: string | undefined): RoleInfo | undefined {
   if (!name) return undefined;
   return USER_ROLES.find((r) => r.name === name);
 }
+
+/** Labels for the Allowed Volunteers sheet's subtype column. */
+export const VOLUNTEER_SUBTYPE_LABELS: Record<string, string> = {
+  eaf_ambassador: 'EAF Ambassador',
+  student_volunteer: 'Student volunteer',
+  parent_volunteer: 'Parent volunteer',
+};
+
+/**
+ * The label to show for a signed-in person: a volunteer's sheet subtype
+ * (EAF Ambassador, Student volunteer, Parent volunteer) when there is one,
+ * otherwise the role's own label.
+ */
+export function roleLabelFor(
+  roleName: string | undefined,
+  volunteerSubtype?: string | null,
+): string {
+  if (roleName === 'volunteer' && volunteerSubtype) {
+    const label = VOLUNTEER_SUBTYPE_LABELS[volunteerSubtype];
+    if (label) return label;
+  }
+  return roleByName(roleName)?.label ?? USER_ROLES[0].label;
+}

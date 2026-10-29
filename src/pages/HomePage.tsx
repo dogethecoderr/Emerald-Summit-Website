@@ -1,10 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BookUser,
   CalendarDays,
-  ChevronLeft,
   ChevronRight,
   Clock,
   FolderOpen,
@@ -16,13 +15,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { SIGN_IN_ROLES } from '../models/roles';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../models/sessions';
-import { needsProfileSetup } from '../services/auth';
+import { needsProfileSetup, takeDeniedRole } from '../services/auth';
 import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
-import BrandMark from '../components/BrandMark';
 import AppShell from '../components/AppShell';
+import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
 import QrPassModal from '../components/QrPassModal';
 import { disciplineByName } from '../models/disciplines';
@@ -72,75 +70,6 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
   ],
 };
 
-function RolePicker() {
-  const navigate = useNavigate();
-  return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        className="pointer-events-none absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full opacity-30 blur-3xl"
-        style={{ background: 'radial-gradient(ellipse, #0C7A55 0%, transparent 65%)' }}
-        aria-hidden
-      />
-      <div className="relative mx-auto max-w-[1440px] px-6 pb-12 pt-16 lg:px-14 lg:pb-16 lg:pt-20">
-        <header className="flex items-center justify-between pb-6 lg:pb-10">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
-          <BrandMark
-            logoClassName="h-14 w-14 lg:h-[4.5rem] lg:w-[4.5rem]"
-            titleClassName="text-lg font-semibold lg:text-2xl"
-            subtitleClassName="text-xs text-muted-foreground lg:text-sm"
-            gap="gap-4"
-          />
-          <span className="w-14" aria-hidden />
-        </header>
-
-        <div className="mt-14 pt-4 lg:mt-24 lg:flex lg:items-start lg:gap-16 lg:pt-8 xl:gap-24">
-          <div className="lg:sticky lg:top-12 lg:w-[min(100%,420px)] lg:shrink-0">
-            <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl lg:text-[2.75rem] lg:leading-tight">
-              Who are you at the Summit?
-            </h1>
-          </div>
-
-          <div className="mt-10 grid flex-1 gap-3 sm:gap-4 lg:mt-0 xl:gap-5">
-            {SIGN_IN_ROLES.map((r, i) => (
-              <button
-                key={r.name}
-                onClick={() => navigate(`/login/${r.name}`)}
-                className="glass animate-fade-up group flex w-full items-center gap-4 rounded-2xl p-4 text-left transition-all hover:translate-x-1 hover:border-emerald-glow/40 sm:p-5 lg:hover:translate-x-0 lg:hover:-translate-y-0.5"
-                style={{ animationDelay: `${i * 70}ms` }}
-              >
-                <span
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset lg:h-12 lg:w-12"
-                  style={{
-                    background: `${r.color}1e`,
-                    color: r.color,
-                    boxShadow: `inset 0 0 0 1px ${r.color}44`,
-                  }}
-                >
-                  <r.icon className="h-5 w-5" strokeWidth={1.9} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display text-[15px] font-semibold lg:text-base">
-                    {r.label}
-                  </span>
-                  <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground lg:text-sm">
-                    {r.description}
-                  </span>
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-emerald-mint" />
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 type AgendaKind = 'Competing' | 'Judging' | 'Spectating';
 
@@ -318,8 +247,16 @@ export default function HomePage() {
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
-  const { announcements, canManage } = useAnnouncements();
+  const { announcements, canManage, isUnread, markRead } = useAnnouncements();
   const [qrPassOpen, setQrPassOpen] = useState(false);
+
+  // A Google sign-in that asked for a role the sheets refused lands on the
+  // roles page with the message, instead of on the dashboard.
+  useEffect(() => {
+    if (!session || loadingProfile) return;
+    const denied = takeDeniedRole();
+    if (denied) navigate('/roles', { replace: true, state: { denied } });
+  }, [session, loadingProfile, profile, navigate]);
 
   const isSignedIn = session != null;
 
@@ -338,7 +275,7 @@ export default function HomePage() {
   }
 
   if (!isSignedIn) {
-    return <RolePicker />;
+    return <RolesPage />;
   }
 
   const name = (profile?.name as string | undefined) ?? 'User';
@@ -557,6 +494,8 @@ export default function HomePage() {
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl">
             <AnnouncementsPanel
               announcements={announcements}
+              isUnread={isUnread}
+              onMarkRead={markRead}
               variant="compact"
               onViewAll={() => navigate('/announcements')}
               canManage={canManage}

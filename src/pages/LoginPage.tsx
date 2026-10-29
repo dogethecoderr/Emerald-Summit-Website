@@ -4,7 +4,8 @@ import { ChevronLeft, Clock, Mail, MailCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { SIGN_IN_ROLES } from '../models/roles';
 import { requiresApproval } from '../models/approvalSurveys';
-import { signInWithApprovedEmail, signInWithBypass } from '../services/auth';
+import { signInWithApprovedEmail, signInWithBypass, signInWithGoogle } from '../services/auth';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { isValidEmail, lookupApproval } from '../services/approvals';
 import GoogleIcon from '../components/GoogleIcon';
 import LinkedInIcon from '../components/LinkedInIcon';
@@ -34,6 +35,7 @@ export default function LoginPage() {
   );
   const [noticeEmail, setNoticeEmail] = useState(incoming.email ?? '');
   const [isChecking, setIsChecking] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   if (!role) {
     return (
@@ -82,6 +84,18 @@ export default function LoginPage() {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  // Leaves for Google and comes back to /home, where the new account is
+  // created with this role (the Sheets allowlist decides volunteer/admin).
+  const handleGoogle = async () => {
+    setIsRedirecting(true);
+    try {
+      await signInWithGoogle(role.name);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+      setIsRedirecting(false);
     }
   };
 
@@ -190,21 +204,29 @@ export default function LoginPage() {
                   </>
                 )}
 
-                {/* Shown but inert for the demo: the OAuth providers are not
-                    wired up to a backend yet, so they are rendered disabled
-                    rather than failing when someone tries them. */}
-                <Button
-                  variant="outline"
-                  className="h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold"
-                  disabled
-                >
-                  <GoogleIcon size={20} />
-                  <span className="ml-2">Continue with Google</span>
-                </Button>
+                {/* Google works wherever Supabase is configured. Expert stays on
+                    the approvals-sheet email flow above, which Google would skip.
+                    LinkedIn has no provider on the backend, so it stays inert. */}
+                {!gated && (
+                  <Button
+                    variant="outline"
+                    className="h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold"
+                    disabled={!isSupabaseConfigured || isRedirecting}
+                    onClick={handleGoogle}
+                  >
+                    <GoogleIcon size={20} />
+                    <span className="ml-2">
+                      {isRedirecting ? 'Opening Google…' : 'Continue with Google'}
+                    </span>
+                  </Button>
+                )}
 
                 <Button
                   variant="outline"
-                  className="mt-3 h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold"
+                  className={cn(
+                    'h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold',
+                    !gated && 'mt-3',
+                  )}
                   disabled
                 >
                   <LinkedInIcon size={20} />
@@ -220,9 +242,8 @@ export default function LoginPage() {
                 </Button>
 
                 <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground lg:text-left">
-                  Google and LinkedIn sign-in are coming soon. For now, continue
-                  with Bypass Login — your {role.label.toLowerCase()} role is
-                  applied for the session.
+                  LinkedIn sign-in is coming soon. Bypass Login is a local demo
+                  session that skips the volunteer and admin sheets.
                 </p>
               </div>
             </div>

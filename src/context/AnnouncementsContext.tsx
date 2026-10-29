@@ -38,6 +38,34 @@ interface AnnouncementsContextValue {
   update: (id: string, draft: AnnouncementDraft) => Promise<void>;
   remove: (id: string) => Promise<void>;
   togglePinned: (id: string, pinned: boolean) => Promise<void>;
+  /** Announcements this account hasn't opened yet (kept in this browser). */
+  unreadCount: number;
+  isUnread: (id: string) => boolean;
+  markRead: (id: string) => void;
+  markAllRead: () => void;
+}
+
+/** Read state lives in localStorage per account; the website's database has
+ *  no read-receipts table. Everything starts unread on a new browser. */
+function readKey(userId: string | undefined): string {
+  return `announcement_reads:${userId ?? 'guest'}`;
+}
+
+function loadReadIds(userId: string | undefined): Set<string> {
+  try {
+    const raw = localStorage.getItem(readKey(userId));
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveReadIds(userId: string | undefined, ids: Set<string>): void {
+  try {
+    localStorage.setItem(readKey(userId), JSON.stringify([...ids]));
+  } catch {
+    // Storage full or blocked: read state just won't persist.
+  }
 }
 
 const AnnouncementsContext = createContext<AnnouncementsContextValue | undefined>(
@@ -54,6 +82,40 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
+  const userId = profile?.id;
+  const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));
+
+  // Switching accounts loads that account's read state.
+  useEffect(() => {
+    setReadIds(loadReadIds(userId));
+  }, [userId]);
+
+  const markRead = useCallback(
+    (id: string) => {
+      setReadIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev).add(id);
+        saveReadIds(userId, next);
+        return next;
+      });
+    },
+    [userId],
+  );
+
+  const markAllRead = useCallback(() => {
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      announcements.forEach((a) => next.add(a.id));
+      saveReadIds(userId, next);
+      return next;
+    });
+  }, [announcements, userId]);
+
+  const isUnread = useCallback((id: string) => !readIds.has(id), [readIds]);
+  const unreadCount = useMemo(
+    () => announcements.filter((a) => !readIds.has(a.id)).length,
+    [announcements, readIds],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -129,6 +191,10 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       update,
       remove,
       togglePinned,
+      unreadCount,
+      isUnread,
+      markRead,
+      markAllRead,
     }),
     [
       announcements,
@@ -141,6 +207,10 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       update,
       remove,
       togglePinned,
+      unreadCount,
+      isUnread,
+      markRead,
+      markAllRead,
     ],
   );
 

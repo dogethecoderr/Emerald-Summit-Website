@@ -9,27 +9,54 @@ import {
   Users,
   AlertCircle,
   QrCode,
+  ScanLine,
+  CalendarCog,
+  Megaphone,
 } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
 import VolunteerQrScannerModal from '../components/VolunteerQrScannerModal';
 import { useRequireRole } from '../hooks/useRequireProfile';
+import { useAuth } from '../context/AuthContext';
+import { roleLabelFor } from '../models/roles';
 import { MOCK_PEOPLE, type Person } from '../models/people';
 import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export interface VolunteerDashboardProps {
+  /** Overrides the signed-in volunteer's sheet disciplines with one track. */
   assignedTrack?: string | null;
   participants?: Person[] | null;
 }
 
 export default function VolunteerDashboard({
-  assignedTrack = 'novasphere',
+  assignedTrack,
   participants: customParticipants,
 }: VolunteerDashboardProps) {
   const { ready, redirect } = useRequireRole(['volunteer']);
+  const { profile } = useAuth();
+
+  // What the Allowed Volunteers sheet gives this person. Front-desk check-in
+  // covers the whole summit; otherwise the roster is their disciplines only,
+  // read-only.
+  const canCheckIn = profile?.can_check_in_front_desk === true;
+  const scope: string[] =
+    assignedTrack !== undefined
+      ? assignedTrack
+        ? [assignedTrack]
+        : []
+      : (profile?.managed_disciplines ?? []);
+  const allDisciplines = scope.includes('*');
+  const knownScope = allDisciplines
+    ? ['*']
+    : scope.filter((d) => disciplineByName(d) !== undefined);
+  const capabilities = [
+    canCheckIn && { label: 'Front-desk check-in', icon: ScanLine },
+    profile?.can_edit_sessions && { label: 'Manage sessions', icon: CalendarCog },
+    profile?.can_post_announcements && { label: 'Post announcements', icon: Megaphone },
+  ].filter(Boolean) as { label: string; icon: typeof ScanLine }[];
 
   // Initial roster defaults to mock participants if custom list not provided
   const initialRoster = customParticipants !== undefined
@@ -53,7 +80,10 @@ export default function VolunteerDashboard({
     );
   }
 
-  const trackInfo = assignedTrack ? disciplineByName(assignedTrack) : undefined;
+  const trackInfo =
+    knownScope.length === 1 && !allDisciplines
+      ? disciplineByName(knownScope[0])
+      : undefined;
 
   const handleCheckInSuccess = (user: { id: string; name: string; checked_in_at?: string | null }) => {
     setRoster((prev) =>
@@ -78,7 +108,13 @@ export default function VolunteerDashboard({
     );
   };
 
-  const filteredRoster = (roster ?? []).filter((p) => {
+  const visibleRoster =
+    canCheckIn || allDisciplines
+      ? (roster ?? [])
+      : (roster ?? []).filter((p) => p.discipline && knownScope.includes(p.discipline));
+  const hasRoster = canCheckIn || knownScope.length > 0;
+
+  const filteredRoster = visibleRoster.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.org.toLowerCase().includes(searchQuery.toLowerCase());
@@ -89,8 +125,8 @@ export default function VolunteerDashboard({
     return true;
   });
 
-  const checkedInCount = (roster ?? []).filter((p) => p.status === 'checkedIn').length;
-  const totalCount = (roster ?? []).length;
+  const checkedInCount = visibleRoster.filter((p) => p.status === 'checkedIn').length;
+  const totalCount = visibleRoster.length;
 
   return (
     <AppShell>
@@ -108,20 +144,39 @@ export default function VolunteerDashboard({
                 <h2 className="font-display text-xl font-bold tracking-tight">
                   Assigned Track
                 </h2>
-                {assignedTrack && <TrackPill track={assignedTrack} />}
+                {allDisciplines ? (
+                  <span className="inline-flex items-center rounded-full bg-emerald/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-mint ring-1 ring-emerald-glow/40">
+                    All disciplines
+                  </span>
+                ) : (
+                  knownScope.map((d) => <TrackPill key={d} track={d} />)
+                )}
               </div>
               {trackInfo ? (
                 <p className="text-sm text-muted-foreground">
                   {trackInfo.description}
                 </p>
-              ) : (
+              ) : knownScope.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-amber-500 font-medium">
                   <AlertCircle className="h-4 w-4" />
                   <span>No assigned track found</span>
                 </div>
-              )}
+              ) : null}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold">
+                  {roleLabelFor('volunteer', profile?.volunteer_subtype)}
+                </span>
+                {capabilities.map(({ label, icon: Icon }) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                  >
+                    <Icon className="h-3 w-3" /> {label}
+                  </span>
+                ))}
+              </div>
             </div>
-            {assignedTrack && (
+            {hasRoster && (
               <div className="flex items-center gap-4 rounded-xl bg-accent/40 px-4 py-2.5 text-xs">
                 <div className="text-center">
                   <span className="block font-bold text-foreground text-sm">
@@ -148,14 +203,20 @@ export default function VolunteerDashboard({
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsScannerOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-deep transition-all"
-              >
-                <QrCode className="h-4 w-4" />
-                <span>Scan QR Code</span>
-              </button>
+              {canCheckIn ? (
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-deep transition-all"
+                >
+                  <QrCode className="h-4 w-4" />
+                  <span>Scan QR Code</span>
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Check-in happens at the front desk.
+                </span>
+              )}
             </div>
 
             {/* Filter Tabs & Search */}
@@ -210,14 +271,14 @@ export default function VolunteerDashboard({
           </div>
 
           {/* Participant List or Empty State */}
-          {!assignedTrack ? (
+          {!hasRoster ? (
             <div className="rounded-xl border border-dashed border-border p-8 text-center">
               <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground" />
               <h3 className="mt-2 font-display text-base font-semibold">
                 No assigned track
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Please contact the Summit coordinator to assign a track to your volunteer account.
+                Ask an admin to add your disciplines to the volunteer sheet.
               </p>
             </div>
           ) : filteredRoster.length === 0 ? (
@@ -287,25 +348,27 @@ export default function VolunteerDashboard({
                       <span className="text-[11px] text-muted-foreground">
                         Status: <strong className="text-foreground">{isCheckedIn ? 'Checked In' : 'Pending'}</strong>
                       </span>
-                      <button
-                        onClick={() => toggleCheckIn(p.id)}
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-                          isCheckedIn
-                            ? 'bg-secondary text-muted-foreground hover:bg-destructive/15 hover:text-destructive'
-                            : 'bg-emerald text-white hover:bg-emerald-deep',
-                        )}
-                      >
-                        {isCheckedIn ? (
-                          <>
-                            <UserX className="h-3 w-3" /> Undo Check-in
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck className="h-3 w-3" /> Check In
-                          </>
-                        )}
-                      </button>
+                      {canCheckIn && (
+                        <button
+                          onClick={() => toggleCheckIn(p.id)}
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
+                            isCheckedIn
+                              ? 'bg-secondary text-muted-foreground hover:bg-destructive/15 hover:text-destructive'
+                              : 'bg-emerald text-white hover:bg-emerald-deep',
+                          )}
+                        >
+                          {isCheckedIn ? (
+                            <>
+                              <UserX className="h-3 w-3" /> Undo Check-in
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="h-3 w-3" /> Check In
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -315,11 +378,13 @@ export default function VolunteerDashboard({
         </section>
       </div>
 
-      <VolunteerQrScannerModal
-        open={isScannerOpen}
-        onOpenChange={setIsScannerOpen}
-        onCheckInSuccess={handleCheckInSuccess}
-      />
+      {canCheckIn && (
+        <VolunteerQrScannerModal
+          open={isScannerOpen}
+          onOpenChange={setIsScannerOpen}
+          onCheckInSuccess={handleCheckInSuccess}
+        />
+      )}
     </AppShell>
   );
 }

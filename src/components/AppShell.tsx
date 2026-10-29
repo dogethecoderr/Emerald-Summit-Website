@@ -6,7 +6,7 @@ import {
   Users,
   Settings,
   Megaphone,
-  LogOut,
+  ArrowLeftRight,
   FolderOpen,
   QrCode,
   Search,
@@ -18,8 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
-import { signOut } from '../services/auth';
-import { roleByName, USER_ROLES } from '../models/roles';
+import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { MOCK_SESSIONS } from '../models/sessions';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
@@ -67,13 +66,15 @@ export function navItemsForRole(roleName: string): NavItem[] {
 function NavBadge({ to }: { to: string }) {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
-  const { announcements } = useAnnouncements();
+  const { unreadCount = 0 } = useAnnouncements();
   if (to === '/announcements') {
-    const pinned = announcements.filter((a) => a.pinned).length;
-    if (pinned === 0) return null;
+    if (unreadCount === 0) return null;
     return (
-      <span className="ml-auto rounded-full bg-sky-300 px-1.5 py-0.5 text-[10px] font-bold leading-none text-navy">
-        {pinned}
+      <span
+        className="ml-auto rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+        aria-label={`${unreadCount} unread`}
+      >
+        {unreadCount}
       </span>
     );
   }
@@ -261,12 +262,13 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const { announcements } = useAnnouncements();
+  const { unreadCount } = useAnnouncements();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const name = (profile?.name as string | undefined) ?? 'Signed in';
   const roleName = (profile?.role as string | undefined) ?? 'participant';
   const role = roleByName(roleName) ?? USER_ROLES[0];
+  const roleLabel = roleLabelFor(roleName, profile?.volunteer_subtype);
   const items = navItemsForRole(roleName);
   const settingsItem = items.find((n) => n.to === '/settings');
   const otherItems = items.filter((n) => n.to !== '/settings');
@@ -276,7 +278,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   ];
   const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
   const [qrPassOpen, setQrPassOpen] = useState(false);
-  const hasPinned = announcements.some((a) => a.pinned);
+  const hasUnread = (unreadCount ?? 0) > 0;
   const currentPage =
     items.find((n) => pathname === n.to || pathname.startsWith(`${n.to}/`))
       ?.label ?? 'Dashboard';
@@ -287,11 +289,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
     .slice(0, 2)
     .join('')
     .toUpperCase();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/home', { replace: true });
-  };
 
   return (
     <div className="min-h-screen">
@@ -313,7 +310,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           />
           <div className="min-w-0 leading-tight">
             <div className="truncate text-[12.5px] font-semibold">
-              Summit 2027 · {role.label}
+              Summit 2027 · {roleLabel}
             </div>
             <div className="truncate text-[11.5px] text-white/55">
               Emerald High School · Dublin, CA
@@ -367,7 +364,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <div className="flex items-center gap-2.5 rounded-xl border border-white/10 p-2.5">
+        {/* Back to the roles page, still signed in. Sign out lives in Settings. */}
+        <button
+          type="button"
+          onClick={() => navigate('/roles')}
+          title="Switch role"
+          className="group flex w-full items-center gap-2.5 rounded-xl border border-white/10 p-2.5 text-left transition-colors hover:border-white/25 hover:bg-white/[0.06]"
+        >
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
             style={{ background: role.color }}
@@ -375,24 +378,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             {initials}
           </div>
-          <NavLink
-            to="/settings/profile"
-            className="min-w-0 flex-1 leading-tight"
-          >
+          <div className="min-w-0 flex-1 leading-tight">
             <div className="truncate text-[13px] font-semibold">{name}</div>
-            <div className="truncate text-[11.5px] text-white/55">
-              {role.label}
-            </div>
-          </NavLink>
-          <button
-            onClick={handleSignOut}
-            title="Sign out"
-            aria-label="Sign out"
-            className="rounded-md p-1.5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
+            <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
+          </div>
+          <span className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:text-white">
+            <ArrowLeftRight className="h-4 w-4" />
+            <span className="sr-only">Switch role</span>
+          </span>
+        </button>
       </aside>
 
       <div className="lg:pl-64">
@@ -410,7 +404,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               style={{ background: `${role.color}14`, color: role.color }}
             >
               <role.icon className="h-3.5 w-3.5" />
-              {role.label}
+              {roleLabel}
             </span>
             <NavLink
               to="/announcements"
@@ -418,7 +412,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               className="relative rounded-[10px] border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
             >
               <Bell className="h-[18px] w-[18px]" />
-              {hasPinned && (
+              {hasUnread && (
                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-600 ring-2 ring-card" />
               )}
             </NavLink>
@@ -450,16 +444,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
               className="relative rounded-lg border border-white/15 p-1.5 text-white/70"
             >
               <Bell className="h-4 w-4" />
-              {hasPinned && (
-                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-sky-300" />
+              {hasUnread && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
               )}
             </NavLink>
             <button
-              onClick={handleSignOut}
-              aria-label="Sign out"
+              type="button"
+              onClick={() => navigate('/roles')}
+              aria-label="Switch role"
               className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white"
             >
-              <LogOut className="h-4 w-4" />
+              <ArrowLeftRight className="h-4 w-4" />
             </button>
           </div>
         </div>

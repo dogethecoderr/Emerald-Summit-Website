@@ -22,8 +22,17 @@ import {
 
 export default function AnnouncementsPage() {
   const { ready, redirect } = useRequireProfile();
-  const { announcements, canManage, error, live, remove, togglePinned } =
-    useAnnouncements();
+  const {
+    announcements,
+    canManage,
+    error,
+    live,
+    remove,
+    togglePinned,
+    isUnread,
+    markRead,
+    markAllRead,
+  } = useAnnouncements();
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
@@ -75,6 +84,9 @@ export default function AnnouncementsPage() {
       )}
       <AnnouncementsPanel
         announcements={announcements}
+        isUnread={isUnread}
+        onMarkRead={markRead}
+        onMarkAllRead={markAllRead}
         variant="full"
         canManage={canManage}
         onCompose={() => {
