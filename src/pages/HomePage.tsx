@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../models/sessions';
-import { needsProfileSetup, takeDeniedRole } from '../services/auth';
+import { needsProfileSetup, signOut, takeDeniedRole } from '../services/auth';
 import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
@@ -250,12 +250,16 @@ export default function HomePage() {
   const { announcements, canManage, isUnread, markRead } = useAnnouncements();
   const [qrPassOpen, setQrPassOpen] = useState(false);
 
-  // A Google sign-in that asked for a role the sheets refused lands on the
-  // roles page with the message, instead of on the dashboard.
+  // One role at a time: a Google sign-in for a role the sheets refused ends
+  // the session (no falling back to the account's old role) and lands on the
+  // roles page with the message.
   useEffect(() => {
     if (!session || loadingProfile) return;
     const denied = takeDeniedRole();
-    if (denied) navigate('/roles', { replace: true, state: { denied } });
+    if (!denied) return;
+    void signOut().then(() =>
+      navigate('/roles', { replace: true, state: { denied } }),
+    );
   }, [session, loadingProfile, profile, navigate]);
 
   const isSignedIn = session != null;

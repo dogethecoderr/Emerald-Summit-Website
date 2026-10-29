@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Clock, Mail, MailCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { SIGN_IN_ROLES } from '../models/roles';
+import { SIGN_IN_ROLES, roleLabelFor } from '../models/roles';
+import { useAuth } from '../context/AuthContext';
 import { requiresApproval } from '../models/approvalSurveys';
 import { signInWithApprovedEmail, signInWithBypass, signInWithGoogle } from '../services/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -27,6 +28,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const role = SIGN_IN_ROLES.find((r) => r.name === roleName);
+  const { session, profile } = useAuth();
+  const signedInRole = session ? ((profile?.role as string | undefined) ?? null) : null;
 
   const incoming = (location.state as LoginLocationState | null) ?? {};
   const [email, setEmail] = useState(incoming.email ?? '');
@@ -55,6 +58,11 @@ export default function LoginPage() {
   }
 
 
+
+  // Already signed in as this role: nothing to sign in to.
+  if (signedInRole === role.name) {
+    return <Navigate to="/home" replace />;
+  }
 
   const gated = requiresApproval(role.name);
 
@@ -202,6 +210,16 @@ export default function LoginPage() {
                       <span className="h-px flex-1 bg-border" />
                     </div>
                   </>
+                )}
+
+                {signedInRole && (
+                  <p className="mb-4 rounded-xl border border-border bg-secondary/50 px-3.5 py-2.5 text-[13px] text-muted-foreground">
+                    You're signed in as{' '}
+                    <span className="font-semibold text-foreground">
+                      {roleLabelFor(signedInRole, profile?.volunteer_subtype)}
+                    </span>
+                    . Signing in as {role.label} ends that.
+                  </p>
                 )}
 
                 {/* Google works wherever Supabase is configured. Expert stays on

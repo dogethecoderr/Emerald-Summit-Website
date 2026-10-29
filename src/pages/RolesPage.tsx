@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, Loader2, ShieldCheck, XCircle } from 'lucide-react';
+import { ArrowRight, ChevronLeft, Info, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES, roleByName, roleLabelFor } from '../models/roles';
-import { switchRole } from '../services/auth';
 import BrandMark from '../components/BrandMark';
 import SummitLogo from '../components/SummitLogo';
 import { cn } from '@/lib/utils';
@@ -23,51 +21,24 @@ function notEligibleMessage(roleName: string): string {
 }
 
 /**
- * Pick a role. Signed out, a role leads to its sign-in page. Signed in, it
- * switches the account's role in place (the database checks the Google
- * Sheets) and stays here with a message if the switch is refused.
+ * Pick a role. One role at a time: signed in, only the current role continues
+ * straight to the dashboard; any other role means signing in again for it,
+ * which ends the current one. Signed out, every role leads to its sign-in.
  */
 export default function RolesPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile } = useAuth();
   const signedIn = session != null;
   const currentRole = signedIn ? ((profile?.role as string | undefined) ?? null) : null;
 
-  const [denied, setDenied] = useState<string | null>(
-    (location.state as RolesLocationState | null)?.denied ?? null,
-  );
-  const [switching, setSwitching] = useState<string | null>(null);
-
-  const pick = async (roleName: string) => {
-    setDenied(null);
-    if (!signedIn) {
-      navigate(`/login/${roleName}`);
-      return;
-    }
-    if (roleName === currentRole) {
+  const denied = (location.state as RolesLocationState | null)?.denied ?? null;
+  const pick = (roleName: string) => {
+    if (signedIn && roleName === currentRole) {
       navigate('/home');
       return;
     }
-    // Experts are approved through the experts sheet's email sign-in.
-    if (roleName === 'expert') {
-      navigate('/login/expert');
-      return;
-    }
-    setSwitching(roleName);
-    try {
-      const ok = await switchRole(roleName);
-      if (!ok) {
-        setDenied(roleName);
-        return;
-      }
-      await refreshProfile();
-      navigate('/home', { replace: true });
-    } catch {
-      setDenied(roleName);
-    } finally {
-      setSwitching(null);
-    }
+    navigate(`/login/${roleName}`);
   };
 
   const name = (profile?.name as string | undefined) ?? '';
@@ -152,6 +123,19 @@ export default function RolesPage() {
       {/* Role cards */}
       <main className="flex-1 px-6 py-10 lg:flex lg:items-center lg:px-14 lg:py-14">
         <div className="mx-auto w-full max-w-3xl">
+          {signedIn && currentRole && (
+            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
+              <Info className="mt-0.5 h-5 w-5 shrink-0 text-emerald" />
+              <p className="text-sm">
+                You're signed in as{' '}
+                <span className="font-semibold">
+                  {roleLabelFor(currentRole, profile?.volunteer_subtype)}
+                </span>
+                . Signing in as another role ends this one.
+              </p>
+            </div>
+          )}
+
           {denied && (
             <div
               role="alert"
@@ -160,12 +144,6 @@ export default function RolesPage() {
               <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
               <div className="text-sm">
                 <div className="font-semibold">{notEligibleMessage(denied)}</div>
-                {signedIn && currentRole && (
-                  <div className="mt-0.5 text-rose-700/80">
-                    Your account is still{' '}
-                    {roleLabelFor(currentRole, profile?.volunteer_subtype)}.
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -173,15 +151,13 @@ export default function RolesPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {SIGN_IN_ROLES.map((r, i) => {
               const isCurrent = r.name === currentRole;
-              const isSwitching = switching === r.name;
               return (
                 <button
                   key={r.name}
                   type="button"
-                  disabled={switching !== null}
-                  onClick={() => void pick(r.name)}
+                  onClick={() => pick(r.name)}
                   className={cn(
-                    'animate-fade-up group flex flex-col rounded-[22px] border bg-card p-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-16px_rgba(16,28,54,0.35)] disabled:cursor-wait disabled:hover:translate-y-0 sm:last:odd:col-span-2',
+                    'animate-fade-up group flex flex-col rounded-[22px] border bg-card p-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-16px_rgba(16,28,54,0.35)] sm:last:odd:col-span-2',
                     isCurrent ? 'border-transparent ring-2' : 'border-border',
                   )}
                   style={{
@@ -222,17 +198,13 @@ export default function RolesPage() {
                   </div>
                   <div className="flex items-center justify-between px-4 pb-2.5 pt-3 text-[13px] font-semibold">
                     <span className="text-muted-foreground">
-                      {isCurrent ? 'Go to dashboard' : signedIn ? 'Switch to this role' : 'Sign in'}
+                      {isCurrent ? `Continue as ${r.label}` : `Sign in as ${r.label}`}
                     </span>
                     <span
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-white transition-transform group-hover:translate-x-0.5"
                       aria-hidden
                     >
-                      {isSwitching ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ArrowRight className="h-4 w-4" />
-                      )}
+                      <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
                 </button>

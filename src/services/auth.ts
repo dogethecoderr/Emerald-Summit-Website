@@ -183,6 +183,8 @@ export function signInWithApprovedEmail(
 }
 
 function startLocalSession(roleName: string, email: string, name: string): void {
+  // One role at a time: a local session replaces any Google session.
+  void supabase?.auth.signOut();
   const session = {
     user: {
       id: 'bypass_user_id',
@@ -215,38 +217,15 @@ function startLocalSession(roleName: string, email: string, name: string): void 
   window.dispatchEvent(new Event('storage'));
 }
 
-/**
- * Switch the signed-in account to another role from the roles page. The
- * database decides (enforce_users_update_rules): participant and attendee are
- * open, volunteer/ambassador/admin need the email on that Google Sheet.
- * Returns false when the switch was refused; the account keeps its role.
- * A Bypass demo session switches locally, since it never reaches the sheets.
- */
-export async function switchRole(roleName: string): Promise<boolean> {
-  if (getBypassSession()) {
-    signInWithBypass(roleName);
-    return true;
-  }
-  const client = requireSupabase();
-  const {
-    data: { session },
-  } = await client.auth.getSession();
-  if (!session) return false;
-  const { data, error } = await client
-    .from('users')
-    .update({ role: roleName })
-    .eq('id', session.user.id)
-    .select('role')
-    .single();
-  return !error && data?.role === roleName;
-}
-
 export function clearBypass(): void {
   localStorage.removeItem('bypass_session');
   localStorage.removeItem('bypass_profile');
 }
 
 export async function signInWithGoogle(roleName: string): Promise<void> {
+  // One role at a time: the Google sign-in replaces any demo/local session,
+  // and on return the account moves to this role (see getCurrentProfile).
+  clearBypass();
   savePendingRole(roleName);
   const { error } = await requireSupabase().auth.signInWithOAuth({
     provider: 'google',
