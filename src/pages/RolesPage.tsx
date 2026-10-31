@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, Info, ShieldCheck, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES, roleByName, roleLabelFor } from '../models/roles';
 import BrandMark from '../components/BrandMark';
@@ -122,7 +122,7 @@ export default function RolesPage() {
 
       {/* Role cards */}
       <main className="flex-1 px-6 py-10 lg:flex lg:items-center lg:px-14 lg:py-14">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-2xl">
           {signedIn && currentRole && (
             <div className="mb-5 flex items-start gap-3 rounded-2xl border border-border bg-card p-4">
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-emerald" />
@@ -148,7 +148,9 @@ export default function RolesPage() {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Role rows: solid color tiles in a list, deliberately unlike the
+              tinted session cards elsewhere in the portal. */}
+          <div className="space-y-3">
             {SIGN_IN_ROLES.map((r, i) => {
               const isCurrent = r.name === currentRole;
               return (
@@ -157,56 +159,62 @@ export default function RolesPage() {
                   type="button"
                   onClick={() => pick(r.name)}
                   className={cn(
-                    'animate-fade-up group flex flex-col rounded-[22px] border bg-card p-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-16px_rgba(16,28,54,0.35)] sm:last:odd:col-span-2',
-                    isCurrent ? 'border-transparent ring-2' : 'border-border',
+                    'animate-fade-up group flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all sm:gap-5 sm:p-5',
+                    isCurrent
+                      ? 'border-navy bg-navy text-white shadow-[0_16px_40px_-18px_rgba(16,28,54,0.6)]'
+                      : 'border-transparent bg-card shadow-sm hover:translate-x-1 hover:border-[var(--role)]',
                   )}
                   style={{
                     animationDelay: `${i * 60}ms`,
-                    ...(isCurrent ? { ['--tw-ring-color' as string]: r.color } : {}),
+                    ['--role' as string]: r.color,
                   }}
                 >
-                  <div
-                    className="flex flex-1 flex-col rounded-[18px] p-5"
-                    style={{ background: `${r.color}17` }}
+                  <span
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
+                    style={{ background: r.color }}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card shadow-sm"
-                        style={{ color: r.color }}
-                      >
-                        <r.icon className="h-6 w-6" strokeWidth={1.9} />
+                    <r.icon className="h-7 w-7" strokeWidth={1.9} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-display text-lg font-bold tracking-tight">
+                        {r.label}
                       </span>
                       {isCurrent ? (
                         <span
-                          className="rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+                          className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
                           style={{ background: r.color }}
                         >
                           Current role
                         </span>
                       ) : APPROVAL_ROLES.has(r.name) ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground/70">
-                          <ShieldCheck className="h-3 w-3" /> Approval needed
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Approval needed
                         </span>
                       ) : null}
-                    </div>
-                    <div className="mt-5 font-display text-xl font-bold tracking-tight">
-                      {r.label}
-                    </div>
-                    <p className="mt-1 text-[13.5px] leading-relaxed text-foreground/70">
-                      {r.description}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between px-4 pb-2.5 pt-3 text-[13px] font-semibold">
-                    <span className="text-muted-foreground">
-                      {isCurrent ? `Continue as ${r.label}` : `Sign in as ${r.label}`}
                     </span>
                     <span
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-white transition-transform group-hover:translate-x-0.5"
-                      aria-hidden
+                      className={cn(
+                        'mt-0.5 block text-[13.5px] leading-snug',
+                        isCurrent ? 'text-white/70' : 'text-muted-foreground',
+                      )}
                     >
-                      <ArrowRight className="h-4 w-4" />
+                      {r.description}
                     </span>
-                  </div>
+                  </span>
+                  <span
+                    className={cn(
+                      'hidden shrink-0 items-center gap-1 text-[13px] font-semibold sm:flex',
+                      isCurrent ? 'text-white' : 'text-foreground/70 group-hover:text-foreground',
+                    )}
+                  >
+                    {isCurrent ? 'Continue' : 'Sign in'}
+                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                  <ChevronRight
+                    className={cn('h-5 w-5 shrink-0 sm:hidden', isCurrent ? 'text-white' : 'text-muted-foreground')}
+                    aria-hidden
+                  />
                 </button>
               );
             })}
