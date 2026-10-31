@@ -102,13 +102,18 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+// A plain class, not vi.fn().mockImplementation(): the vi.restoreAllMocks()
+// in beforeEach strips vi.fn implementations, which made `scanner.start`
+// undefined. The modal starts the camera 100ms after opening, so on a slow
+// run the resulting camera error rendered a second "Switch to Manual ID
+// Entry" button before the test clicked the "Manual ID Entry" tab.
 vi.mock('html5-qrcode', () => ({
-  Html5Qrcode: vi.fn().mockImplementation(() => ({
-    isScanning: true,
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    clear: vi.fn().mockReturnValue(undefined),
-  })),
+  Html5Qrcode: class {
+    isScanning = true;
+    start = async () => undefined;
+    stop = async () => undefined;
+    clear = () => undefined;
+  },
 }));
 
 vi.mock('../../lib/supabase', () => ({

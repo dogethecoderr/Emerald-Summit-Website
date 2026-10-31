@@ -48,13 +48,23 @@ vi.mock('../../context/AuthContext', () => ({
   }),
 }));
 
+// A plain class so the vi.restoreAllMocks() in beforeEach can't strip it (see
+// VolunteerDashboard.adversarial.test.tsx).
 vi.mock('html5-qrcode', () => ({
-  Html5Qrcode: vi.fn().mockImplementation(() => ({
-    isScanning: true,
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    clear: vi.fn().mockReturnValue(undefined),
-  })),
+  Html5Qrcode: class {
+    isScanning = true;
+    start = async () => undefined;
+    stop = async () => undefined;
+    clear = () => undefined;
+  },
+}));
+
+// No client: check-ins take the offline MOCK_PEOPLE path instead of calling
+// whatever Supabase project .env points at, so the scanner test no longer
+// depends on the network answering within findBy's timeout.
+vi.mock('../../lib/supabase', () => ({
+  supabase: null,
+  isSupabaseConfigured: false,
 }));
 
 describe('VolunteerDashboard Component Suite', () => {
