@@ -1,3 +1,4 @@
+import ThemeToggle from './ThemeToggle';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -300,7 +301,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-5 bg-navy px-4 pb-4 pt-5 text-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-5 bg-navy px-4 pb-4 pt-5 text-white dark:border-r dark:border-white/10 lg:flex">
         <BrandMark
           className="px-2"
           logoClassName="h-10 w-10"
@@ -421,6 +422,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
           <GlobalSearch items={items} />
           <div className="flex flex-1 items-center justify-end gap-3">
+            <ThemeToggle />
             <span
               className="hidden items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold xl:inline-flex"
               style={{ background: `${role.color}14`, color: role.color }}
@@ -442,7 +444,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {/* Mobile top bar */}
-        <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between bg-navy px-4 py-2.5 text-white lg:hidden">
+        <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between bg-navy px-4 py-2.5 text-white dark:border-b dark:border-white/10 lg:hidden">
           <BrandMark
             logoClassName="h-8 w-8"
             titleClassName="text-[15px] font-bold text-white"
@@ -450,6 +452,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             gap="gap-2"
           />
           <div className="flex items-center gap-2">
+            <ThemeToggle tone="onDark" />
             {isQrEligible && (
               <button
                 type="button"
@@ -487,7 +490,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile bottom nav — Settings last */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around bg-navy px-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around bg-navy px-1 dark:border-t dark:border-white/10 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
         {mobileItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

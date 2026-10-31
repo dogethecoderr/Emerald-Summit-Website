@@ -58,9 +58,10 @@ module.exports = {
         // Dark navy accent — footer/section bg stays DEFAULT (very dark);
         // `navy-bright` is a more visibly-blue shade for headline text on
         // white backgrounds, where the DEFAULT reads too close to black.
+        // Both come from index.css so the dark theme can turn navy black.
         navy: {
-          DEFAULT: '#101c36',
-          bright: '#1e3a6b',
+          DEFAULT: 'rgb(var(--navy) / <alpha-value>)',
+          bright: 'rgb(var(--navy-bright) / <alpha-value>)',
         },
       },
       borderRadius: {

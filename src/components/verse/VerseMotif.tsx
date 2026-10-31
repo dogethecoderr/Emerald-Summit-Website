@@ -64,7 +64,7 @@ function circuit(ctx: Ctx, w: number, h: number, t: number, v: VerseVibe, compac
     ctx.lineTo(bx, by);
     ctx.stroke();
     glow(ctx, bx, by, compact ? 3 : 5, 4, color, 0.45);
-    dot(ctx, bx, by, 1.6, '#FFFFFF');
+    dot(ctx, bx, by, 1.6, v.highlight);
   }
 }
 
@@ -147,7 +147,7 @@ function cells(ctx: Ctx, w: number, h: number, t: number, v: VerseVibe, compact:
 function stars(ctx: Ctx, w: number, h: number, t: number, v: VerseVibe, compact: boolean) {
   for (const p of field(`stars-${compact}`, compact ? 36 : 120, 31)) {
     const twinkle = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(t * (1 + p.speed) + p.phase));
-    const color = p.size > 0.85 ? (p.flag ? v.accent : v.accent2) : '#FFFFFF';
+    const color = p.size > 0.85 ? (p.flag ? v.accent : v.accent2) : v.highlight;
     dot(ctx, p.x * w, p.y * h, 0.4 + p.size * (compact ? 1 : 1.4), rgba(color, twinkle * 0.85));
   }
   // Two tilted orbits, each carrying a planet.
@@ -183,8 +183,8 @@ function stars(ctx: Ctx, w: number, h: number, t: number, v: VerseVibe, compact:
       const tx = hx - dx * 0.25;
       const ty = hy - dy * 0.25;
       const grad = ctx.createLinearGradient(tx, ty, hx, hy);
-      grad.addColorStop(0, 'rgba(255,255,255,0)');
-      grad.addColorStop(1, `rgba(255,255,255,${(1 - k) * 0.9})`);
+      grad.addColorStop(0, rgba(v.highlight, 0));
+      grad.addColorStop(1, rgba(v.highlight, (1 - k) * 0.9));
       ctx.strokeStyle = grad;
       ctx.lineWidth = 1.6;
       ctx.lineCap = 'round';

@@ -7,7 +7,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import SummitLogo from './SummitLogo';
-import { USER_DISCIPLINES } from '../models/disciplines';
+import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
 import { tracksForUniverse } from '../models/tracks';
 
 /**

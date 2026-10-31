@@ -17,7 +17,7 @@ import FaqSection from '../components/FaqSection';
 import CtaBand from '../components/CtaBand';
 import LandingFooter from '../components/LandingFooter';
 import OrbitalUniverses from '../components/OrbitalUniverses';
-import { USER_DISCIPLINES } from '../models/disciplines';
+import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
 import { Button } from '@/components/ui/button';
 
 const FACTS = [

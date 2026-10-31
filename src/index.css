@@ -38,6 +38,45 @@
     --ring: 160 82% 30%;
 
     --radius: 0.9rem;
+
+    /* Portal chrome (sidebar, auth asides, landing bands), as "r g b". */
+    --navy: 16 28 54;
+    --navy-bright: 30 58 107;
+  }
+
+  /* Dark: black, after the mobile app's night theme (lib/theme.dart):
+     scaffold #000, text #E6F0EC, mint #5FCB9C for primary actions. */
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 155 26% 92%;
+
+    --card: 155 20% 7%;
+    --card-foreground: 155 26% 92%;
+
+    --popover: 155 20% 8%;
+    --popover-foreground: 155 26% 92%;
+
+    --primary: 154 51% 58%;
+    --primary-foreground: 158 60% 6%;
+
+    --secondary: 155 16% 12%;
+    --secondary-foreground: 155 26% 90%;
+
+    --muted: 155 14% 13%;
+    --muted-foreground: 156 12% 64%;
+
+    --accent: 155 22% 15%;
+    --accent-foreground: 154 51% 72%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 155 14% 17%;
+    --input: 155 14% 22%;
+    --ring: 154 51% 50%;
+
+    --navy: 0 0 0;
+    --navy-bright: 163 190 242;
   }
 }
 
@@ -54,6 +93,9 @@
       radial-gradient(1200px 640px at 85% -10%, hsl(158 55% 62% / 0.18), transparent 60%),
       radial-gradient(900px 520px at -10% 110%, hsl(158 50% 55% / 0.14), transparent 60%);
     background-attachment: fixed;
+  }
+  .dark body {
+    background-image: none;
   }
   ::selection {
     background: hsl(158 62% 40% / 0.3);
@@ -74,6 +116,11 @@
     backdrop-filter: blur(14px);
     border: 1px solid hsl(154 22% 82% / 0.8);
     box-shadow: 0 2px 16px -6px hsl(160 40% 30% / 0.12);
+  }
+  .dark .glass {
+    background: linear-gradient(160deg, hsl(155 20% 8% / 0.9), hsl(155 20% 6% / 0.85));
+    border-color: hsl(155 14% 17%);
+    box-shadow: none;
   }
   /* Emerald text gradient for hero/display moments */
   .text-gradient-emerald {
@@ -126,6 +173,16 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Sign-in aside (AuthLayout): flowing paths drift along their own length. */
+@keyframes auth-path {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
   }
 }
 

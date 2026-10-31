@@ -1,3 +1,4 @@
+import ThemeToggle from '../components/ThemeToggle';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Info, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -46,7 +47,7 @@ export default function RolesPage() {
   return (
     <div className="min-h-screen bg-background lg:flex">
       {/* Navy panel */}
-      <aside className="relative overflow-hidden bg-navy px-6 pb-10 pt-8 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[42%] lg:flex-col lg:px-14 lg:pb-14 lg:pt-12">
+      <aside className="relative overflow-hidden bg-navy px-6 pb-10 pt-8 text-white dark:border-r dark:border-white/10 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[42%] lg:flex-col lg:px-14 lg:pb-14 lg:pt-12">
         <div
           className="pointer-events-none absolute -left-24 top-1/3 h-[460px] w-[460px] animate-drift rounded-full bg-emerald/35 blur-[120px] motion-reduce:animate-none"
           aria-hidden
@@ -79,6 +80,7 @@ export default function RolesPage() {
             <ChevronLeft className="h-4 w-4" />
             {signedIn ? 'Back to dashboard' : 'Back'}
           </button>
+          <ThemeToggle tone="onDark" />
         </div>
 
         <div className="relative mt-8 lg:mt-14">
@@ -139,7 +141,7 @@ export default function RolesPage() {
           {denied && (
             <div
               role="alert"
-              className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800"
+              className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
             >
               <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
               <div className="text-sm">
@@ -161,7 +163,7 @@ export default function RolesPage() {
                   className={cn(
                     'animate-fade-up group flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all sm:gap-5 sm:p-5',
                     isCurrent
-                      ? 'border-navy bg-navy text-white shadow-[0_16px_40px_-18px_rgba(16,28,54,0.6)]'
+                      ? 'border-navy bg-navy text-white shadow-[0_16px_40px_-18px_rgba(16,28,54,0.6)] dark:border-primary dark:bg-card'
                       : 'border-transparent bg-card shadow-sm hover:translate-x-1 hover:border-[var(--role)]',
                   )}
                   style={{

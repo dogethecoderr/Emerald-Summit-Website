@@ -1,3 +1,4 @@
+import ThemeToggle from './ThemeToggle';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -118,7 +119,8 @@ export default function LandingNav({
           </Link>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle tone="onDark" />
           <Button
             className="h-10 rounded-full bg-white px-6 text-sm font-semibold text-emerald-950 hover:bg-white/90"
             onClick={() => navigate('/home')}
@@ -141,6 +143,7 @@ export default function LandingNav({
       {open && (
         <div className="border-t border-white/10 bg-[#0d2a1e]/95 px-6 py-4 backdrop-blur-xl md:hidden">
           <div className="flex flex-col gap-1">
+            <ThemeToggle tone="onDark" labels className="mb-2 self-start" />
             {SECTION_LINKS.map((s) => (
               <button
                 key={s.id}

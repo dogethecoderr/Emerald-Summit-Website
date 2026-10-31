@@ -210,7 +210,7 @@ export default function FlowingBorder({
         ctx.beginPath();
         ctx.arc(x, y, 11, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = '#FFFFFF';
+        ctx.fillStyle = vibe.highlight;
         ctx.beginPath();
         ctx.arc(x, y, 1.8, 0, TAU);
         ctx.fill();

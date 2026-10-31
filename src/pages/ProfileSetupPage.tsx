@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import { needsProfileSetup, saveProfile, signOut } from '../services/auth';
-import BrandMark from '../components/BrandMark';
+import AuthLayout, { AUTH_ENTER, authStagger } from '../components/AuthLayout';
+import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,35 +102,20 @@ export default function ProfileSetupPage() {
     }
   };
 
+  const role = roleByName(profile?.role as string | undefined) ?? USER_ROLES[0];
+
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        className="pointer-events-none absolute -top-32 left-[-10%] h-[420px] w-[420px] rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #0C7A55 0%, transparent 65%)' }}
-        aria-hidden
-      />
+    <AuthLayout
+      accent={role.color}
+      icon={role.icon}
+      eyebrow="Set up your profile"
+      title={roleLabelFor(role.name, profile?.volunteer_subtype)}
+      backLabel={isSigningOut ? 'Signing out…' : 'Sign out'}
+      onBack={() => void handleSignOut()}
+    >
 
-      <div className="relative mx-auto max-w-xl px-6 pb-20">
-        <header className="flex items-center justify-between py-5">
-          <BrandMark
-            logoClassName="h-8 w-8"
-            titleClassName="text-sm font-semibold"
-            subtitleClassName="text-[11px] text-muted-foreground"
-            subtitle={session?.user.email ?? ''}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-          >
-            {isSigningOut ? 'Signing out…' : 'Sign out'}
-          </Button>
-        </header>
-
-        <div className="animate-fade-up mt-6">
-          <h1 className="font-display text-3xl font-semibold tracking-tight">
+        <div style={authStagger(1)} className={AUTH_ENTER}>
+          <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight">
             Tell us a bit about yourself
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -277,7 +263,6 @@ export default function ProfileSetupPage() {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -109,7 +109,7 @@ export function AnnouncementItem({
       className={cn(
         'rounded-xl border p-4 transition-colors',
         unread
-          ? 'cursor-pointer border-rose-200 bg-rose-50/70 hover:bg-rose-50'
+          ? 'cursor-pointer border-rose-200 bg-rose-50/70 hover:bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:hover:bg-rose-500/15'
           : 'border-border/60 bg-card/50',
       )}
     >
@@ -178,7 +178,7 @@ export function AnnouncementItem({
             e.stopPropagation();
             onMarkRead(announcement.id);
           }}
-          className="mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+          className="mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:text-rose-300 dark:hover:bg-rose-500/15"
         >
           <CheckCheck className="h-3 w-3" /> Mark as read
         </button>

@@ -12,6 +12,7 @@ import {
   Sparkles,
   type LucideIcon,
 } from 'lucide-react';
+import { USER_DISCIPLINES, type DisciplineInfo } from './disciplines';
 
 export type VerseMotif = 'circuit' | 'ticker' | 'cells' | 'stars' | 'ripples' | 'paint';
 
@@ -33,7 +34,7 @@ export interface FlowStyle {
 }
 
 export interface VerseVibe {
-  /** Page canvas; always dark, each verse is its own little world. */
+  /** Page canvas: each verse is its own little world, dark or light. */
   background: string;
   /** Cards and raised panels on the background. */
   surface: string;
@@ -46,10 +47,24 @@ export interface VerseVibe {
   /** Colors carried around the edge by the border flow. */
   flowColors: string[];
   icon: LucideIcon;
+  /** Body text and secondary text on the background. */
+  text: string;
+  textDim: string;
+  /** Glints in the motifs and border sparks (white on dark). */
+  highlight: string;
+  /** Empty part of meters. */
+  meter: string;
 }
 
 export const VERSE_TEXT = '#F2F5F7';
 export const VERSE_TEXT_DIM = '#B9C2CC';
+
+const DARK_INK = {
+  text: VERSE_TEXT,
+  textDim: VERSE_TEXT_DIM,
+  highlight: '#FFFFFF',
+  meter: 'rgba(255,255,255,0.14)',
+};
 
 const flow = (f: Partial<FlowStyle> & Pick<FlowStyle, 'amplitude' | 'depth' | 'waves' | 'speed' | 'spin'>): FlowStyle => ({
   sparks: 0,
@@ -67,6 +82,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 9, depth: 5, waves: 7, speed: 1.6, spin: 0.22, sparks: 6 }),
     flowColors: ['#119DA4', '#254F93', '#6D9DC5', '#80DED9'],
     icon: CircuitBoard,
+    ...DARK_INK,
   },
   ventureverse: {
     background: '#12080D',
@@ -77,6 +93,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 5, depth: 4, waves: 12, speed: 2.4, spin: 0.35, sparks: 8 }),
     flowColors: ['#FFA552', '#FCDE9C', '#BA5624', '#381D2A'],
     icon: ChartLine,
+    ...DARK_INK,
   },
   biosphere: {
     background: '#0C0E05',
@@ -87,6 +104,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 7, depth: 6, waves: 5, speed: 0.9, spin: 0.08, heartbeat: true }),
     flowColors: ['#B6C454', '#D8D174', '#E6D3A3', '#F6FEDB'],
     icon: Dna,
+    ...DARK_INK,
   },
   novasphere: {
     background: '#020C07',
@@ -97,6 +115,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 14, depth: 7, waves: 3, speed: 0.5, spin: 0.07, sparks: 3 }),
     flowColors: ['#8FD5A6', '#329F5B', '#0C8346', '#E5C2C0'],
     icon: Orbit,
+    ...DARK_INK,
   },
   civicverse: {
     background: '#0D0412',
@@ -107,6 +126,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 3, depth: 4, waves: 4, speed: 0.6, spin: 0.05 }),
     flowColors: ['#DCCCA3', '#824C71', '#4A2545', '#2B0539'],
     icon: Scale,
+    ...DARK_INK,
   },
   imaginex: {
     background: '#0F0A16',
@@ -117,6 +137,7 @@ export const VERSE_VIBES: Record<string, VerseVibe> = {
     flow: flow({ amplitude: 11, depth: 6, waves: 6, speed: 1.2, spin: 0.45, sparks: 4 }),
     flowColors: ['#DCD6F7', '#A6B1E1', '#B4869F', '#805D93'],
     icon: Paintbrush,
+    ...DARK_INK,
   },
 };
 
@@ -130,10 +151,79 @@ export const EMERALD_VIBE: VerseVibe = {
   flow: flow({ amplitude: 6, depth: 5, waves: 5, speed: 0.9, spin: 0.12, sparks: 2 }),
   flowColors: ['#7FE0B5', '#101C36', '#14B8A6'],
   icon: Sparkles,
+  ...DARK_INK,
 };
 
-export function vibeFor(id: string | undefined | null): VerseVibe {
-  return (id && VERSE_VIBES[id.toLowerCase()]) || EMERALD_VIBE;
+/**
+ * Light mode: the same worlds by day. Each verse keeps its hue but sits on a
+ * pale tint of it (TechVerse goes from deep navy to light blue), with deeper
+ * accents so the motifs and text still read on the lighter canvas.
+ */
+const LIGHT: Record<string, Pick<VerseVibe, 'background' | 'surface' | 'accent' | 'accent2' | 'flowColors'>> = {
+  techverse: {
+    background: '#CDEBF5',
+    surface: '#F3FAFD',
+    accent: '#0B7F88',
+    accent2: '#2F5FA8',
+    flowColors: ['#119DA4', '#254F93', '#6D9DC5', '#3FBFB8'],
+  },
+  ventureverse: {
+    background: '#FFE0C4',
+    surface: '#FFF8F0',
+    accent: '#C2551B',
+    accent2: '#C98A1E',
+    flowColors: ['#FFA552', '#E0A43A', '#BA5624', '#7A3A4E'],
+  },
+  biosphere: {
+    background: '#E6EEBF',
+    surface: '#FAFCEC',
+    accent: '#5F7012',
+    accent2: '#9A7F3C',
+    flowColors: ['#8C9C2A', '#B6C454', '#C2A866', '#6E7D1B'],
+  },
+  novasphere: {
+    background: '#CDEDD9',
+    surface: '#F2FBF5',
+    accent: '#0C7A42',
+    accent2: '#B0605B',
+    flowColors: ['#3FB06A', '#329F5B', '#0C8346', '#D19A97'],
+  },
+  civicverse: {
+    background: '#EEDDE9',
+    surface: '#FCF7FA',
+    accent: '#7E3F6B',
+    accent2: '#93753A',
+    flowColors: ['#C2A86B', '#824C71', '#4A2545', '#A86F95'],
+  },
+  imaginex: {
+    background: '#DCDFF8',
+    surface: '#F7F7FE',
+    accent: '#4F5AA6',
+    accent2: '#805D93',
+    flowColors: ['#A6B1E1', '#6F7CC4', '#B4869F', '#805D93'],
+  },
+};
+
+const EMERALD_LIGHT: (typeof LIGHT)[string] = {
+  background: '#D0EEDD',
+  surface: '#F3FBF7',
+  accent: '#0C7A55',
+  accent2: '#1E3A6B',
+  flowColors: ['#34D399', '#1E3A6B', '#14B8A6'],
+};
+
+const LIGHT_INK = {
+  text: '#16211C',
+  textDim: '#4F5B63',
+  meter: 'rgba(22,33,28,0.1)',
+};
+
+export function vibeFor(id: string | undefined | null, theme: 'light' | 'dark' = 'dark'): VerseVibe {
+  const key = id?.toLowerCase();
+  const dark = (key && VERSE_VIBES[key]) || EMERALD_VIBE;
+  if (theme === 'dark') return dark;
+  const light = (key && LIGHT[key]) || EMERALD_LIGHT;
+  return { ...dark, ...light, ...LIGHT_INK, highlight: light.accent2 };
 }
 
 /** `#RRGGBB` plus alpha as an rgba() string. */
@@ -150,3 +240,14 @@ export function mixHex(a: string, b: string, t: number): string {
     Math.round(((pa >> shift) & 255) + (((pb >> shift) & 255) - ((pa >> shift) & 255)) * t);
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
 }
+
+/**
+ * The six verses with `color` set to each verse's accent, for anything drawn
+ * on a dark background (the landing hero's dots and orbit) so it matches
+ * Explore the verses. The plain USER_DISCIPLINES colors stay for light
+ * surfaces, where these lighter accents would be too faint.
+ */
+export const VERSE_DISCIPLINES: DisciplineInfo[] = USER_DISCIPLINES.map((d) => ({
+  ...d,
+  color: vibeFor(d.name).accent,
+}));

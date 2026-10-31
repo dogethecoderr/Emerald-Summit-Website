@@ -7,6 +7,7 @@ import {
   EyeOff,
   Info,
   LogOut,
+  Palette,
   User,
   UserRound,
 } from 'lucide-react';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import PersonCard from '../components/PersonCard';
+import ThemeToggle from '../components/ThemeToggle';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { roleByName, USER_ROLES } from '../models/roles';
@@ -437,6 +439,18 @@ function SettingsHub({ profile }: { profile: Profile }) {
           Preferences
         </div>
         <div className="divide-y divide-border/60">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary">
+              <Palette className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-semibold">Appearance</span>
+              <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                System is dark from 7 PM to 7 AM
+              </span>
+            </span>
+            <ThemeToggle labels />
+          </div>
           <SettingsRow
             icon={Bell}
             title="Notifications"

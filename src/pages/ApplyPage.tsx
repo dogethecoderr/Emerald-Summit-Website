@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { toast } from 'sonner';
-import BrandMark from '../components/BrandMark';
+import AuthLayout, { AUTH_ENTER, authStagger } from '../components/AuthLayout';
 import { roleByName } from '../models/roles';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import { tracksForUniverse } from '../models/tracks';
@@ -88,31 +88,16 @@ export default function ApplyPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        className="pointer-events-none absolute -top-32 left-[-10%] h-[420px] w-[420px] rounded-full opacity-25 blur-3xl"
-        style={{ background: `radial-gradient(circle, ${role.color} 0%, transparent 65%)` }}
-        aria-hidden
-      />
+    <AuthLayout
+      accent={role.color}
+      icon={role.icon}
+      eyebrow="Apply"
+      title={role.label}
+      onBack={() => navigate(`/login/${role.name}`, { state: { email } })}
+    >
 
-      <div className="relative mx-auto max-w-xl px-6 pb-20">
-        <header className="flex items-center justify-between py-5">
-          <button
-            type="button"
-            onClick={() => navigate(`/login/${role.name}`, { state: { email } })}
-            className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
-          <BrandMark
-            logoClassName="h-8 w-8"
-            titleClassName="text-sm font-semibold"
-            subtitleClassName="text-[11px] text-muted-foreground"
-          />
-        </header>
-
-        <div className="animate-fade-up mt-6">
-          <h1 className="font-display text-3xl font-semibold tracking-tight">
+        <div style={authStagger(1)} className={AUTH_ENTER}>
+          <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight">
             {survey.title}
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -160,8 +145,7 @@ export default function ApplyPage() {
             </p>
           )}
         </form>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }
 

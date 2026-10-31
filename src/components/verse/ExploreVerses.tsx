@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../../models/sessions';
+import { tracksForUniverse } from '../../models/tracks';
+import { useTheme } from '../../context/ThemeContext';
 import {
-  VERSE_TEXT,
-  VERSE_TEXT_DIM,
   mixHex,
   rgba,
   vibeFor,
@@ -14,7 +14,6 @@ import {
 } from '../../models/verseVibes';
 import VerseMotif from './VerseMotif';
 import FlowingBorder from './FlowingBorder';
-import { cn } from '@/lib/utils';
 
 function sessionsFor(id: string): Session[] {
   return MOCK_SESSIONS.filter((s) => s.track === id).sort(
@@ -52,7 +51,8 @@ function VerseCard({
   mine: Set<string>;
   onOpen: (origin: { x: number; y: number }) => void;
 }) {
-  const vibe = vibeFor(discipline.name);
+  const { theme } = useTheme();
+  const vibe = vibeFor(discipline.name, theme);
   const sessions = sessionsFor(discipline.name);
   const open = sessions.filter((s) => s.enrolled < s.capacity).length;
   const onDay = sessions.filter((s) => mine.has(s.id)).length;
@@ -72,16 +72,9 @@ function VerseCard({
   return (
     <button
       type="button"
-      onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const fromPointer = e.clientX !== 0 || e.clientY !== 0;
-        onOpen({
-          x: fromPointer ? e.clientX : rect.left + rect.width / 2,
-          y: fromPointer ? e.clientY : rect.top + rect.height / 2,
-        });
-      }}
+      onClick={(e) => onOpen(originOf(e))}
       className="group relative overflow-hidden rounded-[18px] text-left shadow-[0_5px_14px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out active:scale-[0.97]"
-      style={{ background: vibe.background, color: VERSE_TEXT }}
+      style={{ background: vibe.background, color: vibe.text }}
     >
       <VerseMotif vibe={vibe} compact className="absolute inset-0" />
       {/* Keep the text side calm so it always reads. */}
@@ -105,15 +98,15 @@ function VerseCard({
           </span>
           <ChevronRight
             className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5"
-            style={{ color: VERSE_TEXT_DIM }}
+            style={{ color: vibe.textDim }}
           />
         </span>
         <span className="mt-3 line-clamp-2 text-[14px] leading-snug">{preview}</span>
-        <span className="mt-1 truncate text-[12.5px]" style={{ color: VERSE_TEXT_DIM }}>
+        <span className="mt-1 truncate text-[12.5px]" style={{ color: vibe.textDim }}>
           {discipline.description}
         </span>
         <span className="mt-auto flex items-center gap-2 pt-3 text-[12px] font-medium">
-          <span className="min-w-0 flex-1 truncate" style={{ color: VERSE_TEXT_DIM }}>
+          <span className="min-w-0 flex-1 truncate" style={{ color: vibe.textDim }}>
             {facts}
           </span>
           {onDay > 0 && (
@@ -149,7 +142,8 @@ function VersePage({
   onClosed: () => void;
 }) {
   const navigate = useNavigate();
-  const vibe = vibeFor(discipline.name);
+  const { theme } = useTheme();
+  const vibe = vibeFor(discipline.name, theme);
   const sessions = sessionsFor(discipline.name);
   const seatsOpen = sessions.reduce((sum, s) => sum + Math.max(s.capacity - s.enrolled, 0), 0);
   const onDay = sessions.filter((s) => mine.has(s.id)).length;
@@ -230,7 +224,7 @@ function VersePage({
       aria-modal="true"
       aria-label={discipline.label}
       className="fixed inset-0 z-50 overflow-hidden"
-      style={{ background: vibe.background, color: VERSE_TEXT }}
+      style={{ background: vibe.background, color: vibe.text }}
     >
       <VerseMotif vibe={vibe} className="absolute inset-0" />
       <div ref={content} className="absolute inset-0 overflow-y-auto">
@@ -240,7 +234,7 @@ function VersePage({
             type="button"
             onClick={close}
             className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
-            style={{ background: rgba(vibe.surface, 0.7), color: VERSE_TEXT }}
+            style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
           >
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
@@ -250,7 +244,7 @@ function VersePage({
             <h2 className="mt-4 font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
               {discipline.label}
             </h2>
-            <p className="mt-2 text-[15px] leading-relaxed" style={{ color: VERSE_TEXT_DIM }}>
+            <p className="mt-2 text-[15px] leading-relaxed" style={{ color: vibe.textDim }}>
               {discipline.description}
             </p>
             <p className="mt-4 text-[15px]">
@@ -278,7 +272,7 @@ function VersePage({
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {sessions.length === 0 && (
-              <p style={{ color: VERSE_TEXT_DIM }}>No sessions in this discipline yet.</p>
+              <p style={{ color: vibe.textDim }}>No sessions in this discipline yet.</p>
             )}
             {sessions.map((s) => {
               const left = Math.max(s.capacity - s.enrolled, 0);
@@ -293,7 +287,7 @@ function VersePage({
                 >
                   <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
                     <span>{s.time}</span>
-                    <span style={{ color: VERSE_TEXT_DIM }}>· {s.duration}</span>
+                    <span style={{ color: vibe.textDim }}>· {s.duration}</span>
                     {mine.has(s.id) && (
                       <span className="ml-auto inline-flex items-center gap-1">
                         <Check className="h-3.5 w-3.5" /> On your day
@@ -301,10 +295,10 @@ function VersePage({
                     )}
                   </div>
                   <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
-                  <div className="mt-0.5 text-[13px]" style={{ color: VERSE_TEXT_DIM }}>
+                  <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
                     {s.speaker} · {s.location}
                   </div>
-                  <div className="mt-3 h-1 w-full overflow-hidden rounded-sm" style={{ background: 'rgba(255,255,255,0.14)' }}>
+                  <div className="mt-3 h-1 w-full overflow-hidden rounded-sm" style={{ background: vibe.meter }}>
                     <div
                       className="h-full"
                       style={{
@@ -313,7 +307,7 @@ function VersePage({
                       }}
                     />
                   </div>
-                  <div className="mt-1.5 text-[12px]" style={{ color: VERSE_TEXT_DIM }}>
+                  <div className="mt-1.5 text-[12px]" style={{ color: vibe.textDim }}>
                     {left === 0 ? 'Full' : `${left} of ${s.capacity} seats left`}
                   </div>
                 </article>
@@ -328,35 +322,44 @@ function VersePage({
   );
 }
 
-/** "Explore the verses": the six disciplines, each opening its own world. */
-export default function ExploreVerses({
+type Origin = { x: number; y: number };
+type OpenVerse = (verse: string, origin: Origin) => void;
+
+const VersePortalContext = createContext<OpenVerse | null>(null);
+
+/** Click point for an element: the pointer, or its center for keyboard. */
+export function originOf(e: React.MouseEvent<HTMLElement>): Origin {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const fromPointer = e.clientX !== 0 || e.clientY !== 0;
+  return {
+    x: fromPointer ? e.clientX : rect.left + rect.width / 2,
+    y: fromPointer ? e.clientY : rect.top + rect.height / 2,
+  };
+}
+
+/**
+ * Owns the open verse page, so anything on the dashboard (the verse cards,
+ * the Tracks row) can open one with useOpenVerse().
+ */
+export function VersePortalProvider({
   mine,
   canSchedule,
+  children,
 }: {
   /** Session ids on the viewer's day (competing or spectating). */
   mine: Set<string>;
   canSchedule: boolean;
+  children: React.ReactNode;
 }) {
-  const [opened, setOpened] = useState<{ discipline: DisciplineInfo; origin: { x: number; y: number } } | null>(null);
+  const [opened, setOpened] = useState<{ discipline: DisciplineInfo; origin: Origin } | null>(null);
+  const open = useCallback<OpenVerse>((verse, origin) => {
+    const discipline = USER_DISCIPLINES.find((d) => d.name === verse);
+    if (discipline) setOpened({ discipline, origin });
+  }, []);
 
   return (
-    <section>
-      <h2 className="mb-3 flex items-center gap-2.5 font-display text-xl font-bold tracking-tight sm:text-2xl">
-        Explore the verses
-        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 font-sans text-[13px] font-semibold tabular-nums text-muted-foreground">
-          {USER_DISCIPLINES.length}
-        </span>
-      </h2>
-      <div className={cn('grid gap-4 sm:grid-cols-2 xl:grid-cols-3')}>
-        {USER_DISCIPLINES.map((d) => (
-          <VerseCard
-            key={d.name}
-            discipline={d}
-            mine={mine}
-            onOpen={(origin) => setOpened({ discipline: d, origin })}
-          />
-        ))}
-      </div>
+    <VersePortalContext.Provider value={open}>
+      {children}
       {opened && (
         <VersePage
           key={opened.discipline.name}
@@ -371,6 +374,86 @@ export default function ExploreVerses({
           }
         />
       )}
+    </VersePortalContext.Provider>
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useOpenVerse(): OpenVerse {
+  const open = useContext(VersePortalContext);
+  if (!open) throw new Error('useOpenVerse must be used inside VersePortalProvider');
+  return open;
+}
+
+/** "Explore the verses": the six disciplines, each opening its own world. */
+export default function ExploreVerses({ mine }: { mine: Set<string> }) {
+  const open = useOpenVerse();
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2.5 font-display text-xl font-bold tracking-tight sm:text-2xl">
+        Explore the verses
+        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 font-sans text-[13px] font-semibold tabular-nums text-muted-foreground">
+          {USER_DISCIPLINES.length}
+        </span>
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {USER_DISCIPLINES.map((d) => (
+          <VerseCard key={d.name} discipline={d} mine={mine} onOpen={(origin) => open(d.name, origin)} />
+        ))}
+      </div>
     </section>
   );
 }
+
+/**
+ * The summit's tracks (areas within each verse, as in the app: Genetics, Mock
+ * Trial, CADathon...), each in its verse's colors. Opens that verse's page.
+ */
+export function VerseTracks() {
+  const open = useOpenVerse();
+  const { theme } = useTheme();
+  const tracks = USER_DISCIPLINES.flatMap((d) =>
+    tracksForUniverse(d.name).map((name) => ({ name, verse: d })),
+  );
+  return (
+    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [mask-image:linear-gradient(to_right,black_90%,transparent)]">
+      {tracks.map(({ name, verse }) => {
+        const vibe = vibeFor(verse.name, theme);
+        const Icon = vibe.icon;
+        return (
+          <button
+            key={`${verse.name}-${name}`}
+            type="button"
+            onClick={(e) => open(verse.name, originOf(e))}
+            className="group relative flex h-[118px] w-[200px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl p-3.5 text-left transition-transform duration-150 active:scale-[0.97]"
+            style={{
+              background: `radial-gradient(120% 90% at 100% 0%, ${rgba(vibe.accent, 0.22)}, transparent 60%), ${vibe.background}`,
+              border: `1px solid ${rgba(vibe.accent, 0.28)}`,
+              color: vibe.text,
+            }}
+          >
+            <span className="flex items-center justify-between">
+              <span
+                className="h-3 w-3 rounded-full"
+                style={{ background: vibe.accent, boxShadow: `0 0 10px ${rgba(vibe.accent, 0.7)}` }}
+                aria-hidden
+              />
+              <Icon className="h-4 w-4 opacity-70" style={{ color: vibe.accent }} />
+            </span>
+            <span className="mt-auto font-display text-[16px] font-bold leading-tight tracking-tight">
+              {name}
+            </span>
+            <span className="mt-1 flex items-center gap-1 text-[12px]" style={{ color: vibe.textDim }}>
+              {verse.label}
+              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Count of every track across the verses, for headings. */
+// eslint-disable-next-line react-refresh/only-export-components
+export const TRACK_COUNT = USER_DISCIPLINES.reduce((n, d) => n + tracksForUniverse(d.name).length, 0);

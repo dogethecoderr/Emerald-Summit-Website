@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Clock, Mail, MailCheck, XCircle } from 'lucide-react';
+import { ChevronRight, Clock, Loader2, Mail, MailCheck, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { SIGN_IN_ROLES, roleLabelFor } from '../models/roles';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { isValidEmail, lookupApproval } from '../services/approvals';
 import GoogleIcon from '../components/GoogleIcon';
 import LinkedInIcon from '../components/LinkedInIcon';
-import BrandMark from '../components/BrandMark';
+import AuthLayout, { AUTH_ENTER, authStagger } from '../components/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -56,7 +56,6 @@ export default function LoginPage() {
       </div>
     );
   }
-
 
 
   // Already signed in as this role: nothing to sign in to.
@@ -112,163 +111,122 @@ export default function LoginPage() {
     navigate('/home', { replace: true });
   };
 
-  return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div
-        className="pointer-events-none absolute -top-40 right-[-15%] h-[440px] w-[440px] rounded-full opacity-30 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #0C7A55 0%, transparent 65%)' }}
-        aria-hidden
-      />
+  const needsList = role.name === 'volunteer' || role.name === 'admin';
 
-      <div className="relative mx-auto flex min-h-screen max-w-[1440px] flex-col px-6 lg:px-14">
-        <header className="relative z-10 flex shrink-0 items-center justify-between pt-10 pb-6 lg:pt-16 lg:pb-10">
-          <button
-            type="button"
-            onClick={() => navigate('/home')}
-            className="relative z-10 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
-          <BrandMark
-            logoClassName="h-14 w-14 lg:h-[4.5rem] lg:w-[4.5rem]"
-            titleClassName="text-lg font-semibold lg:text-2xl"
-            subtitleClassName="text-xs text-muted-foreground lg:text-sm"
-            textWrapperClassName="hidden leading-tight sm:block"
-            gap="gap-4"
-          />
-          <span className="w-14" aria-hidden />
+  return (
+    <AuthLayout
+      accent={role.color}
+      icon={role.icon}
+      eyebrow="Sign in"
+      title={role.label}
+      onBack={() => navigate(signedInRole ? '/roles' : '/home')}
+    >
+      <div className="space-y-7">
+        <header style={authStagger(1)} className={AUTH_ENTER}>
+          <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-[44px]">
+            Sign in as {role.label}
+          </h1>
         </header>
 
-        <div className="flex flex-1 items-start justify-center pb-16 pt-2 lg:pt-4">
-          <div className="glass relative z-0 mx-auto w-full max-w-5xl rounded-2xl border border-border/80 p-6 sm:p-8 lg:p-10 xl:max-w-6xl">
-            <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:gap-16 xl:gap-24">
-              <div
-                className="animate-fade-up lg:flex lg:w-[min(100%,440px)] lg:shrink-0 lg:flex-col lg:justify-center"
-                style={{ animationDelay: '60ms' }}
-              >
-                <div className="flex items-center gap-4 lg:flex-col lg:items-start lg:gap-5">
-                  <span
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl lg:h-14 lg:w-14"
-                    style={{
-                      background: `${role.color}1e`,
-                      color: role.color,
-                      boxShadow: `inset 0 0 0 1px ${role.color}44`,
-                    }}
-                  >
-                    <role.icon className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={1.9} />
-                  </span>
-                  <div className="min-w-0">
-                    <h1 className="font-display text-xl font-semibold tracking-tight lg:text-3xl">
-                      Sign in as {role.label}
-                    </h1>
-                  </div>
+        {signedInRole && (
+          <p
+            style={authStagger(2)}
+            className={cn(AUTH_ENTER, 'rounded-xl border border-border bg-card px-4 py-3 text-[13px] text-muted-foreground')}
+          >
+            You're signed in as{' '}
+            <span className="font-semibold text-foreground">
+              {roleLabelFor(signedInRole, profile?.volunteer_subtype)}
+            </span>
+            . Signing in as {role.label} ends that.
+          </p>
+        )}
+
+        <div style={authStagger(3)} className={cn(AUTH_ENTER, 'space-y-3')}>
+          {gated ? (
+            <>
+              {notice && <NoticeBanner notice={notice} email={noticeEmail} />}
+              <form onSubmit={handleEmail} className="space-y-3">
+                <label htmlFor="login-email" className="block text-[13px] font-medium">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-12 rounded-xl bg-card pl-10 text-[15px]"
+                  />
                 </div>
-              </div>
-
-              <div
-                className="animate-fade-up w-full lg:max-w-lg lg:flex-1 xl:max-w-xl"
-                style={{ animationDelay: '120ms' }}
+                <Button
+                  type="submit"
+                  className="h-12 w-full rounded-xl bg-navy text-[15px] font-semibold text-white hover:bg-navy-bright dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+                  disabled={!isValidEmail(email) || isChecking}
+                >
+                  {isChecking ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Continue with email'}
+                </Button>
+              </form>
+              <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+                First time here? We will ask a few questions, then an admin approves your{' '}
+                {role.label.toLowerCase()} access.
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Google works wherever Supabase is configured. */}
+              <Button
+                type="button"
+                className="h-12 w-full gap-3 rounded-xl bg-navy text-[15px] font-semibold text-white shadow-[0_10px_30px_-14px_rgba(16,28,54,0.8)] hover:bg-navy-bright dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
+                disabled={!isSupabaseConfigured || isRedirecting}
+                onClick={handleGoogle}
               >
-                {gated && (
-                  <>
-                    {notice && <NoticeBanner notice={notice} email={noticeEmail} />}
-                    <form onSubmit={handleEmail}>
-                      <label htmlFor="login-email" className="mb-2 block text-[13px] font-medium">
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="login-email"
-                          type="email"
-                          autoComplete="email"
-                          placeholder="you@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="h-12 rounded-xl bg-secondary/40 pl-10 text-[15px]"
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        className="glow-emerald mt-3 h-12 w-full rounded-xl bg-primary text-[15px] font-semibold hover:bg-emerald"
-                        disabled={!isValidEmail(email) || isChecking}
-                      >
-                        {isChecking ? (
-                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        ) : (
-                          'Continue with email'
-                        )}
-                      </Button>
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                        First time here? We will ask a few questions, then an
-                        admin approves your {role.label.toLowerCase()} access.
-                      </p>
-                    </form>
-                    <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="h-px flex-1 bg-border" />
-                      or
-                      <span className="h-px flex-1 bg-border" />
-                    </div>
-                  </>
+                {isRedirecting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white">
+                    <GoogleIcon size={15} />
+                  </span>
                 )}
-
-                {signedInRole && (
-                  <p className="mb-4 rounded-xl border border-border bg-secondary/50 px-3.5 py-2.5 text-[13px] text-muted-foreground">
-                    You're signed in as{' '}
-                    <span className="font-semibold text-foreground">
-                      {roleLabelFor(signedInRole, profile?.volunteer_subtype)}
-                    </span>
-                    . Signing in as {role.label} ends that.
-                  </p>
-                )}
-
-                {/* Google works wherever Supabase is configured. Expert stays on
-                    the approvals-sheet email flow above, which Google would skip.
-                    LinkedIn has no provider on the backend, so it stays inert. */}
-                {!gated && (
-                  <Button
-                    variant="outline"
-                    className="h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold"
-                    disabled={!isSupabaseConfigured || isRedirecting}
-                    onClick={handleGoogle}
-                  >
-                    <GoogleIcon size={20} />
-                    <span className="ml-2">
-                      {isRedirecting ? 'Opening Google…' : 'Continue with Google'}
-                    </span>
-                  </Button>
-                )}
-
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'h-12 w-full rounded-xl border-border bg-secondary/40 text-[15px] font-semibold',
-                    !gated && 'mt-3',
-                  )}
-                  disabled
-                >
-                  <LinkedInIcon size={20} />
-                  <span className="ml-2">Continue with LinkedIn</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="mt-3 h-12 w-full rounded-xl border-emerald-glow/40 bg-emerald/10 text-[15px] font-semibold text-emerald-mint hover:bg-emerald/20 hover:text-white"
-                  onClick={handleBypass}
-                >
-                  <span>Bypass Login (Local Demo Mode)</span>
-                </Button>
-
-                <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground lg:text-left">
-                  LinkedIn sign-in is coming soon. Bypass Login is a local demo
-                  session that skips the volunteer and admin sheets.
+                {isRedirecting ? 'Opening Google…' : 'Continue with Google'}
+              </Button>
+              <span role="status" className="sr-only">
+                {isRedirecting ? 'Opening Google' : ''}
+              </span>
+              {needsList && (
+                <p className="flex items-start gap-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: role.color }} />
+                  {role.label}s need their Google email on the Summit team's {role.label.toLowerCase()} list.
                 </p>
-              </div>
-            </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div style={authStagger(4)} className={cn(AUTH_ENTER, 'space-y-3 border-t border-border pt-6')}>
+          <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+            <LinkedInIcon size={16} />
+            <span>LinkedIn sign-in</span>
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold">Coming soon</span>
           </div>
+          <button
+            type="button"
+            onClick={handleBypass}
+            className="group flex w-full items-center justify-between rounded-xl border border-dashed border-border px-4 py-3 text-left transition-colors hover:border-emerald/50 hover:bg-card"
+          >
+            <span>
+              <span className="block text-[13.5px] font-semibold">Use demo mode</span>
+              <span className="block text-[12px] text-muted-foreground">
+                A local session that skips the volunteer and admin lists.
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </button>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

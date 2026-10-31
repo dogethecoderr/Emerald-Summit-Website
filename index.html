@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#080d0a" />
+    <meta name="theme-color" content="#101c36" />
+    <script>
+      // Theme before first paint; keep in step with src/context/ThemeContext.tsx.
+      (function () {
+        var s = 'system';
+        try { s = localStorage.getItem('theme') || 'system'; } catch (e) {}
+        var h = new Date().getHours();
+        var dark = s === 'dark' || (s !== 'light' && (h >= 19 || h < 7));
+        if (dark) document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Emerald Summit</title>
