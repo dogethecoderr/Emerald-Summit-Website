@@ -91,6 +91,8 @@ npm run preview   # Preview the production build locally
 npm run test      # Run the Vitest component tests
 ```
 
+Tests never reach a real Supabase project: any test that renders a check-in path mocks `src/lib/supabase` (with a fake client, or `null` for the offline mock roster), since `.env` would otherwise point it at the live backend. Suites that call `vi.restoreAllMocks()` in `beforeEach` mock `html5-qrcode` with a plain class rather than `vi.fn().mockImplementation(...)`, because the restore strips `vi.fn` implementations and the scanner modal then shows its camera-error fallback a moment after opening.
+
 ---
 
 ## Project structure
