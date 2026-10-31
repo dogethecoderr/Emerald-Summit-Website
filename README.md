@@ -260,6 +260,8 @@ Relevant files: `apps-script/approvals.gs`, `src/services/approvals.ts`, `src/mo
 | Mist | `#EEF5F1` | Surfaces |
 | Navy | `#101C36` | Portal sidebar, dark buttons |
 
+The logo is the emerald dragon inside a ring of the disciplines: `public/brand/summit-logo.png` (512px, white badge with a transparent outside), rendered by `SummitLogo` wherever the brand appears. `public/favicon.png` and `public/apple-touch-icon.png` are made from the same art.
+
 Display type is **Satoshi** (`font-display`); body text is **Instrument Sans**.
 
 Keep in-app copy functional: page headers carry a label and title only, with no taglines. Explanatory text stays only where it tells people how something works, such as the expert approval note on sign-in.
