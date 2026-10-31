@@ -222,7 +222,20 @@ Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`
 
 **Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row, deliberately unlike the tinted session cards. **One role at a time:** signed in, only your current role continues straight to the dashboard ("Continue as …"). Every other role goes to its sign-in page, which notes that signing in ends your current role. Signing in again replaces the session: a Google sign-in clears a demo session, and a demo or expert sign-in ends the Google session. The account then moves to the new role if the sheets allow it. If they don't, you're signed out and the roles page shows "You aren't eligible to sign up as …", so you never fall back into the old role. Visiting the sign-in page for the role you already hold goes straight to the dashboard. Volunteer, Admin, and Expert are marked "Approval needed". The rule is enforced in the app; the database still accepts a direct role change by API, as long as the sheets allow the new role.
 
-The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** timeline of reserved sessions in time order. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail, so neither column leaves empty space; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate three layers: that top section, a row of four quick links, and tinted featured-session cards in a three-column grid.
+The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** card: the reserved sessions in time order, then **Tracks**, a sideways-scrolling row of every session as tinted cards, with a Build your schedule button once you have sessions. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate the top section, a row of four quick links, and **Explore the verses**.
+
+**Explore the verses** (`src/components/verse/`) ports the mobile app's Discover screen and discipline pages, using the same palettes and animations (from `discipline_vibe.dart` and `discipline_effects.dart` in genzarjun/Emerald-Summit-App-MOBILE). Each of the six verses gets a dark card in its own colors, with a live motif drawn on a canvas behind the text:
+
+| Verse | Motif |
+|---|---|
+| TechVerse | Circuit pulses |
+| VentureVerse | A rising chart with embers |
+| BioSphere | Drifting cells |
+| NovaSphere | Stars, orbits, and a shooting star |
+| CivicVerse | Gavel ripples between columns |
+| ImagineX | Paint blobs shifting hue |
+
+Clicking a card opens the verse's page the way the app does: a circle of its color grows from the click point, the full-size motif plays, and a liquid border flows around the edge, pouring in from the top. The page shows the verse's sessions, seats, and which are on your day. Back or Escape reverses the circle. Motifs pause when off screen or in a hidden tab, and show a single still frame under reduced motion. Palettes live in `src/models/verseVibes.ts`; keep them in step with the app's `discipline_vibe.dart`.
 
 The design source is the Figma file [Emerald Summit — Portal Redesign](https://www.figma.com/design/qqeSVs9y0OOfjFgnveZZTV). It holds the color variables and reusable components. Headings there use Plus Jakarta Sans as a stand-in for Satoshi, which Figma doesn't provide.
 

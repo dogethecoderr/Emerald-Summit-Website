@@ -23,6 +23,7 @@ import AppShell from '../components/AppShell';
 import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
 import QrPassModal from '../components/QrPassModal';
+import ExploreVerses from '../components/verse/ExploreVerses';
 import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -176,7 +177,7 @@ function CountChip({ count }: { count: number }) {
 }
 
 /** Tinted session card: discipline-colored panel inside a white frame. */
-function FeaturedCard({
+function TrackCard({
   session: s,
   onDetails,
 }: {
@@ -189,7 +190,7 @@ function FeaturedCard({
   const seatsLeft = Math.max(s.capacity - s.enrolled, 0);
   const tags = [s.duration, trackLabel, seatsLeft === 0 ? 'Full' : `${seatsLeft} seats left`];
   return (
-    <article className="flex flex-col rounded-[22px] border border-border bg-card p-1.5">
+    <article className="flex w-full flex-col rounded-[22px] border border-border bg-card p-1.5">
       <div
         className="flex flex-1 flex-col rounded-[18px] p-4"
         style={{ background: `${color}1c` }}
@@ -449,7 +450,7 @@ export default function HomePage() {
             )}
           </div>
           {canSchedule && agenda.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 py-10 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-emerald">
                 <CalendarDays className="h-6 w-6" />
               </span>
@@ -475,6 +476,36 @@ export default function HomePage() {
               ))}
             </div>
           )}
+
+          {/* Tracks: every session, scrolled sideways inside Your day */}
+          <div className="mt-6 border-t border-border/70 pt-5">
+            <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
+              <h3 className="flex flex-1 items-center gap-2.5 font-display text-lg font-bold tracking-tight sm:text-xl">
+                Tracks
+                <CountChip count={MOCK_SESSIONS.length} />
+              </h3>
+              {/* The empty state above already offers this; avoid two in a row. */}
+              {canSchedule && agenda.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/schedule')}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-emerald px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-deep"
+                >
+                  Build your schedule <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [mask-image:linear-gradient(to_right,black_90%,transparent)]">
+              {MOCK_SESSIONS.map((s) => (
+                <div key={s.id} className="flex w-[264px] shrink-0 snap-start sm:w-[280px]">
+                  <TrackCard
+                    session={s}
+                    onDetails={() => navigate(canSchedule ? '/schedule' : '/home')}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* right rail — on xl, sized by Your day (h-0 + min-h-full) so it never adds empty space */}
@@ -539,29 +570,8 @@ export default function HomePage() {
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
-      {/* featured */}
-      <section>
-        <div className="mb-3 flex items-center gap-3">
-          <h2 className="flex flex-1 items-center gap-2.5 font-display text-xl font-bold tracking-tight sm:text-2xl">
-            Featured sessions
-            <CountChip count={MOCK_SESSIONS.length} />
-          </h2>
-          {canSchedule && (
-            <button
-              type="button"
-              onClick={() => navigate('/schedule')}
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-emerald-deep hover:underline"
-            >
-              Browse all sessions <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {MOCK_SESSIONS.slice(0, 6).map((s) => (
-            <FeaturedCard key={s.id} session={s} onDetails={() => navigate(canSchedule ? '/schedule' : '/home')} />
-          ))}
-        </div>
-      </section>
+      {/* explore the verses (replaces the old featured sessions) */}
+      <ExploreVerses mine={new Set([...ownIds, ...spectating])} canSchedule={canSchedule} />
       {isQrEligible && (
         <QrPassModal open={qrPassOpen} onOpenChange={setQrPassOpen} profile={profile} />
       )}
