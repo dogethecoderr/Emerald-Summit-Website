@@ -542,6 +542,11 @@ export default function HomePage() {
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
+      {/* explore the verses (replaces the old featured sessions) */}
+      <ExploreVerses mine={new Set([...ownIds, ...spectating])} canSchedule={canSchedule} />
+
+      <hr className="my-8 border-t border-border/80" aria-hidden />
+
       {/* quick access — one full-width row */}
       <section>
         <h2 className="mb-3 font-display text-xl font-bold tracking-tight sm:text-2xl">
@@ -567,11 +572,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-      <hr className="my-8 border-t border-border/80" aria-hidden />
-
-      {/* explore the verses (replaces the old featured sessions) */}
-      <ExploreVerses mine={new Set([...ownIds, ...spectating])} canSchedule={canSchedule} />
       {isQrEligible && (
         <QrPassModal open={qrPassOpen} onOpenChange={setQrPassOpen} profile={profile} />
       )}

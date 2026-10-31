@@ -7,6 +7,7 @@ import {
   Settings,
   Megaphone,
   ArrowLeftRight,
+  LogOut,
   FolderOpen,
   QrCode,
   Search,
@@ -19,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
+import { signOut } from '../services/auth';
 import { MOCK_SESSIONS } from '../models/sessions';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
@@ -283,6 +285,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
     items.find((n) => pathname === n.to || pathname.startsWith(`${n.to}/`))
       ?.label ?? 'Dashboard';
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/roles', { replace: true });
+  };
+
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -364,29 +371,44 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* Back to the roles page, still signed in. Sign out lives in Settings. */}
-        <button
-          type="button"
-          onClick={() => navigate('/roles')}
-          title="Switch role"
-          className="group flex w-full items-center gap-2.5 rounded-xl border border-white/10 p-2.5 text-left transition-colors hover:border-white/25 hover:bg-white/[0.06]"
-        >
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-            style={{ background: role.color }}
-            aria-hidden
+        {/* The profile card goes back to the roles page, still signed in. The
+            red button beside it signs out; it reads "Sign out" on hover. */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => navigate('/roles')}
+            title="Switch role"
+            className="group flex w-full items-center gap-2.5 rounded-xl border border-white/10 p-2.5 pr-[58px] text-left transition-colors hover:border-white/25 hover:bg-white/[0.06]"
           >
-            {initials}
-          </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-[13px] font-semibold">{name}</div>
-            <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
-          </div>
-          <span className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:text-white">
-            <ArrowLeftRight className="h-4 w-4" />
-            <span className="sr-only">Switch role</span>
-          </span>
-        </button>
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+              style={{ background: role.color }}
+              aria-hidden
+            >
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-[13px] font-semibold">{name}</div>
+              <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
+            </div>
+            <span className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:text-white">
+              <ArrowLeftRight className="h-4 w-4" />
+              <span className="sr-only">Switch role</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            title="Sign out"
+            aria-label="Sign out"
+            className="group/signout absolute inset-y-1.5 right-1.5 z-10 flex items-center justify-center gap-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 text-rose-300 transition-all hover:gap-1.5 hover:border-rose-500 hover:bg-rose-600 hover:text-white focus-visible:gap-1.5 focus-visible:bg-rose-600 focus-visible:text-white"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap text-[12px] font-semibold transition-all duration-200 group-hover/signout:max-w-[64px] group-focus-visible/signout:max-w-[64px]">
+              Sign out
+            </span>
+          </button>
+        </div>
       </aside>
 
       <div className="lg:pl-64">
