@@ -100,6 +100,35 @@
    canvas seeds its stars randomly, so it never lines up with the video's
    final frame — this dissolve is what keeps that reshuffle from reading as
    a twitch. */
+/* Settled hero sky (MountainSkyline): the far ridges' slow drift and the
+   summit glow's pulse run as CSS so the browser animates them off the main
+   thread. Amplitudes and periods match the old per-frame JS
+   (sin(t·0.16)·9px, sin(t·0.21)·-11px, 0.72 + 0.28·sin(t·0.9)). */
+@keyframes ridge-drift-a {
+  from {
+    transform: translateX(-9px);
+  }
+  to {
+    transform: translateX(9px);
+  }
+}
+@keyframes ridge-drift-b {
+  from {
+    transform: translateX(11px);
+  }
+  to {
+    transform: translateX(-11px);
+  }
+}
+@keyframes summit-glow {
+  from {
+    opacity: 0.44;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes sky-handover {
   from {
     opacity: 0;

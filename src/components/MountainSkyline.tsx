@@ -25,6 +25,17 @@ const SNOW = [
   { start: 0.08, end: 0.26, opacity: 0.4 },
 ];
 
+/**
+ * Settled sky, tuned for smooth scrolling: only every TWINKLE_EVERY-th star
+ * twinkles (the rest are painted once onto a cached layer), the twinkle runs
+ * at TWINKLE_FPS on a 1x canvas, and only while the page sits within
+ * TOP_SLACK px of the top, starting TWINKLE_DELAY_MS after it gets there.
+ */
+const TWINKLE_EVERY = 8;
+const TWINKLE_FPS = 30;
+const TWINKLE_DELAY_MS = 4000;
+const TOP_SLACK = 48;
+
 /** Alpha/width buckets for the star batching. */
 const ALPHA_STEPS = 14;
 const WIDTH_STEPS = 4;
@@ -97,6 +108,8 @@ export default function MountainSkyline({
 }: MountainSkylineProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** Settled sky only: the twinkling stars, over the still ones. */
+  const twinkleRef = useRef<HTMLCanvasElement>(null);
   const nightRef = useRef<HTMLDivElement>(null);
   const washRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -120,7 +133,12 @@ export default function MountainSkyline({
 
     let w = 0;
     let h = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Full resolution only while the arrival sequence plays (the sun needs
+    // it); the settled sky is tiny dots and gets a 1x canvas, a quarter of
+    // the pixels on a retina screen.
+    let dpr = playRef.current && !skipRef.current ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    // Set once the settled sky takes over (see enterSettled below).
+    let onResize: (() => void) | null = null;
     const resize = () => {
       w = wrap.offsetWidth;
       h = wrap.offsetHeight;
@@ -129,6 +147,8 @@ export default function MountainSkyline({
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineCap = 'round';
+      onResize?.();
     };
     resize();
     window.addEventListener('resize', resize);
@@ -279,6 +299,153 @@ export default function MountainSkyline({
       ctx.restore();
     };
 
+    /* ---- settled sky ------------------------------------------------- */
+    // After the arrival sequence nothing moves but the twinkle, so the sky
+    // is cached: most stars are painted once, and only a small subset is
+    // redrawn, at TWINKLE_FPS, while the page is at the top.
+    const twinklers = stars.filter((_, i) => i % TWINKLE_EVERY === 0);
+    const still = stars.filter((_, i) => i % TWINKLE_EVERY !== 0);
+    let settled = false;
+    let snapT = T_END;
+    /** Seconds of twinkle played so far; frozen while paused, so no pops. */
+    let twinkleClock = 0;
+    let twinkling = false;
+    let lastTick = 0;
+    let idleTimer = 0;
+    let atTop = window.scrollY < TOP_SLACK;
+    const twinkleCanvas = twinkleRef.current;
+    const tctx = twinkleCanvas?.getContext('2d') ?? null;
+
+    const starAlpha = (s: Star, at: number) => s.bright * (0.55 + 0.45 * Math.sin(at * s.rate + s.phase));
+    const dot = (c: CanvasRenderingContext2D, s: Star, alpha: number) => {
+      if (alpha <= 0.01) return;
+      c.globalAlpha = alpha;
+      c.beginPath();
+      c.arc(w / 2 + s.cos * s.dist, h / 2 + s.sin * s.dist, s.size / 2, 0, TAU);
+      c.fill();
+    };
+
+    /** Still stars, painted once onto the main canvas. */
+    const paintStill = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      for (const s of still) dot(ctx, s, starAlpha(s, snapT));
+      ctx.globalAlpha = 1;
+    };
+
+    const sizeTwinkleCanvas = () => {
+      if (!twinkleCanvas || !tctx) return;
+      twinkleCanvas.width = Math.max(1, w);
+      twinkleCanvas.height = Math.max(1, h);
+      twinkleCanvas.style.width = `${w}px`;
+      twinkleCanvas.style.height = `${h}px`;
+    };
+
+    /**
+     * Redraws only the twinkling stars on their own canvas, erasing just the
+     * small square around each one rather than the whole frame.
+     */
+    const twinkleFrame = () => {
+      if (!tctx) return;
+      tctx.fillStyle = '#ffffff';
+      for (const s of twinklers) {
+        const x = w / 2 + s.cos * s.dist;
+        const y = h / 2 + s.sin * s.dist;
+        const r = s.size / 2 + 1;
+        tctx.clearRect(x - r, y - r, r * 2, r * 2);
+        dot(tctx, s, starAlpha(s, snapT + twinkleClock));
+      }
+      tctx.globalAlpha = 1;
+    };
+
+    const settledFrame = () => {
+      paintStill();
+      sizeTwinkleCanvas();
+      twinkleFrame();
+    };
+
+    /** The page around the canvas, set once instead of every frame. */
+    const finishScene = () => {
+      const calm =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      for (const el of [nightRef.current, fadeRef.current]) if (el) el.style.opacity = '1';
+      if (washRef.current) washRef.current.style.opacity = '0';
+      ridgeRefs.current.forEach((el, i) => {
+        if (!el) return;
+        el.style.opacity = '1';
+        el.style.transform = '';
+        // Slow side-to-side drift, now on the compositor (index.css). The
+        // near range stays put, as it did before.
+        const drift = ['ridge-drift-a 19.6s', 'ridge-drift-b 15s'][i];
+        el.style.animation = drift && !calm ? `${drift} ease-in-out infinite alternate` : '';
+        el.style.willChange = drift && !calm ? 'transform' : '';
+      });
+      crestRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const weight = i === 2 ? 1 : 0.45;
+        el.style.opacity = `${0.28 * weight}`;
+        el.style.strokeWidth = '1.4';
+      });
+      const glow = glowRef.current;
+      if (glow) {
+        glow.style.opacity = calm ? '0.72' : '';
+        glow.style.animation = calm ? '' : 'summit-glow 3.5s ease-in-out infinite alternate';
+        glow.style.willChange = calm ? '' : 'opacity';
+      }
+    };
+
+    const twinkleTick = (now: number) => {
+      raf = 0;
+      if (!twinkling) return;
+      if (lastTick === 0) {
+        lastTick = now;
+      } else if (now - lastTick >= 1000 / TWINKLE_FPS - 1) {
+        twinkleClock += Math.min(now - lastTick, 100) / 1000;
+        lastTick = now;
+        twinkleFrame();
+      }
+      raf = requestAnimationFrame(twinkleTick);
+    };
+    const stopTwinkle = () => {
+      twinkling = false;
+      window.clearTimeout(idleTimer);
+      idleTimer = 0;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    /** Twinkle again once the page has rested at the top for a moment. */
+    const queueTwinkle = () => {
+      stopTwinkle();
+      if (!atTop || !visible || document.hidden || capturing) return;
+      idleTimer = window.setTimeout(() => {
+        twinkling = true;
+        lastTick = 0;
+        raf = requestAnimationFrame(twinkleTick);
+      }, TWINKLE_DELAY_MS);
+    };
+    const onScroll = () => {
+      const top = window.scrollY < TOP_SLACK;
+      if (top === atTop) return;
+      atTop = top;
+      if (top) queueTwinkle();
+      else stopTwinkle(); // freeze the moment the page moves down
+    };
+    const onVisibility = () => (document.hidden ? stopTwinkle() : queueTwinkle());
+
+    const enterSettled = (t: number) => {
+      if (settled) return;
+      settled = true;
+      snapT = t;
+      dpr = 1;
+      onResize = settledFrame;
+      resize();
+      finishScene();
+      window.addEventListener('scroll', onScroll, { passive: true });
+      document.addEventListener('visibilitychange', onVisibility);
+      queueTwinkle();
+    };
+
     const draw = (now: number) => {
       const live = playRef.current && !skipRef.current;
       const elapsed = (now - start) / 1000;
@@ -287,6 +454,13 @@ export default function MountainSkyline({
       if (!cuedRef.current && t >= T_SET) {
         cuedRef.current = true;
         onCueRef.current?.();
+      }
+
+      // From here on only the twinkle moves: hand over to the cached sky.
+      if (t >= T_END && !capturing) {
+        raf = 0;
+        enterSettled(t);
+        return;
       }
 
       const cx = w / 2;
@@ -458,6 +632,18 @@ export default function MountainSkyline({
     if (capturing) {
       (window as unknown as Record<string, unknown>).__sky = {
         renderAt: (seconds: number) => draw(start + seconds * 1000),
+        // Dev benchmarking: one frame of the cached settled sky.
+        renderSettled: (seconds: number) => {
+          if (!settled) {
+            settled = true;
+            snapT = T_END;
+            dpr = 1;
+            onResize = settledFrame;
+            resize();
+          }
+          twinkleClock = seconds;
+          twinkleFrame();
+        },
       };
     } else {
       raf = requestAnimationFrame(draw);
@@ -466,16 +652,24 @@ export default function MountainSkyline({
     const observer = new IntersectionObserver(
       ([entry]) => {
         visible = entry.isIntersecting;
-        if (visible && raf === 0) raf = requestAnimationFrame(draw);
+        if (settled) {
+          if (visible) queueTwinkle();
+          else stopTwinkle();
+        } else if (visible && raf === 0) {
+          raf = requestAnimationFrame(draw);
+        }
       },
       { threshold: 0 },
     );
     observer.observe(wrap);
 
     return () => {
+      stopTwinkle();
       cancelAnimationFrame(raf);
       observer.disconnect();
       window.removeEventListener('resize', resize);
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -497,6 +691,8 @@ export default function MountainSkyline({
 
       {/* stars and sun — under the ridges, so the sun sets behind them */}
       <canvas ref={canvasRef} className="absolute inset-0" />
+      {/* the settled sky's twinkling stars, redrawn on their own */}
+      <canvas ref={twinkleRef} className="absolute inset-0" />
 
       {/* broad emerald wash the sun throws across the sky */}
       <div

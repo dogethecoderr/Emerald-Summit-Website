@@ -214,6 +214,17 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 ---
 
+## Landing sky
+
+The hero (`src/components/SkyVideo.tsx`) plays the arrival as a pre-rendered video while scrolling is locked. It then hands over to the live sky (`src/components/MountainSkyline.tsx`), which is tuned to stay out of scrolling's way:
+
+- **Still stars are painted once.** Seven in eight of the 900 stars are drawn a single time onto the main canvas. The other ~110 twinkle on a second canvas, which redraws only the small square around each one.
+- **It twinkles only at the top.** The twinkle starts 4 seconds after the page settles within 48px of the top, freezes the moment you scroll down, and starts the countdown again when you come back. It also stops in a hidden tab or when the hero is off screen.
+- **It runs light.** The twinkle draws at 30fps on a 1x canvas; only the arrival sequence uses full retina resolution.
+- **The rest runs as CSS.** The far ridges' drift and the summit glow's pulse are CSS animations (`ridge-drift-a/b` and `summit-glow` in `src/index.css`), so the browser runs them off the main thread. The page around the canvas is set once instead of every frame.
+
+A settled frame costs about 0.26 ms, down from about 3.8 ms when every star was redrawn at full resolution 60 times a second. The tunables are at the top of `MountainSkyline.tsx`: `TWINKLE_EVERY`, `TWINKLE_FPS`, `TWINKLE_DELAY_MS`, and `TOP_SLACK`.
+
 ## Portal layout
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
