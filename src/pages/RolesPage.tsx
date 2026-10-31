@@ -90,7 +90,7 @@ export default function RolesPage() {
           />
         </div>
 
-        <div className="relative mt-10 lg:mt-auto">
+        <div className="relative mt-10 lg:my-auto lg:pb-28">
           <div className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-sky-300">
             Emerald Summit 2027 · Dublin, CA
           </div>
