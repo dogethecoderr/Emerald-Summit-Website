@@ -16,6 +16,9 @@ import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import CapacityBar from '../components/CapacityBar';
 import TrackPill from '../components/TrackPill';
+import { TrackTag, VersePortalProvider } from '../components/verse/ExploreVerses';
+import { useTheme } from '../context/ThemeContext';
+import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
@@ -54,6 +57,7 @@ export default function SchedulePage() {
   } = useSchedule();
   const activeSchedule = isExpert ? expertSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
+  const { theme } = useTheme();
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -148,6 +152,7 @@ export default function SchedulePage() {
 
   return (
     <AppShell>
+      <VersePortalProvider mine={new Set([...activeSchedule, ...spectating])} canSchedule={false}>
       <PageHeader
         label="Emerald High School · Dublin, CA"
         title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
@@ -265,7 +270,11 @@ export default function SchedulePage() {
                                     )}
                                     <div className="min-w-0 flex-1">
                                       <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                        <TrackPill track={s.track} />
+                                        {s.track === 'keynote' ? (
+                                          <TrackPill track={s.track} />
+                                        ) : (
+                                          <TrackTag verse={s.track} track={s.trackName} />
+                                        )}
                                         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                                           <Clock className="h-3 w-3" /> {s.duration}
                                         </span>
@@ -421,14 +430,21 @@ export default function SchedulePage() {
                   <div className="space-y-2">
                     {added.map((s) => {
                       const isSpec = spectating.includes(s.id);
+                      // Keynotes take the house emerald; the rest their verse.
+                      const accent = vibeFor(s.track === 'keynote' ? null : s.track, theme).accent;
                       return (
                         <div
                           key={s.id}
-                          className="flex items-start gap-2 rounded-xl border border-border/70 bg-secondary/30 p-3"
+                          className="flex items-start gap-2 rounded-xl border p-3 pl-3.5"
+                          style={{
+                            background: `linear-gradient(90deg, ${rgba(accent, 0.16)}, ${rgba(accent, 0.05)})`,
+                            borderColor: rgba(accent, 0.3),
+                            boxShadow: `inset 3px 0 0 ${accent}`,
+                          }}
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold text-emerald-mint">
+                              <span className="text-[11px] font-bold" style={{ color: accent }}>
                                 {s.time}
                               </span>
                               {isSpec && (
@@ -443,6 +459,11 @@ export default function SchedulePage() {
                             <div className="text-[11px] text-muted-foreground">
                               {s.location}
                             </div>
+                            {s.track !== 'keynote' && (
+                              <div className="mt-1.5">
+                                <TrackTag verse={s.track} track={s.trackName} />
+                              </div>
+                            )}
                           </div>
                           <button
                             onClick={() => (isSpec ? toggleSpectate(s.id) : toggle(s.id))}
@@ -462,6 +483,7 @@ export default function SchedulePage() {
           </Droppable>
         </div>
       </DragDropContext>
+      </VersePortalProvider>
     </AppShell>
   );
 }

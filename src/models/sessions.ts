@@ -11,6 +11,8 @@ export interface Session {
   location: string;
   /** A UserDiscipline `name` key, or 'keynote' for the emerald keynote pill. */
   track: string;
+  /** The track within that verse (a name from tracks.ts), e.g. 'Genetics'. */
+  trackName?: string;
   duration: string;
   description: string;
   capacity: number;
@@ -66,6 +68,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Computer Lab',
     room: 'C',
     track: 'techverse',
+    trackName: 'AI Playground',
     duration: '75 min',
     description:
       'Hands-on intro to ML concepts with live demos and beginner coding exercises.',
@@ -84,6 +87,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Room 204',
     room: 'D',
     track: 'biosphere',
+    trackName: 'Presentations',
     duration: '60 min',
     description:
       'Student researchers present local environmental projects and scalable solutions.',
@@ -102,6 +106,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Design Studio',
     room: 'E',
     track: 'imaginex',
+    trackName: 'Art',
     duration: '90 min',
     description:
       'Workshop on visual identity, layout, and communicating ideas through design.',
@@ -120,6 +125,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Science Wing',
     room: 'F',
     track: 'novasphere',
+    trackName: 'Core Science',
     duration: '60 min',
     description:
       'From orbital mechanics to student-built model rockets — exploring beyond Earth.',
@@ -138,6 +144,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Innovation Hub',
     room: 'G',
     track: 'ventureverse',
+    trackName: 'Entrepreneurship',
     duration: '90 min',
     description:
       'Students pitch business concepts to a panel of volunteers and receive live feedback.',
@@ -156,6 +163,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Room 108',
     room: 'B',
     track: 'civicverse',
+    trackName: 'Law & Rights',
     duration: '75 min',
     description: 'Simulate the legislative process by debating real policy proposals.',
     capacity: 35,
@@ -173,6 +181,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Computer Lab',
     room: 'C',
     track: 'techverse',
+    trackName: 'Computer Science',
     duration: '60 min',
     description:
       'Explore how vulnerabilities are found and patched — and the ethics behind disclosure.',
@@ -191,6 +200,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Bio Lab',
     room: 'H',
     track: 'biosphere',
+    trackName: 'Genetics',
     duration: '60 min',
     description:
       'Dive into gene editing technology and the moral questions scientists must navigate.',
@@ -209,6 +219,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Media Lab',
     room: 'I',
     track: 'imaginex',
+    trackName: 'Art',
     duration: '60 min',
     description:
       'Record, edit, and produce a short segment using professional studio equipment.',
@@ -227,6 +238,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Innovation Hub',
     room: 'G',
     track: 'ventureverse',
+    trackName: 'Entrepreneurship',
     duration: '60 min',
     description:
       'Stocks, compound interest, and personal finance — tools every student should know.',
@@ -245,6 +257,7 @@ export const MOCK_SESSIONS: Session[] = [
     location: 'Courtyard Stage',
     room: 'J',
     track: 'civicverse',
+    trackName: 'Civic Engagement',
     duration: '60 min',
     description:
       'Local student leaders discuss how to organize and create change in Dublin.',

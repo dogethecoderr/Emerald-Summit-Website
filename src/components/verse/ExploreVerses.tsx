@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../../models/sessions';
-import { tracksForUniverse } from '../../models/tracks';
+import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';
 import { useTheme } from '../../context/ThemeContext';
 import {
   mixHex,
@@ -124,24 +124,129 @@ const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** A session in a verse's colors, with its track as a link. */
+function VerseSessionCard({
+  session: s,
+  vibe,
+  mine,
+  onTrack,
+}: {
+  session: Session;
+  vibe: VerseVibe;
+  mine: Set<string>;
+  onTrack?: (name: string) => void;
+}) {
+  const left = Math.max(s.capacity - s.enrolled, 0);
+  return (
+    <article
+      className="rounded-2xl p-4"
+      style={{
+        background: rgba(vibe.surface, 0.88),
+        border: `1px solid ${rgba(vibe.accent, 0.22)}`,
+      }}
+    >
+      <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
+        <span>{s.time}</span>
+        <span style={{ color: vibe.textDim }}>· {s.duration}</span>
+        {mine.has(s.id) && (
+          <span className="ml-auto inline-flex items-center gap-1">
+            <Check className="h-3.5 w-3.5" /> On your day
+          </span>
+        )}
+      </div>
+      <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
+      <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
+        {s.speaker} · {s.location}
+      </div>
+      {s.trackName && onTrack && (
+        <button
+          type="button"
+          onClick={() => onTrack(s.trackName!)}
+          className="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold transition-transform hover:translate-x-0.5"
+          style={{ background: rgba(vibe.accent, 0.16), color: vibe.accent }}
+        >
+          {s.trackName} <ChevronRight className="h-3 w-3" />
+        </button>
+      )}
+      <div className="mt-3 h-1 w-full overflow-hidden rounded-sm" style={{ background: vibe.meter }}>
+        <div
+          className="h-full"
+          style={{ width: `${Math.min(s.enrolled / s.capacity, 1) * 100}%`, background: vibe.accent }}
+        />
+      </div>
+      <div className="mt-1.5 text-[12px]" style={{ color: vibe.textDim }}>
+        {left === 0 ? 'Full' : `${left} of ${s.capacity} seats left`}
+      </div>
+    </article>
+  );
+}
+
+/** A row of a verse's tracks as chips; the current one is filled. */
+function TrackChips({
+  verse,
+  vibe,
+  current,
+  onPick,
+}: {
+  verse: string;
+  vibe: VerseVibe;
+  current?: string;
+  onPick: (name: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tracksForUniverse(verse).map((name) => {
+        const active = name === current;
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onPick(name)}
+            aria-current={active || undefined}
+            className="rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+            style={
+              active
+                ? { background: vibe.accent, color: vibe.background }
+                : { background: rgba(vibe.surface, 0.8), color: vibe.text, border: `1px solid ${rgba(vibe.accent, 0.3)}` }
+            }
+          >
+            {name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * A verse's own page, opened as a circle of its color growing out of the
  * point that was clicked (mobile: DisciplinePortalRoute + DisciplineScreen).
+ * With `track`, it opens on that track's page instead; the chips switch
+ * between the verse and its tracks without leaving the verse's world.
  */
 function VersePage({
   discipline,
   origin,
+  track: initialTrack,
   mine,
   canSchedule,
   onClosed,
 }: {
   discipline: DisciplineInfo;
   origin: { x: number; y: number };
+  track?: string;
   mine: Set<string>;
   canSchedule: boolean;
   onClosed: () => void;
 }) {
   const navigate = useNavigate();
+  const [trackName, setTrackName] = useState(initialTrack);
+  const track = TRACKS.find((t) => t.verse === discipline.name && t.name === trackName);
+  const scroller = useRef<HTMLDivElement>(null);
+  const show = (name: string | undefined) => {
+    setTrackName(name);
+    scroller.current?.scrollTo({ top: 0 });
+  };
   const { theme } = useTheme();
   const vibe = vibeFor(discipline.name, theme);
   const sessions = sessionsFor(discipline.name);
@@ -227,92 +332,70 @@ function VersePage({
       style={{ background: vibe.background, color: vibe.text }}
     >
       <VerseMotif vibe={vibe} className="absolute inset-0" />
-      <div ref={content} className="absolute inset-0 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
-          <button
-            ref={backButton}
-            type="button"
-            onClick={close}
-            className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
-            style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
+      <div ref={content} className="absolute inset-0">
+        <div ref={scroller} className="h-full overflow-y-auto">
+          <div className="mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
+            <button
+              ref={backButton}
+              type="button"
+              onClick={close}
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
+              style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
+            >
+              <ChevronLeft className="h-4 w-4" /> Back
+            </button>
 
-          <header className="mt-10">
-            <VerseBadge vibe={vibe} size={52} />
-            <h2 className="mt-4 font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
-              {discipline.label}
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed" style={{ color: vibe.textDim }}>
-              {discipline.description}
-            </p>
-            <p className="mt-4 text-[15px]">
-              <span className="font-bold">
-                {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
-              </span>
-              , {seatsOpen} seats open
-              {onDay > 0 && (
-                <span className="font-bold" style={{ color: vibe.accent }}>
-                  . {onDay} on your day
-                </span>
-              )}
-            </p>
-            {canSchedule && (
-              <button
-                type="button"
-                onClick={() => navigate('/schedule')}
-                className="mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-transform hover:translate-x-0.5"
-                style={{ background: vibe.accent, color: vibe.background }}
-              >
-                Build your schedule <ChevronRight className="h-4 w-4" />
-              </button>
-            )}
-          </header>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {sessions.length === 0 && (
-              <p style={{ color: vibe.textDim }}>No sessions in this discipline yet.</p>
-            )}
-            {sessions.map((s) => {
-              const left = Math.max(s.capacity - s.enrolled, 0);
-              return (
-                <article
-                  key={s.id}
-                  className="rounded-2xl p-4"
-                  style={{
-                    background: rgba(vibe.surface, 0.88),
-                    border: `1px solid ${rgba(vibe.accent, 0.22)}`,
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
-                    <span>{s.time}</span>
-                    <span style={{ color: vibe.textDim }}>· {s.duration}</span>
-                    {mine.has(s.id) && (
-                      <span className="ml-auto inline-flex items-center gap-1">
-                        <Check className="h-3.5 w-3.5" /> On your day
+            {track ? (
+              <TrackView
+                track={track}
+                discipline={discipline}
+                vibe={vibe}
+                mine={mine}
+                canSchedule={canSchedule}
+                onVerse={() => show(undefined)}
+                onTrack={show}
+              />
+            ) : (
+              <>
+                <header className="mt-10">
+                  <VerseBadge vibe={vibe} size={52} />
+                  <h2 className="mt-4 font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+                    {discipline.label}
+                  </h2>
+                  <p className="mt-2 text-[15px] leading-relaxed" style={{ color: vibe.textDim }}>
+                    {discipline.description}
+                  </p>
+                  <p className="mt-4 text-[15px]">
+                    <span className="font-bold">
+                      {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
+                    </span>
+                    , {seatsOpen} seats open
+                    {onDay > 0 && (
+                      <span className="font-bold" style={{ color: vibe.accent }}>
+                        . {onDay} on your day
                       </span>
                     )}
-                  </div>
-                  <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
-                  <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
-                    {s.speaker} · {s.location}
-                  </div>
-                  <div className="mt-3 h-1 w-full overflow-hidden rounded-sm" style={{ background: vibe.meter }}>
-                    <div
-                      className="h-full"
-                      style={{
-                        width: `${Math.min(s.enrolled / s.capacity, 1) * 100}%`,
-                        background: vibe.accent,
-                      }}
-                    />
-                  </div>
-                  <div className="mt-1.5 text-[12px]" style={{ color: vibe.textDim }}>
-                    {left === 0 ? 'Full' : `${left} of ${s.capacity} seats left`}
-                  </div>
-                </article>
-              );
-            })}
+                  </p>
+                  {canSchedule && <ScheduleButton vibe={vibe} onClick={() => navigate('/schedule')} />}
+                </header>
+
+                <section className="mt-8">
+                  <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+                    Tracks
+                  </h3>
+                  <TrackChips verse={discipline.name} vibe={vibe} onPick={show} />
+                </section>
+
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                  {sessions.length === 0 && (
+                    <p style={{ color: vibe.textDim }}>No sessions in this discipline yet.</p>
+                  )}
+                  {sessions.map((s) => (
+                    <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} onTrack={show} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -322,8 +405,132 @@ function VersePage({
   );
 }
 
+function ScheduleButton({ vibe, onClick }: { vibe: VerseVibe; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-transform hover:translate-x-0.5"
+      style={{ background: vibe.accent, color: vibe.background }}
+    >
+      Build your schedule <ChevronRight className="h-4 w-4" />
+    </button>
+  );
+}
+
+/** One track's page, inside its verse's world. */
+function TrackView({
+  track,
+  discipline,
+  vibe,
+  mine,
+  canSchedule,
+  onVerse,
+  onTrack,
+}: {
+  track: TrackInfo;
+  discipline: DisciplineInfo;
+  vibe: VerseVibe;
+  mine: Set<string>;
+  canSchedule: boolean;
+  onVerse: () => void;
+  onTrack: (name: string) => void;
+}) {
+  const navigate = useNavigate();
+  const sessions = sessionsFor(discipline.name).filter((s) => s.trackName === track.name);
+  return (
+    <>
+      <header className="mt-10">
+        <button
+          type="button"
+          onClick={onVerse}
+          className="inline-flex items-center gap-2.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-semibold transition-transform hover:translate-x-0.5"
+          style={{ background: rgba(vibe.surface, 0.8), border: `1px solid ${rgba(vibe.accent, 0.3)}` }}
+        >
+          <VerseBadge vibe={vibe} size={26} />
+          {discipline.label}
+          <ChevronRight className="h-3.5 w-3.5" style={{ color: vibe.textDim }} />
+        </button>
+        <div className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: vibe.accent }}>
+          Track · Summit '26
+        </div>
+        <h2 className="mt-2 font-display text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+          {track.name}
+        </h2>
+        <p className="mt-3 max-w-2xl text-[16px] leading-relaxed" style={{ color: vibe.textDim }}>
+          {track.about}
+        </p>
+        {canSchedule && <ScheduleButton vibe={vibe} onClick={() => navigate('/schedule')} />}
+      </header>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <section
+          className="rounded-2xl p-5"
+          style={{ background: rgba(vibe.surface, 0.88), border: `1px solid ${rgba(vibe.accent, 0.22)}` }}
+        >
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+            Format
+          </h3>
+          <ul className="mt-3 space-y-3">
+            {track.formats.map((f) => (
+              <li key={f}>
+                <div className="font-display text-[16px] font-bold" style={{ color: vibe.accent }}>
+                  {f}
+                </div>
+                <div className="text-[13.5px]" style={{ color: vibe.textDim }}>
+                  {FORMAT_NOTES[f]}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section
+          className="rounded-2xl p-5"
+          style={{ background: rgba(vibe.surface, 0.88), border: `1px solid ${rgba(vibe.accent, 0.22)}` }}
+        >
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+            What you can do
+          </h3>
+          <ul className="mt-3 space-y-2.5">
+            {track.ideas.map((idea) => (
+              <li key={idea} className="flex gap-2.5 text-[14px] leading-snug">
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" style={{ color: vibe.accent }} />
+                {idea}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <section className="mt-8">
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+          Sessions
+        </h3>
+        {sessions.length === 0 ? (
+          <p className="text-[14px]" style={{ color: vibe.textDim }}>
+            No sessions announced for this track yet.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {sessions.map((s) => (
+              <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+          More in {discipline.label}
+        </h3>
+        <TrackChips verse={discipline.name} vibe={vibe} current={track.name} onPick={onTrack} />
+      </section>
+    </>
+  );
+}
+
 type Origin = { x: number; y: number };
-type OpenVerse = (verse: string, origin: Origin) => void;
+type OpenVerse = (verse: string, origin: Origin, track?: string) => void;
 
 const VersePortalContext = createContext<OpenVerse | null>(null);
 
@@ -351,10 +558,12 @@ export function VersePortalProvider({
   canSchedule: boolean;
   children: React.ReactNode;
 }) {
-  const [opened, setOpened] = useState<{ discipline: DisciplineInfo; origin: Origin } | null>(null);
-  const open = useCallback<OpenVerse>((verse, origin) => {
+  const [opened, setOpened] = useState<{ discipline: DisciplineInfo; origin: Origin; track?: string } | null>(
+    null,
+  );
+  const open = useCallback<OpenVerse>((verse, origin, track) => {
     const discipline = USER_DISCIPLINES.find((d) => d.name === verse);
-    if (discipline) setOpened({ discipline, origin });
+    if (discipline) setOpened({ discipline, origin, track });
   }, []);
 
   return (
@@ -365,6 +574,7 @@ export function VersePortalProvider({
           key={opened.discipline.name}
           discipline={opened.discipline}
           origin={opened.origin}
+          track={opened.track}
           mine={mine}
           canSchedule={canSchedule}
           // Only clear this verse: a page still closing must not close the
@@ -424,7 +634,7 @@ export function VerseTracks() {
           <button
             key={`${verse.name}-${name}`}
             type="button"
-            onClick={(e) => open(verse.name, originOf(e))}
+            onClick={(e) => open(verse.name, originOf(e), name)}
             className="group relative flex h-[118px] w-[200px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl p-3.5 text-left transition-transform duration-150 active:scale-[0.97]"
             style={{
               background: `radial-gradient(120% 90% at 100% 0%, ${rgba(vibe.accent, 0.22)}, transparent 60%), ${vibe.background}`,
@@ -451,6 +661,35 @@ export function VerseTracks() {
         );
       })}
     </div>
+  );
+}
+
+/**
+ * A session's track as a tag in its verse's colors (the verse's icon, then
+ * the track). Opens the track's page, or the verse's when there's no track.
+ */
+export function TrackTag({ verse, track }: { verse: string; track?: string }) {
+  const open = useOpenVerse();
+  const { theme } = useTheme();
+  const vibe = vibeFor(verse, theme);
+  const Icon = vibe.icon;
+  const label = track ?? USER_DISCIPLINES.find((d) => d.name === verse)?.label ?? verse;
+  return (
+    <button
+      type="button"
+      onClick={(e) => open(verse, originOf(e), track)}
+      title={track ? `About ${track}` : undefined}
+      className="group inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors"
+      style={{
+        background: rgba(vibe.accent, 0.13),
+        color: vibe.accent,
+        boxShadow: `inset 0 0 0 1px ${rgba(vibe.accent, 0.35)}`,
+      }}
+    >
+      <Icon className="h-3 w-3" strokeWidth={2.2} />
+      {label}
+      <ChevronRight className="-ml-0.5 h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 }
 
