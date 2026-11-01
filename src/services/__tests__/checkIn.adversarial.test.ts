@@ -28,7 +28,9 @@ const { mockSupabaseClient, usersTable } = vi.hoisted(() => {
             const found = users.find((u) => u.id === filterId);
             if (found) Object.assign(found, updatePayload);
           }
-          return Promise.resolve({ data: null, error: null }).then(onFulfilled);
+          // An update asked for its rows back gets the matched rows.
+          const matched = updatePayload && filterId ? users.filter((u) => u.id === filterId) : [];
+          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
         }),
         maybeSingle: vi.fn(async () => {
           const found = users.find((u) => u.id === filterId);
@@ -151,11 +153,12 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       expect(result.data?.checked_in_at).toBeNull();
     });
 
-    test('falls back to MOCK_PEOPLE when database query yields null', async () => {
+    test('with a backend, a sample person who is not in the database is not found', async () => {
+      // MOCK_PEOPLE only stand in when no backend is configured; real check-in
+      // never falls back to them.
       const result = await fetchParticipantById('p8');
-      expect(result.error).toBeNull();
-      expect(result.data).toBeDefined();
-      expect(result.data?.name).toBe('Jordan Wu');
+      expect(result.data).toBeNull();
+      expect(result.error).toBe('Participant not found');
     });
 
     test('returns participant not found when ID does not exist in DB or mock data', async () => {

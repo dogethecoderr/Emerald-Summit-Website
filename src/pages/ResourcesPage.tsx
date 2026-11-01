@@ -10,13 +10,12 @@ import {
   Download,
   type LucideIcon,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import {
-  MOCK_RESOURCES,
+  RESOURCES,
   type ResourceCategory,
   type ResourceType,
 } from '../models/resources';
@@ -56,7 +55,7 @@ export default function ResourcesPage() {
     );
   }
 
-  const filtered = MOCK_RESOURCES.filter((r) => {
+  const filtered = RESOURCES.filter((r) => {
     const q = query.trim().toLowerCase();
     const matchesQuery =
       !q ||
@@ -102,17 +101,28 @@ export default function ResourcesPage() {
         </div>
       </div>
 
+      {filtered.length === 0 && (
+        <div className="glass flex flex-col items-center gap-2 rounded-2xl px-6 py-14 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/60" />
+          <div className="text-sm font-medium">
+            {RESOURCES.length === 0 ? 'No resources posted yet.' : 'No resources match your search.'}
+          </div>
+          {RESOURCES.length === 0 && (
+            <div className="text-xs text-muted-foreground">
+              The campus map, schedule, and track briefs will be here before the Summit.
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((r) => {
           const Icon = TYPE_ICON[r.type];
           return (
             <button
               key={r.id}
-              onClick={() =>
-                toast.success(`Downloading “${r.title}”`, {
-                  description: 'File downloads are simulated in demo mode.',
-                })
-              }
+              disabled={!r.url}
+              onClick={() => r.url && window.open(r.url, '_blank', 'noopener,noreferrer')}
               className="glass group flex flex-col rounded-2xl p-5 text-left transition-colors hover:border-emerald-glow/35"
             >
               <div className="flex items-start justify-between gap-3">
@@ -142,11 +152,6 @@ export default function ResourcesPage() {
         })}
       </div>
 
-      {filtered.length === 0 && (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          No resources match your search.
-        </div>
-      )}
     </AppShell>
   );
 }

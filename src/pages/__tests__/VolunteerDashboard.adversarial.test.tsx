@@ -45,7 +45,10 @@ const { mockSupabaseClient, mockDbUsers } = vi.hoisted(() => {
             const u = users.find((item) => item.id === filterId);
             if (u) Object.assign(u, updatePayload);
           }
-          return Promise.resolve({ data: null, error: null }).then(onFulfilled);
+          // An update asked for its rows back (.select('id')) gets the
+          // matched rows, as PostgREST returns them.
+          const matched = updatePayload && filterId ? users.filter((item) => item.id === filterId) : [];
+          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
         }),
         single: vi.fn(async () => {
           const user = users.find((u) => u.id === filterId);
@@ -142,7 +145,11 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
   const renderDashboard = () => {
     return render(
       <MemoryRouter>
-        <VolunteerDashboard assignedTrack="novasphere" />
+        <VolunteerDashboard
+          assignedTrack="novasphere"
+          // The sample roster; with a backend the hub would load it from users.
+          participants={MOCK_PEOPLE.filter((p) => p.role === 'participant' || p.role === 'attendee')}
+        />
       </MemoryRouter>,
     );
   };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -21,6 +21,9 @@ import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { roleLabelFor } from '../models/roles';
 import { MOCK_PEOPLE, type Person } from '../models/people';
+import { supabase } from '../lib/supabase';
+import { fetchPeople, setCheckedIn } from '../services/people';
+import { toast } from 'sonner';
 import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -58,14 +61,29 @@ export default function VolunteerDashboard({
     profile?.can_post_announcements && { label: 'Post announcements', icon: Megaphone },
   ].filter(Boolean) as { label: string; icon: typeof ScanLine }[];
 
-  // Initial roster defaults to mock participants if custom list not provided
+  // The roster is every participant and attendee account, loaded from the
+  // database. Only with no backend at all (tests, offline prototyping) does
+  // it fall back to the sample people.
+  const fromDatabase = customParticipants === undefined && supabase != null;
   const initialRoster = customParticipants !== undefined
     ? customParticipants
-    : MOCK_PEOPLE.filter(
-        (p) => p.role === 'participant' || p.role === 'attendee',
-      );
+    : fromDatabase
+      ? []
+      : MOCK_PEOPLE.filter(
+          (p) => p.role === 'participant' || p.role === 'attendee',
+        );
 
   const [roster, setRoster] = useState<Person[]>(initialRoster ?? []);
+  useEffect(() => {
+    if (!fromDatabase || !ready) return;
+    let live = true;
+    fetchPeople(['participant', 'attendee'])
+      .then((people) => live && setRoster(people))
+      .catch((e: Error) => live && toast.error(`Couldn't load the roster: ${e.message}`));
+    return () => {
+      live = false;
+    };
+  }, [fromDatabase, ready]);
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -97,6 +115,14 @@ export default function VolunteerDashboard({
   };
 
   const toggleCheckIn = (personId: string) => {
+    const before = roster;
+    const person = roster.find((p) => p.id === personId);
+    if (fromDatabase && person) {
+      setCheckedIn(personId, person.status !== 'checkedIn').catch((e: Error) => {
+        setRoster(before);
+        toast.error(e.message);
+      });
+    }
     setRoster((prev) =>
       prev.map((p) => {
         if (p.id === personId) {

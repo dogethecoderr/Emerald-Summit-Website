@@ -57,7 +57,9 @@ const {
             const u = users.find((item) => item.id === filterId);
             if (u) Object.assign(u, updatePayload);
           }
-          return Promise.resolve({ data: null, error: null }).then(onFulfilled);
+          // An update asked for its rows back gets the matched rows.
+          const matched = updatePayload && filterId ? users.filter((item) => item.id === filterId) : [];
+          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
         }),
         single: vi.fn(async () => {
           const user = users.find((u) => u.id === filterId);

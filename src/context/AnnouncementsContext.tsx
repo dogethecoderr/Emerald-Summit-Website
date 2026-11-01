@@ -20,7 +20,7 @@ import {
   updateAnnouncement,
   type AnnouncementDraft,
 } from '../services/announcements';
-import { MOCK_ANNOUNCEMENTS, type Announcement } from '../models/announcements';
+import type { Announcement } from '../models/announcements';
 
 interface AnnouncementsContextValue {
   announcements: Announcement[];
@@ -74,11 +74,8 @@ const AnnouncementsContext = createContext<AnnouncementsContextValue | undefined
 
 export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  // Seeded with the mock feed so the dashboard renders content on first paint
-  // instead of an empty panel that fills in a moment later.
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
-    sortAnnouncements(MOCK_ANNOUNCEMENTS),
-  );
+  // Empty until the feed loads; there are no sample posts for real users.
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);

@@ -8,6 +8,11 @@ import { ScheduleProvider } from './context/ScheduleContext';
 import { AnnouncementsProvider } from './context/AnnouncementsContext';
 import { Toaster } from '@/components/ui/sonner';
 import App from './App';
+import { loadSummitContent } from './services/summitContent';
+
+// Tracks and sessions come from the database when it's reachable; until then
+// (or without it) the bundled lists in src/models show.
+void loadSummitContent();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

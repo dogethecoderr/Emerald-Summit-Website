@@ -8,6 +8,7 @@ import {
   Settings,
   Megaphone,
   ArrowLeftRight,
+  Orbit,
   LogOut,
   FolderOpen,
   QrCode,
@@ -40,6 +41,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/home', label: 'Dashboard', icon: LayoutDashboard, group: 'My Summit' },
+  { to: '/verses', label: 'Verses', icon: Orbit, group: 'My Summit' },
   {
     to: '/schedule',
     label: 'Schedule',

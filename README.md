@@ -162,7 +162,8 @@ Editing a sheet takes effect within a minute. Removing someone demotes them. If 
 | Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. Ambassadors sign in as Volunteer; Ambassador isn't a sign-in choice. |
 | Disciplines | Scopes the Volunteer Hub roster to participants in those disciplines (`all` shows everyone). With no disciplines and no front desk, the hub asks them to get disciplines added to the sheet. |
 | `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons. Everyone else sees their roster read-only. The database enforces it (`20261028140000_front_desk_check_in.sql`): front-desk volunteers may change another person's `checked_in_at` and nothing else, and nobody checks themselves in. |
-| `can_edit_sessions`, `can_post_announcements` | Shown as badges in the hub. Nothing uses them yet: the website's sessions are still sample data, and only admins post announcements. |
+| `can_edit_sessions` | Lets the person add, edit, and delete tracks and sessions in the verses on their row (see **Editing tracks and sessions**). Blank means yes for EAF ambassadors and no for everyone else. |
+| `can_post_announcements` | Shown as a badge in the hub. Nothing uses it yet: only admins post announcements. |
 
 Demo mode's volunteer gets every permission, so the whole hub can be previewed without the sheets. These flags only drive the page in that browser: with no Supabase session, row-level security refuses every write.
 
@@ -192,7 +193,7 @@ Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supaba
 
 ## Announcements
 
-Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge.
+Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); the sample posts in `MOCK_ANNOUNCEMENTS` only illustrate the `/app` showcase. The table, its policies, and the `announcement-media` bucket come from `supabase/migrations/20260911120000_create_announcements.sql`, applied to the live project on 2026-11-01 (it now also revokes Supabase's default grants, TRUNCATE included). The browser's offline copy moved to the key `local_announcements_v2`, leaving behind old copies that held the sample posts.
 
 **Authoring (admins only).** The composer creates and edits posts with a category, an audience, and an optional pin-to-top. Attachments come in by drag-and-drop or a file picker:
 
@@ -215,6 +216,18 @@ Files upload to the public `announcement-media` Supabase Storage bucket (100 MB 
 Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsContext.tsx`, `src/components/AnnouncementComposer.tsx`, `src/components/AnnouncementsPanel.tsx`, `src/components/AttachmentPreview.tsx`.
 
 ---
+
+## People, check-in, and resources
+
+**Directory and Volunteer Hub** (`src/services/people.ts`). Both list real accounts from `public.users`: the Directory shows everyone, and the hub's roster shows participants and attendees, scoped as the Allowed Volunteers sheet says. Signed-out and demo sessions can't read `users`, so their lists are empty. The database has no per-field visibility yet, so everyone's email, phone, and bio show as private on cards. The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
+
+**Check-in.** The hub's Check In / Undo buttons write `users.checked_in_at` (`setCheckedIn`), as the QR scanner does. Only front-desk volunteers and admins may (`20261028140000_front_desk_check_in.sql`). A refused write matches no row; it's reported as an error, and the button reverts. It used to look like a success. With a backend, a scan or typed ID that isn't a real account is "Participant not found"; it no longer falls back to the sample people.
+
+**Resources** (`src/models/resources.ts`, `RESOURCES`). Empty until there are real files: the page says "No resources posted yet." Add an entry with a `url` (a public file or Drive link) for each, and its card opens it in a new tab.
+
+## Landing hero
+
+The hero (`src/pages/WelcomePage.tsx`) opens with the "Summit '27 · …" pill; the round logo that sat above it is gone (the nav bar still carries it), and the column stays centered. The "Emerald High School, Dublin, CA" chip is a link that opens the venue in Google Maps in a new tab (`VENUE_MAP_URL`, a Maps search for that address), as does the address under **When & where** further down.
 
 ## Landing sky
 
@@ -266,7 +279,7 @@ Signed-in users are granted only select, insert, and update. The migration revok
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Dashboard, Verses, then Schedule or Volunteer Hub), *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too. One click signs out of a demo session too: `signOut()` ends the local session first and tells `AuthContext` at once. It used to wait for Supabase's sign-out event, which is ignored while a local session exists.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
 - **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
 
@@ -288,6 +301,28 @@ The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greet
 Clicking a card opens the verse's page the way the app does: a circle of its color grows from the click point, the full-size motif plays, and a liquid border flows around the edge, pouring in from the top. The page shows the verse's sessions, seats, and which are on your day. Back or Escape reverses the circle. Motifs pause when off screen or in a hidden tab, and show a single still frame under reduced motion. Palettes live in `src/models/verseVibes.ts`; keep them in step with the app's `discipline_vibe.dart`. `VERSE_DISCIPLINES` there gives each verse its accent as `color`, and the landing hero's verse dots and orbit use it, so they match these cards. The plain `USER_DISCIPLINES` colors stay for light surfaces, where the lighter accents would be too faint.
 
 **Track pages.** Each track has its own page inside its verse's world (same colors, motif, and border). It shows what the track covers, its formats (workshop, exhibit, or presentation, as described in the app's knowledge base), ideas for what to bring or do, the sessions in that track, and chips for the verse's other tracks. Open one from the Tracks row on the dashboard, from a session's track tag on the Schedule page, or from the chips and session tags on a verse page. The verse badge at the top goes back to the whole verse. For participants and experts, each session card on a verse page or a track page has a **+** in its top right, including when the page is opened from the Schedule page (`VersePortalProvider`'s `canAdd`). Every add-to-schedule + in the app, on these cards and on the Schedule page, is dark green (`emerald-deep`) with a white +. Hovering a card's + shows "Add to schedule" (or "Session full", disabled). Clicking it closes the verse page and goes to `/schedule` with `{ add: sessionId }` in router state. The Schedule page adds the session under its usual rules: a session that's full, or at the same time as one already on your day, isn't added, and a toast says why. Otherwise it's added, the entry in My Schedule is scrolled to, ringed, and tagged "Added" for a few seconds, and a toast confirms it. A session already on your day shows "On your day" instead of the +. Track details live in `src/models/tracks.ts` (`TRACKS`), and each mock session names its track in `trackName` (`src/models/sessions.ts`). Every track has at least one mock session, with its own seats, so each verse page lists a session per track. Like the list itself, they're Summit '26's tracks until the '27 tracks are set.
+
+**Verses tab** (`/verses`, `src/pages/VersesPage.tsx`). Its own entry in the sidebar under *My Summit* and in the phone tab bar. The six verses fill the page as tall panels in a row, each in its verse's colors with its motif playing behind it. One panel is open at a time: the one under the pointer, or focused by keyboard (arrow keys, Home, and End walk the row). The rest narrow to a badge, a number, and the verse's name running up the panel. Opening animates the panels' widths. The open panel shows the verse's number (01 / 06), name, description, track and session counts with seats open, what's on your day, a chip per track (opens that track's page), and an Enter button (opens the verse page). On a touch screen the first tap opens a panel. Phones get the six as stacked, always-open cards. The dashboard's **Explore the verses** row stays as a shortcut.
+
+**Editing tracks and sessions** (`src/services/summitContent.ts`, `src/components/verse/ContentEditors.tsx`, `supabase/migrations/20261101140000_summit_tracks_sessions.sql`). Tracks and sessions live in two tables, `summit_tracks` (keyed by verse and name) and `summit_sessions` (applied to the live project on 2026-11-01), seeded once from `src/models/tracks.ts` and `sessions.ts`. Who can change them is decided by `public.can_edit_verse(verse)`, and the app hides the controls to match (`canEditVerse`):
+
+| Who | Can edit |
+|---|---|
+| Admins | Every verse, keynotes included |
+| Volunteers (EAF ambassadors and others) with `can_edit_sessions` on the Allowed Volunteers sheet | The verses in their row's `disciplines` (`all` = every verse); never keynotes |
+| Everyone else, signed in or not | Nothing; they can read |
+
+On a verse page, editors get **Add track** after the track chips, **Add session** beside the Sessions heading, and a pencil on each session card. A track page adds **Edit track**. The session editor sets title, track, time slot, length, who leads it, room name and room code (for walking-time warnings), description, and seats, expert spots, and spectator seats. Seat counts taken stay sample numbers. The track editor sets name, what it covers, ideas (one per line), and formats. Renaming a track moves its sessions with it (the foreign key cascades). A track that still has sessions can't be deleted. Deletes take two clicks. Escape closes an editor without closing the verse page.
+
+The bundled lists are the live store. On start, `loadSummitContent()` (called from `src/main.tsx`) replaces `TRACKS`, `UNIVERSE_TRACKS`, and `MOCK_SESSIONS` in place with the tables' rows, and every save does the same. So everything that reads those lists picks up edits; pages that need to redraw call `useSummitContent()`. Without a backend, or before the migration runs, the bundled lists show. In demo mode, edits change only that browser's copy, and a toast says so.
+
+**Saved schedules** (`src/services/reservations.ts`, `src/context/ScheduleContext.tsx`, `supabase/migrations/20261101160000_session_reservations.sql`). A Google-signed-in person's schedule is saved in `session_reservations`, one row per session they're competing in, spectating, or judging, and it comes back on every device and reload. The database enforces the rules, even if two people click the last seat at once:
+
+- **Seats.** A full session is refused.
+- **Time slots.** A second session in the same time slot is refused.
+- **Who can take what.** Only participants compete, participants and attendees spectate, and experts judge.
+
+Each session's seat counts (`enrolled`, `spectators`, `experts_enrolled`) are kept equal to its reservations by trigger, so every page shows live numbers. The migration resets the sample counts to zero; it was applied to the live project on 2026-11-01. A refused add or remove reverts on screen with the reason in a toast; switching between competing and spectating gives the old seat back if the new one is refused. Demo and expert (approvals-sheet) sessions have no database credentials, so their schedule stays in the tab and the counts move locally.
 
 **Schedule page.** Each session card in Build Your Schedule is tinted in its verse's color with a colored left edge, and shows its track as a tag. Clicking the card, its title, or the tag opens the track's page; the add, spectate, and drag controls keep their own jobs. My Schedule tints each item in its verse's color, with a colored edge and time, and keynotes in emerald. On wide screens the session list and My Schedule split the width 3:2 (`minmax(0,3fr)` and `minmax(0,2fr)`), so the split doesn't shift as sessions are added.
 

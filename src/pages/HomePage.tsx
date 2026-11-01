@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
+import { useSummitContent } from '../services/summitContent';
 import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
@@ -24,7 +25,7 @@ import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
 import QrPassModal from '../components/QrPassModal';
 import ExploreVerses, {
-  TRACK_COUNT,
+  trackCount,
   VersePortalProvider,
   VerseTracks,
 } from '../components/verse/ExploreVerses';
@@ -180,6 +181,7 @@ function CountChip({ count }: { count: number }) {
 }
 
 export default function HomePage() {
+  useSummitContent();
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
@@ -408,7 +410,7 @@ export default function HomePage() {
               <div className="min-w-0 flex-1">
                 <h3 className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight sm:text-xl">
                   Tracks
-                  <CountChip count={TRACK_COUNT} />
+                  <CountChip count={trackCount()} />
                 </h3>
                 <p className="mt-0.5 text-[12.5px] text-muted-foreground">
                   From Summit '26. The '27 tracks are still being finalized.

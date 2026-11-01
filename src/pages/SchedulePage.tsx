@@ -24,6 +24,7 @@ import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
+import { useSummitContent } from '../services/summitContent';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import {
   MOCK_SESSIONS,
@@ -59,6 +60,7 @@ export default function SchedulePage() {
 }
 
 function ScheduleBody() {
+  useSummitContent();
   const { ready, redirect } = useRequireRole(['participant', 'expert']);
   const openVerse = useOpenVerse();
   const { profile } = useAuth();
@@ -67,14 +69,18 @@ function ScheduleBody() {
   const canSeeExpertCapacity = roleName === 'expert' || roleName === 'volunteer';
   const {
     mySchedule,
-    setMySchedule,
     expertSchedule,
-    setExpertSchedule,
     spectating,
-    setSpectating,
     sessionCounts,
-    updateSessionCount,
+    reserveSession,
+    releaseSession,
   } = useSchedule();
+  const ownKind = isExpert ? 'judging' : 'competing';
+  // Saves through ScheduleContext; a refusal (full, time conflict) says why.
+  const attempt = (work: Promise<void>, done?: string) =>
+    work
+      .then(() => done && toast.success(done))
+      .catch((e: Error) => toast.error(e.message));
   const activeSchedule = isExpert ? expertSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
   const { theme } = useTheme();
@@ -113,11 +119,11 @@ function ScheduleBody() {
       toast.error(`${session.title} conflicts with ${conflict.title} at ${session.time}.`);
       return;
     }
-    if (isExpert) setExpertSchedule([...expertSchedule, session.id]);
-    else setMySchedule([...mySchedule, session.id]);
-    updateSessionCount(session.id, isExpert ? 'expertsEnrolled' : 'enrolled', 1);
     setJustAdded(session.id);
-    toast.success(`Added ${session.title} to your schedule.`);
+    void attempt(
+      reserveSession(session.id, ownKind),
+      `Added ${session.title} to your schedule.`,
+    );
   }, [ready, requestedAdd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll the new entry into view, and let the highlight fade after a while.
@@ -162,33 +168,15 @@ function ScheduleBody() {
   };
 
   const toggle = (id: string) => {
-    const isRemoving = activeSchedule.includes(id);
-    if (isExpert) {
-      setExpertSchedule(
-        isRemoving
-          ? expertSchedule.filter((x) => x !== id)
-          : [...expertSchedule, id],
-      );
-    } else {
-      setMySchedule(
-        mySchedule.includes(id)
-          ? mySchedule.filter((x) => x !== id)
-          : [...mySchedule, id],
-      );
-    }
-    updateSessionCount(id, isExpert ? 'expertsEnrolled' : 'enrolled', isRemoving ? -1 : 1);
-    setSpectating(spectating.filter((x) => x !== id));
+    void attempt(
+      activeSchedule.includes(id) ? releaseSession(id) : reserveSession(id, ownKind),
+    );
   };
 
   const toggleSpectate = (id: string) => {
-    const isRemoving = spectating.includes(id);
-    setSpectating(
-      isRemoving
-        ? spectating.filter((x) => x !== id)
-        : [...spectating, id],
+    void attempt(
+      spectating.includes(id) ? releaseSession(id) : reserveSession(id, 'spectating'),
     );
-    setMySchedule(mySchedule.filter((x) => x !== id));
-    updateSessionCount(id, 'spectators', isRemoving ? -1 : 1);
   };
 
   const handleDragEnd = (result: DropResult) => {

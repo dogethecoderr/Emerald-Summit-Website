@@ -12,7 +12,6 @@ import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
 import SkyVideo from '../components/SkyVideo';
 import PhotoMosaic from '../components/PhotoMosaic';
-import SummitLogo from '../components/SummitLogo';
 import FaqSection from '../components/FaqSection';
 import CtaBand from '../components/CtaBand';
 import LandingFooter from '../components/LandingFooter';
@@ -20,10 +19,15 @@ import OrbitalUniverses from '../components/OrbitalUniverses';
 import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
 import { Button } from '@/components/ui/button';
 
-const FACTS = [
+const VENUE = 'Emerald High School, Dublin, CA';
+
+/** Opens the venue in Google Maps (a new tab, or the Maps app on phones). */
+const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(VENUE)}`;
+
+const FACTS: { icon: typeof MapPin; text: string; href?: string }[] = [
   { icon: CalendarDays, text: 'January 2027' },
   { icon: Clock3, text: '9:00 AM – 5:00 PM' },
-  { icon: MapPin, text: 'Emerald High School, Dublin, CA' },
+  { icon: MapPin, text: VENUE, href: VENUE_MAP_URL },
 ];
 
 const ABOUT_STATS = [
@@ -222,14 +226,7 @@ export default function WelcomePage() {
             >
               <motion.div
                 variants={rise}
-                className="h-10 w-10 opacity-95 lg:h-12 lg:w-12"
-              >
-                <SummitLogo />
-              </motion.div>
-
-              <motion.div
-                variants={rise}
-                className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm lg:px-5 lg:py-2 lg:text-sm"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm lg:px-5 lg:py-2 lg:text-sm"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Summit ’27 · The Tri-Valley’s largest student-led STEAM conference
@@ -275,15 +272,28 @@ export default function WelcomePage() {
                 variants={rise}
                 className="mt-8 flex flex-wrap items-center justify-center gap-2.5"
               >
-                {FACTS.map(({ icon: Icon, text }) => (
-                  <span
-                    key={text}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-emerald-100 backdrop-blur-sm lg:px-6 lg:py-2.5 lg:text-[15px]"
-                  >
-                    <Icon className="h-3.5 w-3.5 opacity-80 lg:h-4 lg:w-4" />
-                    {text}
-                  </span>
-                ))}
+                {FACTS.map(({ icon: Icon, text, href }) => {
+                  const chip =
+                    'inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-emerald-100 backdrop-blur-sm lg:px-6 lg:py-2.5 lg:text-[15px]';
+                  return href ? (
+                    <a
+                      key={text}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${text} (opens Google Maps)`}
+                      className={`${chip} transition-colors hover:border-emerald-300/60 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300`}
+                    >
+                      <Icon className="h-3.5 w-3.5 opacity-80 lg:h-4 lg:w-4" />
+                      {text}
+                    </a>
+                  ) : (
+                    <span key={text} className={chip}>
+                      <Icon className="h-3.5 w-3.5 opacity-80 lg:h-4 lg:w-4" />
+                      {text}
+                    </span>
+                  );
+                })}
               </motion.div>
 
               <motion.div
@@ -440,9 +450,21 @@ export default function WelcomePage() {
           >
             <h3 className="font-hero text-lg font-semibold">When &amp; where</h3>
             <ul className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-              {FACTS.map(({ icon: Icon, text }) => (
+              {FACTS.map(({ icon: Icon, text, href }) => (
                 <li key={text} className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-emerald-mint" /> {text}
+                  <Icon className="h-4 w-4 text-emerald-mint" />
+                  {href ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {text}
+                    </a>
+                  ) : (
+                    text
+                  )}
                 </li>
               ))}
             </ul>

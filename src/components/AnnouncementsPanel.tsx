@@ -354,9 +354,11 @@ export default function AnnouncementsPanel({
             onTogglePin={onTogglePin}
           />
         ))}
-        {isFull && filtered.length === 0 && (
-          <div className="py-10 text-center text-sm text-muted-foreground">
-            No announcements match your search.
+        {(isFull ? filtered.length === 0 : announcements.length === 0) && (
+          <div className={cn('text-center text-sm text-muted-foreground', isFull ? 'py-10' : 'py-6')}>
+            {announcements.length === 0
+              ? 'No announcements yet.'
+              : 'No announcements match your search.'}
           </div>
         )}
       </div>

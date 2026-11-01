@@ -271,6 +271,16 @@ describe('demo (bypass) mode', () => {
     expect(db.writes).toBe(0);
   });
 
+  test('signing out ends the demo at once and tells the app', async () => {
+    auth.signInWithBypass('participant');
+    const heard = vi.fn();
+    window.addEventListener('storage', heard);
+    await auth.signOut();
+    window.removeEventListener('storage', heard);
+    expect(auth.getBypassSession()).toBeNull();
+    expect(heard).toHaveBeenCalled();
+  });
+
   test('is unavailable when demo mode is off', () => {
     db.demoEnabled = false;
     expect(() => auth.signInWithBypass('participant')).toThrow(/off/);

@@ -10,6 +10,7 @@ import {
   getCurrentProfile,
   getBypassSession,
   getBypassProfile,
+  BYPASS_USER_ID,
   signOut,
   SignInRefusedError,
   type Profile,
@@ -85,7 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoadingProfile(false);
         return;
       }
-      
+
+      // A local session just ended: drop it now rather than after the
+      // Supabase round trip below, so nothing renders it as signed in.
+      setSession((current) => (current?.user?.id === BYPASS_USER_ID ? null : current));
+      setProfile((current) => (current?.id === BYPASS_USER_ID ? null : current));
+
       // With no configured client there is no real session to restore — the
       // app runs bypass-only, and the loading state must still resolve.
       if (!supabase) {

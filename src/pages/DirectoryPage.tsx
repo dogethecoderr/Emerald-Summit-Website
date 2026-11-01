@@ -6,7 +6,7 @@ import PageHeader from '../components/PageHeader';
 import PersonCard from '../components/PersonCard';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
-import { MOCK_PEOPLE } from '../models/people';
+import { usePeople } from '../services/people';
 import { SIGN_IN_ROLES, roleByName } from '../models/roles';
 import { getProfileSettings, profileToPerson } from '../services/auth';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,9 +19,11 @@ export default function DirectoryPage() {
   const { profile } = useAuth();
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+  // Every account on the Summit (signed-in readers only); loads once ready.
+  const { people } = usePeople(undefined, ready);
 
   if (redirect) return <Navigate to={redirect} replace />;
-  if (!ready || profile == null) {
+  if (!ready || profile == null || people == null) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 px-6 py-16">
         <Skeleton className="h-10 w-64" />
@@ -34,7 +36,7 @@ export default function DirectoryPage() {
   const settings = getProfileSettings(profile);
   const selfPerson = settings.directoryVisible ? profileToPerson(profile) : null;
 
-  const filtered = MOCK_PEOPLE.filter((p) => {
+  const filtered = people.filter((p) => {
     const q = query.trim().toLowerCase();
     const matchesQuery =
       !q || p.name.toLowerCase().includes(q) || p.org.toLowerCase().includes(q);

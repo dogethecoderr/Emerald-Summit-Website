@@ -93,6 +93,9 @@ create policy "announcements_delete_admin"
   to authenticated
   using (public.is_admin());
 
+-- Supabase's default privileges grant everything (TRUNCATE included, which
+-- RLS doesn't cover); keep only what the policies use.
+revoke all on table public.announcements from anon, authenticated;
 grant select on table public.announcements to anon, authenticated, service_role;
 grant insert, update, delete on table public.announcements to authenticated, service_role;
 

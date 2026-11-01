@@ -20,6 +20,14 @@ const {
       checked_in_at: null,
     },
     {
+      // A sample-roster id; with a backend it has to be a real row.
+      id: 'p8',
+      name: 'Jordan Wu',
+      role: 'participant',
+      email: 'j.wu@emeraldhigh.edu',
+      checked_in_at: null,
+    },
+    {
       id: '22222222-3333-4444-5555-666666666666',
       name: 'Bob Builder',
       role: 'participant',
@@ -49,6 +57,12 @@ const {
           if (updatePayload) Object.assign(user, updatePayload);
           return { data: { ...user }, error: null };
         }),
+        // An update asked for its rows back (.select('id')) resolves here.
+        then: (onFulfilled: any) => {
+          const matched = updatePayload && filterId ? users.filter((u: any) => u.id === filterId) : [];
+          for (const u of matched) Object.assign(u, updatePayload);
+          return Promise.resolve({ data: matched.map((u: any) => ({ id: u.id })), error: null }).then(onFulfilled);
+        },
         maybeSingle: vi.fn(async () => {
           const user = users.find((u) => u.id === filterId);
           if (!user) return { data: null, error: null };

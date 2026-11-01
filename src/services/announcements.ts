@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 import {
-  MOCK_ANNOUNCEMENTS,
   attachmentTypeForFile,
   formatAnnouncementDate,
   type Announcement,
@@ -9,7 +8,9 @@ import {
 } from '../models/announcements';
 
 const BUCKET = 'announcement-media';
-const LOCAL_KEY = 'local_announcements';
+// v2: a browser's saved copy from before the feed started empty held the
+// sample posts too, so it's left behind.
+const LOCAL_KEY = 'local_announcements_v2';
 const LOCAL_CHANNEL = 'emerald-announcements';
 
 /** Fields an admin fills in; everything else is derived or server-assigned. */
@@ -127,11 +128,13 @@ export function sortAnnouncements(list: Announcement[]): Announcement[] {
 function readLocal(): Announcement[] {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
-    if (!raw) return [...MOCK_ANNOUNCEMENTS];
+    // The feed starts empty: real announcements come from admins. The sample
+    // posts in MOCK_ANNOUNCEMENTS only illustrate the /app showcase.
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as Announcement[];
-    return Array.isArray(parsed) ? parsed : [...MOCK_ANNOUNCEMENTS];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [...MOCK_ANNOUNCEMENTS];
+    return [];
   }
 }
 

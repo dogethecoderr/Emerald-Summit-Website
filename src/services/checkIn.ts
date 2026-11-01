@@ -83,23 +83,13 @@ export async function fetchParticipantById(
       };
     }
 
-    // Fallback to MOCK_PEOPLE if not found in database or if database query returned an error
-    const mockPerson = mockParticipant(trimmedId);
-    if (mockPerson) {
-      return { data: mockPerson, error: null };
-    }
-
+    // With a backend, only real accounts check in: no sample-people fallback.
     if (error) {
       return { data: null, error: error.message };
     }
 
     return { data: null, error: 'Participant not found' };
   } catch (err: any) {
-    // If Supabase throws (e.g. network/unreachable), check mock data
-    const mockPerson = mockParticipant(trimmedId);
-    if (mockPerson) {
-      return { data: mockPerson, error: null };
-    }
     return { data: null, error: err?.message ?? 'Failed to fetch participant' };
   }
 }
@@ -142,29 +132,25 @@ export async function checkInParticipant(id: string): Promise<CheckInResult> {
     };
   }
 
-  // Execute database update
+  // Execute database update. RLS lets only front-desk volunteers and admins
+  // change someone else's check-in; a refused update matches no row, so ask
+  // for the row back to tell that apart from success.
   try {
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('users')
       .update({ checked_in_at: checkInTimestamp })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select('id');
 
     if (updateError) {
-      // If error occurred and it is NOT a mock ID that simply doesn't exist in live table
-      const isMock = MOCK_ID_REGEX.test(user.id);
-      if (!isMock) {
-        return {
-          success: false,
-          user,
-          error: updateError.message,
-        };
-      }
+      return { success: false, user, error: updateError.message };
     }
-
-    // Update in-memory mock person if present
-    const mockIndex = MOCK_PEOPLE.findIndex((p) => p.id === user.id);
-    if (mockIndex !== -1) {
-      MOCK_PEOPLE[mockIndex].status = 'checkedIn';
+    if (!updated || updated.length === 0) {
+      return {
+        success: false,
+        user,
+        error: "You don't have permission to check people in.",
+      };
     }
 
     return {
@@ -175,20 +161,6 @@ export async function checkInParticipant(id: string): Promise<CheckInResult> {
       },
     };
   } catch (err: any) {
-    const isMock = MOCK_ID_REGEX.test(user.id);
-    if (isMock) {
-      const mockIndex = MOCK_PEOPLE.findIndex((p) => p.id === user.id);
-      if (mockIndex !== -1) {
-        MOCK_PEOPLE[mockIndex].status = 'checkedIn';
-      }
-      return {
-        success: true,
-        user: {
-          ...user,
-          checked_in_at: checkInTimestamp,
-        },
-      };
-    }
     return {
       success: false,
       user,

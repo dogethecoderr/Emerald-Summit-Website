@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Lightbulb, Plus } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Plus } from 'lucide-react';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../../models/sessions';
 import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';
@@ -13,16 +13,24 @@ import {
   type VerseVibe,
 } from '../../models/verseVibes';
 import VerseMotif from './VerseMotif';
+import { useAuth } from '../../context/AuthContext';
+import { canEditVerse, useSummitContent } from '../../services/summitContent';
+import {
+  SessionEditorDialog,
+  TrackEditorDialog,
+  type SessionEditorTarget,
+  type TrackEditorTarget,
+} from './ContentEditors';
 import FlowingBorder from './FlowingBorder';
 
-function sessionsFor(id: string): Session[] {
+export function sessionsFor(id: string): Session[] {
   return MOCK_SESSIONS.filter((s) => s.track === id).sort(
     (a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time),
   );
 }
 
 /** A verse's mark on a tinted square in its colors (mobile: DisciplineBadge). */
-function VerseBadge({ vibe, size }: { vibe: VerseVibe; size: number }) {
+export function VerseBadge({ vibe, size }: { vibe: VerseVibe; size: number }) {
   const Icon = vibe.icon;
   return (
     <span
@@ -134,12 +142,15 @@ function VerseSessionCard({
   mine,
   onTrack,
   onAdd,
+  onEdit,
 }: {
   session: Session;
   vibe: VerseVibe;
   mine: Set<string>;
   onTrack?: (name: string) => void;
   onAdd?: (id: string) => void;
+  /** Opens the session editor; only for people who can edit this verse. */
+  onEdit?: (session: Session) => void;
 }) {
   const left = Math.max(s.capacity - s.enrolled, 0);
   return (
@@ -153,13 +164,26 @@ function VerseSessionCard({
       <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
         <span>{s.time}</span>
         <span style={{ color: vibe.textDim }}>· {s.duration}</span>
-        {mine.has(s.id) ? (
-          <span className="ml-auto inline-flex items-center gap-1">
-            <Check className="h-3.5 w-3.5" /> On your day
-          </span>
-        ) : (
-          onAdd && <AddToScheduleButton vibe={vibe} full={left === 0} onClick={() => onAdd(s.id)} />
-        )}
+        <span className="ml-auto flex items-center gap-1.5">
+          {onEdit && (
+            <button
+              type="button"
+              aria-label={`Edit ${s.title}`}
+              onClick={() => onEdit(s)}
+              className="-my-1 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+              style={{ color: vibe.textDim }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {mine.has(s.id) ? (
+            <span className="inline-flex items-center gap-1">
+              <Check className="h-3.5 w-3.5" /> On your day
+            </span>
+          ) : (
+            onAdd && <AddToScheduleButton vibe={vibe} full={left === 0} onClick={() => onAdd(s.id)} />
+          )}
+        </span>
       </div>
       <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
       <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
@@ -194,11 +218,14 @@ function TrackChips({
   vibe,
   current,
   onPick,
+  onAddTrack,
 }: {
   verse: string;
   vibe: VerseVibe;
   current?: string;
   onPick: (name: string) => void;
+  /** Shown to people who can edit this verse. */
+  onAddTrack?: () => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -221,7 +248,38 @@ function TrackChips({
           </button>
         );
       })}
+      {onAddTrack && <EditChip vibe={vibe} icon={Plus} label="Add track" onClick={onAddTrack} dashed />}
     </div>
+  );
+}
+
+/** A small pill for editors' actions (add track, edit track, add session). */
+function EditChip({
+  vibe,
+  icon: Icon,
+  label,
+  onClick,
+  dashed,
+}: {
+  vibe: VerseVibe;
+  icon: typeof Plus;
+  label: string;
+  onClick: () => void;
+  dashed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-transform hover:translate-x-0.5"
+      style={{
+        background: rgba(vibe.surface, 0.6),
+        color: vibe.accent,
+        border: `1px ${dashed ? 'dashed' : 'solid'} ${rgba(vibe.accent, 0.5)}`,
+      }}
+    >
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </button>
   );
 }
 
@@ -250,6 +308,11 @@ function VersePage({
   onClosed: () => void;
 }) {
   const navigate = useNavigate();
+  useSummitContent();
+  const { profile } = useAuth();
+  const canEdit = canEditVerse(profile, discipline.name);
+  const [sessionEditor, setSessionEditor] = useState<SessionEditorTarget | null>(null);
+  const [trackEditor, setTrackEditor] = useState<TrackEditorTarget | null>(null);
   const [trackName, setTrackName] = useState(initialTrack);
   const track = TRACKS.find((t) => t.verse === discipline.name && t.name === trackName);
   const scroller = useRef<HTMLDivElement>(null);
@@ -321,7 +384,9 @@ function VersePage({
   useEffect(() => {
     backButton.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      // Escape in an open editor (or its menus) closes that, not the verse:
+      // Radix handles it first and marks it handled.
+      if (e.key === 'Escape' && !e.defaultPrevented) close();
     };
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -365,6 +430,24 @@ function VersePage({
                 onAdd={onAdd}
                 onVerse={() => show(undefined)}
                 onTrack={show}
+                onEditTrack={
+                  canEdit
+                    ? () =>
+                        setTrackEditor({
+                          verse: discipline.name,
+                          track,
+                          sessionCount: sessions.filter((s) => s.trackName === track.name).length,
+                        })
+                    : undefined
+                }
+                onAddSession={
+                  canEdit
+                    ? () => setSessionEditor({ verse: discipline.name, trackName: track.name })
+                    : undefined
+                }
+                onEditSession={
+                  canEdit ? (session) => setSessionEditor({ verse: discipline.name, session }) : undefined
+                }
               />
             ) : (
               <>
@@ -394,15 +477,42 @@ function VersePage({
                   <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
                     Tracks
                   </h3>
-                  <TrackChips verse={discipline.name} vibe={vibe} onPick={show} />
+                  <TrackChips
+                    verse={discipline.name}
+                    vibe={vibe}
+                    onPick={show}
+                    onAddTrack={canEdit ? () => setTrackEditor({ verse: discipline.name }) : undefined}
+                  />
                 </section>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <div className="mt-8 mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+                    Sessions
+                  </h3>
+                  {canEdit && (
+                    <EditChip
+                      vibe={vibe}
+                      icon={Plus}
+                      label="Add session"
+                      onClick={() => setSessionEditor({ verse: discipline.name })}
+                      dashed
+                    />
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
                   {sessions.length === 0 && (
                     <p style={{ color: vibe.textDim }}>No sessions in this discipline yet.</p>
                   )}
                   {sessions.map((s) => (
-                    <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} onTrack={show} onAdd={onAdd} />
+                    <VerseSessionCard
+                      key={s.id}
+                      session={s}
+                      vibe={vibe}
+                      mine={mine}
+                      onTrack={show}
+                      onAdd={onAdd}
+                      onEdit={canEdit ? (session) => setSessionEditor({ verse: discipline.name, session }) : undefined}
+                    />
                   ))}
                 </div>
               </>
@@ -411,6 +521,16 @@ function VersePage({
         </div>
       </div>
       <FlowingBorder vibe={vibe} cornerRadius={0} />
+      <SessionEditorDialog target={sessionEditor} onClose={() => setSessionEditor(null)} />
+      <TrackEditorDialog
+        target={trackEditor}
+        onClose={() => setTrackEditor(null)}
+        // Follow a renamed track; a deleted one goes back to the verse.
+        onSaved={(name) => {
+          if (trackEditor?.track) show(name ?? undefined);
+          else if (name) show(name);
+        }}
+      />
     </div>,
     document.body,
   );
@@ -444,7 +564,7 @@ function AddToScheduleButton({
 }) {
   const label = full ? 'Session full' : 'Add to schedule';
   return (
-    <span className="group relative -my-1 ml-auto">
+    <span className="group relative -my-1">
       <button
         type="button"
         aria-label={label}
@@ -475,6 +595,9 @@ function TrackView({
   onAdd,
   onVerse,
   onTrack,
+  onEditTrack,
+  onAddSession,
+  onEditSession,
 }: {
   track: TrackInfo;
   discipline: DisciplineInfo;
@@ -484,6 +607,10 @@ function TrackView({
   onAdd?: (id: string) => void;
   onVerse: () => void;
   onTrack: (name: string) => void;
+  /** Editor actions; absent for people who can't edit this verse. */
+  onEditTrack?: () => void;
+  onAddSession?: () => void;
+  onEditSession?: (session: Session) => void;
 }) {
   const navigate = useNavigate();
   const sessions = sessionsFor(discipline.name).filter((s) => s.trackName === track.name);
@@ -509,7 +636,14 @@ function TrackView({
         <p className="mt-3 max-w-2xl text-[16px] leading-relaxed" style={{ color: vibe.textDim }}>
           {track.about}
         </p>
-        {canSchedule && <ScheduleButton vibe={vibe} onClick={() => navigate('/schedule')} />}
+        <div className="flex flex-wrap items-center gap-3">
+          {canSchedule && <ScheduleButton vibe={vibe} onClick={() => navigate('/schedule')} />}
+          {onEditTrack && (
+            <span className="mt-5">
+              <EditChip vibe={vibe} icon={Pencil} label="Edit track" onClick={onEditTrack} />
+            </span>
+          )}
+        </div>
       </header>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -552,9 +686,12 @@ function TrackView({
       </div>
 
       <section className="mt-8">
-        <h3 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
-          Sessions
-        </h3>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: vibe.textDim }}>
+            Sessions
+          </h3>
+          {onAddSession && <EditChip vibe={vibe} icon={Plus} label="Add session" onClick={onAddSession} dashed />}
+        </div>
         {sessions.length === 0 ? (
           <p className="text-[14px]" style={{ color: vibe.textDim }}>
             No sessions announced for this track yet.
@@ -568,6 +705,7 @@ function TrackView({
                 vibe={vibe}
                 mine={mine}
                 onAdd={onAdd}
+                onEdit={onEditSession}
               />
             ))}
           </div>
@@ -765,4 +903,7 @@ export function TrackTag({ verse, track }: { verse: string; track?: string }) {
 
 /** Count of every track across the verses, for headings. */
 // eslint-disable-next-line react-refresh/only-export-components
-export const TRACK_COUNT = USER_DISCIPLINES.reduce((n, d) => n + tracksForUniverse(d.name).length, 0);
+/** How many tracks there are across the verses (they can be edited). */
+export function trackCount(): number {
+  return USER_DISCIPLINES.reduce((n, d) => n + tracksForUniverse(d.name).length, 0);
+}

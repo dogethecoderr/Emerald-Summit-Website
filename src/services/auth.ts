@@ -264,6 +264,9 @@ async function loadProfile(user: User): Promise<Profile> {
 
 const DEMO_EMAIL = 'bypass@example.com';
 
+/** The user id every local (demo or expert email) session uses. */
+export const BYPASS_USER_ID = 'bypass_user_id';
+
 export function getBypassSession(): any | null {
   const raw = localStorage.getItem('bypass_session');
   if (!raw) return null;
@@ -334,13 +337,13 @@ function startLocalSession(
   const session = {
     demo,
     user: {
-      id: 'bypass_user_id',
+      id: BYPASS_USER_ID,
       email,
       user_metadata: { full_name: name },
     },
   };
   const profile: Profile = {
-    id: 'bypass_user_id',
+    id: BYPASS_USER_ID,
     email,
     name,
     role: roleName,
@@ -522,10 +525,15 @@ export async function updateProfileSettings(
 }
 
 export async function signOut(): Promise<void> {
-  // Optional: with no client configured there is nothing but bypass to clear.
-  await supabase?.auth.signOut();
+  // A local (demo or expert) session ends first, and AuthContext is told at
+  // once: Supabase's own SIGNED_OUT is ignored while a local session exists,
+  // which used to leave a demo signed in until a second click.
+  const hadLocal = getBypassSession() != null;
   clearBypass();
   localStorage.removeItem(PENDING_ROLE_KEY);
+  if (hadLocal) window.dispatchEvent(new Event('storage'));
+  // Optional: with no client configured there is nothing else to clear.
+  await supabase?.auth.signOut();
 }
 
 function settingsFromProfile(profile: Profile | null | undefined): ProfileSettings {
