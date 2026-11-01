@@ -132,6 +132,7 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
   const [capacity, setCapacity] = useState(String(s?.capacity ?? 30));
   const [expertCapacity, setExpertCapacity] = useState(String(s?.expertCapacity ?? 2));
   const [spectatorCap, setSpectatorCap] = useState(String(s?.spectatorCap ?? 10));
+  const [volunteerCapacity, setVolunteerCapacity] = useState(String(s?.volunteerCapacity ?? 2));
   const [busy, setBusy] = useState(false);
 
   const verseLabel = disciplineByName(target.verse)?.label ?? 'Keynote';
@@ -154,6 +155,7 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
       capacity: intOr(capacity, 30),
       expertCapacity: intOr(expertCapacity, 0),
       spectatorCap: intOr(spectatorCap, 0),
+      volunteerCapacity: intOr(volunteerCapacity, 0),
     };
     setBusy(true);
     try {
@@ -237,7 +239,7 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
           <Textarea id="session-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
         </Field>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field id="session-capacity" label="Seats">
             <Input id="session-capacity" type="number" min={0} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
           </Field>
@@ -246,6 +248,9 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
           </Field>
           <Field id="session-spectators" label="Spectator seats">
             <Input id="session-spectators" type="number" min={0} value={spectatorCap} onChange={(e) => setSpectatorCap(e.target.value)} />
+          </Field>
+          <Field id="session-volunteers" label="Volunteer spots">
+            <Input id="session-volunteers" type="number" min={0} value={volunteerCapacity} onChange={(e) => setVolunteerCapacity(e.target.value)} />
           </Field>
         </div>
 

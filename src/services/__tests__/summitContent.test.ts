@@ -56,6 +56,7 @@ describe('local edits', () => {
       capacity: 20,
       expertCapacity: 2,
       spectatorCap: 5,
+      volunteerCapacity: 2,
     };
     expect(await content.saveSession(input)).toBe('local');
     const added = MOCK_SESSIONS.find((s) => s.title === 'Bridge Build')!;

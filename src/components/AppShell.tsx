@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Schedule',
     icon: CalendarDays,
     group: 'My Summit',
-    roles: ['participant', 'expert'],
+    roles: ['participant', 'expert', 'volunteer'],
   },
   {
     to: '/volunteer',

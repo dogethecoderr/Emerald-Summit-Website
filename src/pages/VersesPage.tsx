@@ -12,7 +12,7 @@ import {
   useOpenVerse,
 } from '../components/verse/ExploreVerses';
 import { useAuth } from '../context/AuthContext';
-import { useSchedule } from '../context/ScheduleContext';
+import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useTheme } from '../context/ThemeContext';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../models/disciplines';
@@ -43,11 +43,10 @@ function useWideScreen(): boolean {
  */
 export default function VersesPage() {
   const { profile } = useAuth();
-  const { mySchedule, expertSchedule, spectating } = useSchedule();
-  const roleName = profile?.role ?? 'participant';
-  const isExpert = roleName === 'expert';
-  const canSchedule = roleName === 'participant' || isExpert;
-  const mine = new Set([...(isExpert ? expertSchedule : mySchedule), ...spectating]);
+  const { listFor, spectating } = useSchedule();
+  const kind = ownScheduleKind(profile?.role);
+  const canSchedule = kind != null;
+  const mine = new Set([...(kind ? listFor(kind) : []), ...spectating]);
   return (
     <VersePortalProvider mine={mine} canSchedule={canSchedule}>
       <VersesBody mine={mine} />

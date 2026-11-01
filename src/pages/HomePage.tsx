@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
 import { useSummitContent } from '../services/summitContent';
-import { useSchedule } from '../context/ScheduleContext';
+import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
 import RolesPage from './RolesPage';
@@ -59,6 +59,12 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
   attendee: [],
   volunteer: [
     {
+      to: '/schedule',
+      label: 'Pick sessions to volunteer at',
+      sub: 'Sign up for volunteer spots',
+      icon: CalendarDays,
+    },
+    {
       to: '/volunteer',
       label: 'Open Volunteer Hub',
       sub: 'Track roster, check-ins, and attendee support',
@@ -76,7 +82,8 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
 };
 
 
-type AgendaKind = 'Competing' | 'Judging' | 'Spectating';
+/** 'Session' is a plain listing for roles with no schedule of their own. */
+type AgendaKind = 'Competing' | 'Judging' | 'Volunteering' | 'Spectating' | 'Session';
 
 interface AgendaItem {
   session: Session;
@@ -155,7 +162,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-[16px] font-semibold">{s.title}</div>
         <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {s.location} · {kind}
+          {s.location} · {kind === 'Session' ? s.duration : kind}
         </div>
       </div>
       <span
@@ -166,7 +173,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
             : 'border border-border text-muted-foreground',
         )}
       >
-        {first ? 'Up next' : 'Reserved'}
+        {first ? 'Up next' : s.time}
       </span>
     </div>
   );
@@ -184,7 +191,7 @@ export default function HomePage() {
   useSummitContent();
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
-  const { mySchedule, expertSchedule, spectating } = useSchedule();
+  const { listFor, spectating } = useSchedule();
   const { announcements, canManage, isUnread, markRead } = useAnnouncements();
   const [qrPassOpen, setQrPassOpen] = useState(false);
 
@@ -211,22 +218,22 @@ export default function HomePage() {
   const name = (profile?.name as string | undefined) ?? 'User';
   const firstName = name.split(/\s+/)[0];
   const roleName = (profile?.role as string | undefined) ?? 'participant';
-  const isExpert = roleName === 'expert';
-  const canSchedule = roleName === 'participant' || isExpert;
+  const ownKind = ownScheduleKind(roleName);
+  const canSchedule = ownKind != null;
   const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
   const checkedInAt = profile?.checked_in_at as string | undefined;
 
-  const ownIds = (isExpert ? expertSchedule : mySchedule) ?? [];
+  const ownIds = ownKind ? listFor(ownKind) : [];
+  const scheduleLabel =
+    ownKind === 'volunteering' ? 'Pick sessions to volunteer at' : 'Build your schedule';
+  const ownLabel: AgendaKind =
+    ownKind === 'judging' ? 'Judging' : ownKind === 'volunteering' ? 'Volunteering' : 'Competing';
   const agenda: AgendaItem[] = MOCK_SESSIONS.filter(
     (s) => ownIds.includes(s.id) || spectating.includes(s.id),
   )
     .map((s) => ({
       session: s,
-      kind: (ownIds.includes(s.id)
-        ? isExpert
-          ? 'Judging'
-          : 'Competing'
-        : 'Spectating') as AgendaKind,
+      kind: (ownIds.includes(s.id) ? ownLabel : 'Spectating') as AgendaKind,
     }))
     .sort(
       (a, b) =>
@@ -344,7 +351,7 @@ export default function HomePage() {
                     Your day
                   </div>
                   <div className="mt-2.5 font-display text-[21px] font-bold leading-snug">
-                    Nothing reserved yet
+                    {ownKind === 'volunteering' ? 'No shifts yet' : 'Nothing on your day yet'}
                   </div>
                   <div className="mt-1 text-[13px] text-white/75">
                     {MOCK_SESSIONS.length} sessions across {TIME_SLOTS.length} time slots are open.
@@ -381,13 +388,15 @@ export default function HomePage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-emerald">
                 <CalendarDays className="h-6 w-6" />
               </span>
-              <div className="mt-3 text-[17px] font-semibold">No sessions yet</div>
+              <div className="mt-3 text-[17px] font-semibold">
+                {ownKind === 'volunteering' ? 'No volunteer shifts yet' : 'No sessions yet'}
+              </div>
               <button
                 type="button"
                 onClick={() => navigate('/schedule')}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
               >
-                Build your schedule <ArrowRight className="h-3.5 w-3.5" />
+                {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : (
@@ -396,7 +405,7 @@ export default function HomePage() {
                 ? agenda
                 : MOCK_SESSIONS.slice(0, 5).map((s) => ({
                     session: s,
-                    kind: 'Spectating' as AgendaKind,
+                    kind: 'Session' as AgendaKind,
                   }))
               ).map((item, i) => (
                 <AgendaRow key={item.session.id} item={item} first={canSchedule && i === 0} />
@@ -423,7 +432,7 @@ export default function HomePage() {
                   onClick={() => navigate('/schedule')}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-emerald px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-deep"
                 >
-                  Build your schedule <ArrowRight className="h-3.5 w-3.5" />
+                  {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>

@@ -21,6 +21,9 @@ export interface Session {
   expertsEnrolled: number;
   spectatorCap: number;
   spectators: number;
+  /** Volunteers who can sign up to help run it, and how many have. */
+  volunteerCapacity: number;
+  volunteersEnrolled: number;
   /** Letter used to look up walking time between rooms; see WALKING_TIME. */
   room: string;
 }
@@ -41,7 +44,9 @@ export const WALKING_TIME: Record<string, Record<string, number>> = {
   C: { A: 5, B: 4, D: 2, E: 3, F: 8, G: 3, H: 9, I: 4, J: 6 },
 };
 
-export const MOCK_SESSIONS: Session[] = [
+type SessionDraft = Omit<Session, 'volunteerCapacity' | 'volunteersEnrolled'>;
+
+const SESSION_DRAFTS: SessionDraft[] = [
   {
     id: 's1',
     title: 'Opening Keynote: Innovate, Imagine, Impact',
@@ -515,3 +520,13 @@ export const MOCK_SESSIONS: Session[] = [
     spectators: 0,
   },
 ];
+
+/**
+ * The sessions: the bundled sample list until the database's loads (the live
+ * store; see services/summitContent.ts). Two volunteer spots each by default.
+ */
+export const MOCK_SESSIONS: Session[] = SESSION_DRAFTS.map((s) => ({
+  volunteerCapacity: 2,
+  volunteersEnrolled: 0,
+  ...s,
+}));

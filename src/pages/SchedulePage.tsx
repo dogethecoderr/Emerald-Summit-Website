@@ -23,7 +23,7 @@ import { useTheme } from '../context/ThemeContext';
 import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
-import { useSchedule } from '../context/ScheduleContext';
+import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useSummitContent } from '../services/summitContent';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import {
@@ -50,8 +50,9 @@ export interface ScheduleLocationState {
 /** Lets the session cards open verse and track pages. */
 export default function SchedulePage() {
   const { profile } = useAuth();
-  const { mySchedule, expertSchedule, spectating } = useSchedule();
-  const active = profile?.role === 'expert' ? expertSchedule : mySchedule;
+  const { listFor, spectating } = useSchedule();
+  const kind = ownScheduleKind(profile?.role);
+  const active = kind ? listFor(kind) : [];
   return (
     <VersePortalProvider mine={new Set([...active, ...spectating])} canSchedule={false} canAdd>
       <ScheduleBody />
@@ -61,27 +62,40 @@ export default function SchedulePage() {
 
 function ScheduleBody() {
   useSummitContent();
-  const { ready, redirect } = useRequireRole(['participant', 'expert']);
+  const { ready, redirect } = useRequireRole(['participant', 'expert', 'volunteer']);
   const openVerse = useOpenVerse();
   const { profile } = useAuth();
   const roleName = profile?.role ?? 'participant';
   const isExpert = roleName === 'expert';
-  const canSeeExpertCapacity = roleName === 'expert' || roleName === 'volunteer';
+  // Volunteers (EAF ambassadors included) sign up to help run sessions.
+  const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
+  const canSeeExpertCapacity = isExpert || isVolunteer;
   const {
     mySchedule,
     expertSchedule,
+    volunteerSchedule,
     spectating,
     sessionCounts,
     reserveSession,
     releaseSession,
   } = useSchedule();
-  const ownKind = isExpert ? 'judging' : 'competing';
+  const ownKind = isExpert ? 'judging' : isVolunteer ? 'volunteering' : 'competing';
+  /** Whether the viewer's own kind of seat is taken up in this session. */
+  const ownFull = (
+    session: Session,
+    counts: { enrolled: number; expertsEnrolled: number; volunteersEnrolled: number },
+  ) =>
+    isExpert
+      ? counts.expertsEnrolled >= session.expertCapacity
+      : isVolunteer
+        ? counts.volunteersEnrolled >= session.volunteerCapacity
+        : counts.enrolled >= session.capacity;
   // Saves through ScheduleContext; a refusal (full, time conflict) says why.
   const attempt = (work: Promise<void>, done?: string) =>
     work
       .then(() => done && toast.success(done))
       .catch((e: Error) => toast.error(e.message));
-  const activeSchedule = isExpert ? expertSchedule : mySchedule;
+  const activeSchedule = isExpert ? expertSchedule : isVolunteer ? volunteerSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
   const { theme } = useTheme();
   const location = useLocation();
@@ -105,9 +119,7 @@ function ScheduleBody() {
       return;
     }
     const counts = sessionCounts[session.id] ?? session;
-    const full = isExpert
-      ? counts.expertsEnrolled >= session.expertCapacity
-      : counts.enrolled >= session.capacity;
+    const full = ownFull(session, counts);
     const conflict = MOCK_SESSIONS.find(
       (s) => activeSchedule.includes(s.id) && s.time === session.time,
     );
@@ -190,9 +202,7 @@ function ScheduleBody() {
       const isAdded = activeSchedule.includes(session.id);
       const isSpec = spectating.includes(session.id);
       const conflict = !isAdded && getConflict(session);
-      const full = isExpert
-        ? session.expertsEnrolled >= session.expertCapacity
-        : session.enrolled >= session.capacity;
+      const full = ownFull(session, sessionCounts[session.id] ?? session);
       
       if (!isAdded && !isSpec && !full && !conflict) {
         toggle(session.id);
@@ -215,7 +225,13 @@ function ScheduleBody() {
     <AppShell>
       <PageHeader
         label="Emerald High School · Dublin, CA"
-        title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
+        title={
+          isExpert
+            ? 'Choose Sessions to Judge'
+            : isVolunteer
+              ? 'Pick Sessions to Volunteer At'
+              : 'Build Your Schedule'
+        }
       />
 
       {/* discipline filters */}
@@ -280,7 +296,8 @@ function ScheduleBody() {
                           const expertFull = counts.expertsEnrolled >= s.expertCapacity;
                           const spectatorFull = counts.spectators >= s.spectatorCap;
                           const near = !full && counts.enrolled / s.capacity >= 0.8;
-                          const capacityFull = isExpert ? expertFull : full;
+                          const volunteerFull = counts.volunteersEnrolled >= s.volunteerCapacity;
+                          const capacityFull = isExpert ? expertFull : isVolunteer ? volunteerFull : full;
                           const isDragDisabled =
                             isAdded || isSpectating || capacityFull || !!conflict;
                           const keynote = s.track === 'keynote';
@@ -366,6 +383,11 @@ function ScheduleBody() {
                                             Expert spots full
                                           </span>
                                         )}
+                                        {isVolunteer && volunteerFull && (
+                                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                                            Volunteer spots full
+                                          </span>
+                                        )}
                                         {near && (
                                           <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
                                             Nearly full
@@ -414,6 +436,13 @@ function ScheduleBody() {
                                           label="Spectator seats"
                                         />
                                       )}
+                                      {isVolunteer && s.volunteerCapacity > 0 && (
+                                        <CapacityBar
+                                          enrolled={counts.volunteersEnrolled}
+                                          capacity={s.volunteerCapacity}
+                                          label="Volunteer spots"
+                                        />
+                                      )}
                                     </div>
 
                                     <div className="flex shrink-0 flex-col gap-2">
@@ -426,12 +455,16 @@ function ScheduleBody() {
                                             : capacityFull
                                               ? isExpert
                                                 ? 'Expert spots full'
-                                                : 'Session full'
+                                                : isVolunteer
+                                                  ? 'Volunteer spots full'
+                                                  : 'Session full'
                                               : conflict
                                                 ? 'Time conflict'
                                                 : isExpert
                                                   ? 'Sign up as expert'
-                                                  : 'Add as competitor'
+                                                  : isVolunteer
+                                                    ? 'Volunteer at this session'
+                                                    : 'Add as competitor'
                                         }
                                         className={cn(
                                           'flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-35',
@@ -448,7 +481,7 @@ function ScheduleBody() {
                                           <Plus className="h-4 w-4" />
                                         )}
                                       </button>
-                                      {s.spectatorCap > 0 && !isAdded && (
+                                      {s.spectatorCap > 0 && !isAdded && !isVolunteer && (
                                         <button
                                           onClick={() => toggleSpectate(s.id)}
                                           disabled={
@@ -501,7 +534,7 @@ function ScheduleBody() {
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-mint/80">
-                      {isExpert ? 'Expert Signups' : 'My Schedule'}
+                      {isExpert ? 'Expert Signups' : isVolunteer ? 'My Volunteer Shifts' : 'My Schedule'}
                     </div>
                     <div className="font-display text-lg font-semibold">
                       {added.length} session{added.length !== 1 ? 's' : ''}
@@ -514,7 +547,12 @@ function ScheduleBody() {
                     <CalendarDays className="h-8 w-8 text-muted-foreground/60" />
                     <div className="text-sm font-medium">No sessions added yet.</div>
                       <div className="text-xs text-muted-foreground">
-                      Drag sessions here or use {isExpert ? 'the award button to sign up as an expert.' : '+ to compete.'}
+                      Drag sessions here or use{' '}
+                      {isExpert
+                        ? 'the award button to sign up as an expert.'
+                        : isVolunteer
+                          ? '+ to volunteer.'
+                          : '+ to compete.'}
                     </div>
                   </div>
                 ) : (

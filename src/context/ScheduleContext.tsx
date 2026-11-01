@@ -18,18 +18,24 @@ import {
   type ReservationKind,
 } from '../services/reservations';
 
-type SessionCount = { enrolled: number; expertsEnrolled: number; spectators: number };
+type SessionCount = {
+  enrolled: number;
+  expertsEnrolled: number;
+  spectators: number;
+  volunteersEnrolled: number;
+};
 type SessionCounts = Record<string, SessionCount>;
 
 const COUNT_FOR: Record<ReservationKind, keyof SessionCount> = {
   competing: 'enrolled',
   spectating: 'spectators',
   judging: 'expertsEnrolled',
+  volunteering: 'volunteersEnrolled',
 };
 
 /**
- * The viewer's schedule: competing, judging (experts), and spectating
- * session ids, plus every session's seat counts.
+ * The viewer's schedule: competing, judging (experts), volunteering
+ * (volunteers), and spectating session ids, plus every session's seat counts.
  *
  * Signed in with Google, it's saved in session_reservations and the counts are
  * the database's (README: Saved schedules). Demo and expert sessions have no
@@ -41,6 +47,8 @@ interface ScheduleContextValue {
   setMySchedule: (ids: string[]) => void;
   expertSchedule: string[];
   setExpertSchedule: (ids: string[]) => void;
+  /** Sessions a volunteer signed up to help at. */
+  volunteerSchedule: string[];
   spectating: string[];
   setSpectating: (ids: string[]) => void;
   sessionCounts: SessionCounts;
@@ -55,6 +63,21 @@ interface ScheduleContextValue {
   releaseSession: (sessionId: string) => Promise<void>;
   /** True when the schedule is saved to the database. */
   saved: boolean;
+  /** The session ids held as this kind of seat. */
+  listFor: (kind: ReservationKind) => string[];
+}
+
+/**
+ * The kind of seat a role takes on its own schedule: participants compete,
+ * experts judge, volunteers (and ambassadors) volunteer. Other roles have no
+ * schedule of their own.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function ownScheduleKind(role: string | undefined): ReservationKind | null {
+  if (role === 'participant') return 'competing';
+  if (role === 'expert') return 'judging';
+  if (role === 'volunteer' || role === 'ambassador') return 'volunteering';
+  return null;
 }
 
 const ScheduleContext = createContext<ScheduleContextValue | undefined>(
@@ -67,18 +90,20 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const userId = session?.user?.id ?? null;
   const [mySchedule, setMySchedule] = useState<string[]>([]);
   const [expertSchedule, setExpertSchedule] = useState<string[]>([]);
+  const [volunteerSchedule, setVolunteerSchedule] = useState<string[]>([]);
   const [spectating, setSpectating] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   // Local seat-count changes, on top of the loaded counts (local mode only).
   const [deltas, setDeltas] = useState<SessionCounts>({});
-  const lists = useRef({ mySchedule, expertSchedule, spectating });
-  lists.current = { mySchedule, expertSchedule, spectating };
+  const lists = useRef({ mySchedule, expertSchedule, volunteerSchedule, spectating });
+  lists.current = { mySchedule, expertSchedule, volunteerSchedule, spectating };
 
   // A new account (or signing out) starts from that account's saved schedule.
   useEffect(() => {
     let live = true;
     setMySchedule([]);
     setExpertSchedule([]);
+    setVolunteerSchedule([]);
     setSpectating([]);
     setDeltas({});
     setSaved(false);
@@ -88,6 +113,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       setSaved(true);
       setMySchedule(list.filter((r) => r.kind === 'competing').map((r) => r.sessionId));
       setExpertSchedule(list.filter((r) => r.kind === 'judging').map((r) => r.sessionId));
+      setVolunteerSchedule(list.filter((r) => r.kind === 'volunteering').map((r) => r.sessionId));
       setSpectating(list.filter((r) => r.kind === 'spectating').map((r) => r.sessionId));
     });
     return () => {
@@ -106,6 +132,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
               enrolled: Math.max(0, s.enrolled + (d?.enrolled ?? 0)),
               expertsEnrolled: Math.max(0, s.expertsEnrolled + (d?.expertsEnrolled ?? 0)),
               spectators: Math.max(0, s.spectators + (d?.spectators ?? 0)),
+              volunteersEnrolled: Math.max(0, s.volunteersEnrolled + (d?.volunteersEnrolled ?? 0)),
             },
           ];
         }),
@@ -119,7 +146,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     (sessionId: string, count: keyof SessionCount, delta: 1 | -1) => {
       if (saved) return; // the database keeps the counts
       setDeltas((current) => {
-        const d = current[sessionId] ?? { enrolled: 0, expertsEnrolled: 0, spectators: 0 };
+        const d = current[sessionId] ?? { enrolled: 0, expertsEnrolled: 0, spectators: 0, volunteersEnrolled: 0 };
         return { ...current, [sessionId]: { ...d, [count]: d[count] + delta } };
       });
     },
@@ -130,6 +157,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     const l = lists.current;
     if (l.mySchedule.includes(id)) return 'competing';
     if (l.expertSchedule.includes(id)) return 'judging';
+    if (l.volunteerSchedule.includes(id)) return 'volunteering';
     if (l.spectating.includes(id)) return 'spectating';
     return null;
   };
@@ -138,6 +166,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     const without = (ids: string[]) => ids.filter((x) => x !== id);
     setMySchedule((ids) => (kind === 'competing' ? [...without(ids), id] : without(ids)));
     setExpertSchedule((ids) => (kind === 'judging' ? [...without(ids), id] : without(ids)));
+    setVolunteerSchedule((ids) => (kind === 'volunteering' ? [...without(ids), id] : without(ids)));
     setSpectating((ids) => (kind === 'spectating' ? [...without(ids), id] : without(ids)));
   };
 
@@ -200,6 +229,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         setMySchedule,
         expertSchedule,
         setExpertSchedule,
+        volunteerSchedule,
         spectating,
         setSpectating,
         sessionCounts,
@@ -207,6 +237,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         reserveSession,
         releaseSession,
         saved,
+        listFor: (kind) =>
+          kind === 'competing'
+            ? mySchedule
+            : kind === 'judging'
+              ? expertSchedule
+              : kind === 'volunteering'
+                ? volunteerSchedule
+                : spectating,
       }}
     >
       {children}

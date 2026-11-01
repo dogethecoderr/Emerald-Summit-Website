@@ -87,6 +87,9 @@ interface SessionRow {
   experts_enrolled: number;
   spectator_cap: number;
   spectators: number;
+  // Absent until the volunteer_spots migration runs.
+  volunteer_capacity?: number;
+  volunteers_enrolled?: number;
 }
 
 const trackFromRow = (r: TrackRow): TrackInfo => ({
@@ -115,6 +118,8 @@ const sessionFromRow = (r: SessionRow): Session => ({
   expertsEnrolled: r.experts_enrolled,
   spectatorCap: r.spectator_cap,
   spectators: r.spectators,
+  volunteerCapacity: r.volunteer_capacity ?? 2,
+  volunteersEnrolled: r.volunteers_enrolled ?? 0,
 });
 
 /**
@@ -182,7 +187,10 @@ function check<T extends { error: { message: string; code?: string } | null }>(r
   return res;
 }
 
-export type SessionInput = Omit<Session, 'id' | 'enrolled' | 'expertsEnrolled' | 'spectators'>;
+export type SessionInput = Omit<
+  Session,
+  'id' | 'enrolled' | 'expertsEnrolled' | 'spectators' | 'volunteersEnrolled'
+>;
 
 function sessionColumns(s: SessionInput) {
   return {
@@ -198,6 +206,7 @@ function sessionColumns(s: SessionInput) {
     capacity: s.capacity,
     expert_capacity: s.expertCapacity,
     spectator_cap: s.spectatorCap,
+    volunteer_capacity: s.volunteerCapacity,
   };
 }
 
@@ -212,6 +221,7 @@ export async function saveSession(input: SessionInput, id?: string): Promise<Sav
       enrolled: 0,
       expertsEnrolled: 0,
       spectators: 0,
+      volunteersEnrolled: 0,
       ...existing,
       ...input,
       trackName: input.trackName || undefined,

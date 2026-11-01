@@ -1,12 +1,13 @@
 // A signed-in person's schedule, saved in public.session_reservations
-// (20261101160000_session_reservations.sql). The database refuses a full
-// session or a second session in one time slot and keeps every session's
-// seat counts in step. Demo and expert (approvals-sheet) sessions have no
+// (20261101160000_session_reservations.sql; volunteers since
+// 20261101180000_volunteer_spots.sql). The database refuses a full session or
+// a second session in one time slot and keeps every session's seat counts in
+// step. Demo and expert (approvals-sheet) sessions have no
 // database credentials, so their schedules stay in the browser.
 import { supabase } from '../lib/supabase';
 import { getBypassSession } from './auth';
 
-export type ReservationKind = 'competing' | 'spectating' | 'judging';
+export type ReservationKind = 'competing' | 'spectating' | 'judging' | 'volunteering';
 
 export interface Reservation {
   sessionId: string;

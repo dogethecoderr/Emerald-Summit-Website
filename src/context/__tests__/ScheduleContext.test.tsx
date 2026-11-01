@@ -8,7 +8,7 @@ vi.mock('../AuthContext', () => ({
   useAuth: () => ({ session: { user: { id: 'bypass_user_id' } }, profile: null }),
 }));
 
-const { ScheduleProvider, useSchedule } = await import('../ScheduleContext');
+const { ScheduleProvider, useSchedule, ownScheduleKind } = await import('../ScheduleContext');
 const { MOCK_SESSIONS } = await import('../../models/sessions');
 
 const wrapper = ({ children }: { children: ReactNode }) => <ScheduleProvider>{children}</ScheduleProvider>;
@@ -34,5 +34,17 @@ describe('ScheduleProvider (local)', () => {
     await act(() => result.current.releaseSession(s.id));
     expect(result.current.spectating).not.toContain(s.id);
     expect(result.current.sessionCounts[s.id].spectators).toBe(s.spectators);
+  });
+
+  test('volunteers sign up for volunteer spots', async () => {
+    const s = MOCK_SESSIONS[1];
+    const { result } = renderHook(() => useSchedule(), { wrapper });
+    expect(ownScheduleKind('volunteer')).toBe('volunteering');
+    expect(ownScheduleKind('ambassador')).toBe('volunteering');
+    expect(ownScheduleKind('attendee')).toBeNull();
+
+    await act(() => result.current.reserveSession(s.id, 'volunteering'));
+    expect(result.current.listFor('volunteering')).toEqual([s.id]);
+    expect(result.current.sessionCounts[s.id].volunteersEnrolled).toBe(s.volunteersEnrolled + 1);
   });
 });
