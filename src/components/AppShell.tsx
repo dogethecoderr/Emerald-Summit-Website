@@ -372,13 +372,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* The profile card goes back to the roles page, still signed in. The
-            red button beside it signs out; it reads "Sign out" on hover. */}
+        {/* The profile card goes back to the roles page, still signed in; its
+            ⇆ shows "Switch role" above it on hover. The red button beside it
+            signs out; it reads "Sign out" on hover. */}
         <div className="relative">
           <button
             type="button"
             onClick={() => navigate('/roles')}
-            title="Switch role"
+            aria-label={`${name}, ${roleLabel}. Switch role`}
             className="group flex w-full items-center gap-2.5 rounded-xl border border-white/10 p-2.5 pr-[58px] text-left transition-colors hover:border-white/25 hover:bg-white/[0.06]"
           >
             <div
@@ -392,9 +393,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <div className="truncate text-[13px] font-semibold">{name}</div>
               <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
             </div>
-            <span className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:text-white">
+            <span className="relative flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:bg-white/10 group-hover:text-white group-focus-visible:bg-white/10 group-focus-visible:text-white">
               <ArrowLeftRight className="h-4 w-4" />
-              <span className="sr-only">Switch role</span>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[11.5px] font-semibold text-navy opacity-0 shadow-lg transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100"
+              >
+                Switch role
+              </span>
             </span>
           </button>
           <button

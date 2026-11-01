@@ -90,7 +90,7 @@ export default function AuthLayout({
   children: ReactNode;
 }) {
   return (
-    <section className="relative min-h-svh overflow-hidden bg-background lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <section className="relative min-h-svh overflow-x-clip bg-background lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       <aside className="relative hidden h-svh flex-col overflow-hidden bg-navy p-10 text-white dark:border-r dark:border-white/10 lg:sticky lg:top-0 lg:flex xl:p-14">
         <div className="absolute inset-0 opacity-90">
           <FlowingPaths position={1} color={accent} />

@@ -64,8 +64,10 @@ Every role except **Ambassador** can sign in; ambassadors are still coordinated 
 ### Prerequisites
 
 - **Node.js 18+**
-- A **Supabase** project (copy `.env.example` to `.env.local` and fill in your keys). Without one, the app runs in a local auth-bypass mode for prototyping.
+- A **Supabase** project (copy `.env.example` to `.env.local` and fill in your keys). Without one, only demo mode (below) can sign in.
 - For expert sign-in by email, the approvals Apps Script deployed and its URL in `VITE_APPROVALS_URL` (see `apps-script/README.md`).
+
+**Demo mode** (`src/lib/demoMode.ts`) is for development and testing only. It is on under `npm run dev` and off in production builds (Vercel runs `vite build`), so the "Use demo mode" option isn't shipped to real users. Set `VITE_ENABLE_DEMO_MODE=true` on a deploy to turn it on there, for example on Vercel's Preview environment only. A demo session lives in this browser's localStorage (`bypass_session` with `demo: true`, `bypass_profile`) and never reaches the database. It starts at profile setup like a first Google sign-in, so every registration page can be viewed. A **Skip** button there moves on, and Continue changes only the local profile. `saveProfile` and `updateProfileSettings` refuse to write while any local session is active. A demo session left in a browser is dropped when it loads in a build with demo mode off. The expert email sign-in also uses a local session but isn't demo mode, so it works in every build.
 
 ### Run the app
 
@@ -162,7 +164,7 @@ Editing a sheet takes effect within a minute. Removing someone demotes them. If 
 | `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons. Everyone else sees their roster read-only. The database enforces it (`20261028140000_front_desk_check_in.sql`): front-desk volunteers may change another person's `checked_in_at` and nothing else, and nobody checks themselves in. |
 | `can_edit_sessions`, `can_post_announcements` | Shown as badges in the hub. Nothing uses them yet: the website's sessions are still sample data, and only admins post announcements. |
 
-Bypass Login's demo volunteer gets every permission, so the whole hub can be previewed without the sheets.
+Demo mode's volunteer gets every permission, so the whole hub can be previewed without the sheets. These flags only drive the page in that browser: with no Supabase session, row-level security refuses every write.
 
 **One-time setup** (project `spsxfbvamwxsmtjkwxko`):
 
@@ -182,7 +184,7 @@ Bypass Login's demo volunteer gets every permission, so the whole hub can be pre
 6. Check it once with `select private.flush_allowlist_sync();` and then `select * from role_allowlist;`.
 7. Re-check existing accounts, so anyone who already holds a gated role without being on a sheet is demoted: `update public.users set updated_at = now() where role in ('volunteer', 'ambassador', 'admin');`. Do this only after step 6 shows both lists filled.
 
-**Testing it.** Sign in with **Continue with Google**. Bypass Login is a local demo session that never reaches the database, so it skips the sheets. A new Google account that picks Volunteer or Admin keeps that role only if its email is on the matching sheet. Otherwise it becomes a participant and sees "You aren't eligible to sign up as a volunteer/an admin." The role picked on the login page applies to existing accounts too: anyone can switch to Participant or Attendee, but Volunteer, Ambassador, and Admin need the email on that sheet (`20261028160000_switch_role_at_sign_in.sql`). If the switch is refused, the person is signed out and lands on the roles page with that message. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs**. Expert sign-in uses the approvals sheet's email flow instead of Google.
+**Testing it.** Sign in with **Continue with Google**. Demo mode is a local session that never reaches the database, so it skips the sheets. A new Google account that picks Volunteer or Admin is created only if its email is on the matching sheet. Otherwise no account is created, and it is signed out with "You aren't eligible to sign up as a volunteer/an admin." The role picked on the login page applies to existing accounts too: anyone can switch to Participant or Attendee, but Volunteer, Ambassador, and Admin need the email on that sheet (`20261028160000_switch_role_at_sign_in.sql`). If the switch is refused, the person is signed out and lands on the roles page with that message. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs**. Expert sign-in uses the approvals sheet's email flow instead of Google.
 
 Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supabase/migrations/20261028140000_front_desk_check_in.sql`, `supabase/migrations/20261028160000_switch_role_at_sign_in.sql`, `supabase/functions/sync-allowlist/index.ts`, `src/services/auth.ts` (`getCurrentProfile`, `takeDeniedRole`), `src/models/roles.ts` (`roleLabelFor`), `src/pages/LoginPage.tsx`, `src/pages/VolunteerDashboard.tsx`.
 
@@ -229,7 +231,7 @@ A settled frame costs about 0.26 ms, down from about 3.8 ms when every star was 
 
 The role sign-in (`/login/:role`), the expert application (`/apply/:role`), and profile setup (`/profile`) share `src/components/AuthLayout.tsx`. It's adapted from the "Split Login" block found on 21st.dev (Hirael login-03, MIT):
 
-- **Navy aside:** the logo, the role's icon and name (centered a little above the middle, like the roles page heading), and flowing paths in the role's color. The paths drift with a CSS stroke animation (`auth-path` in `src/index.css`), not per-frame JavaScript.
+- **Navy aside:** the logo, the role's icon and name (centered a little above the middle, like the roles page heading), and flowing paths in the role's color. The paths drift with a CSS stroke animation (`auth-path` in `src/index.css`), not per-frame JavaScript. It stays in place while a long form scrolls. The outer section clips sideways overflow with `overflow-x-clip`, not `overflow-hidden`, which would break `sticky`.
 - **Focused pane:** a back link and the theme button, then the form.
 
 On the sign-in page:
@@ -237,19 +239,38 @@ On the sign-in page:
 - **Continue with Google** is the one primary action, with the volunteer/admin list note right under it.
 - **Expert** keeps the approval sheet's email form.
 - **LinkedIn** is a "Coming soon" row.
-- **Bypass Login** is a quiet "Use demo mode" option.
+- **Demo mode** is a quiet "Use demo mode" option, shown only where demo mode is on.
 
 Small screens drop the aside and show the logo above the form.
+
+**Student registration** (`/profile`, `src/pages/ProfileSetupPage.tsx`). Participants register in three steps, with step dots and a Back link. Name and email are required; everything else is optional:
+
+1. **About you:** full name, email, phone ("optional, recommended for notifications"), grade (9th to 12th), school (defaults to Emerald High School), and a short bio (30 words). The email is the sign-in address, shown filled in and read-only, because `enforce_role_allowlist` pins `users.email` to it.
+2. **Team:** Solo or In a group. A group adds a team name and up to 4 teammates' names (everyone except you).
+3. **Project:** planned verse, a planned track within it (from `src/models/tracks.ts`), project title, and an overview (75 words).
+
+The planned verse goes in the existing `users.discipline` column, and it's the only one of these shown anywhere in the app. Picking a track doesn't reserve any sessions; students build their schedule themselves afterwards. Other roles see only the first step (name, email, phone, discipline, bio). The answers are saved together on Finish.
+
+Grade, school, team, teammates, track, and project go in their own table, **`student_registrations`** (`supabase/migrations/20261101120000_student_registrations.sql`, one row per participant keyed by `user_id`). They aren't stored on `users`, because any signed-in person can read every `users` row (that's how the directory works). Row-level security on the new table:
+
+| Who | Access |
+|---|---|
+| The student | Create, read, and update their own row (`user_id = auth.uid()`) |
+| Admins (`public.is_admin()`, role from the Allowed Admins sheet) | Read every row |
+| Everyone else signed in, signed out, or in demo mode | Nothing |
+| Service role / Supabase dashboard | Everything; read or export it in **Table Editor → student_registrations** |
+
+Signed-in users are granted only select, insert, and update. The migration revokes Supabase's default grants first, because those include TRUNCATE, which RLS doesn't cover. The table also checks the grade range, team size, and overview length. There's no in-app admin view yet. The migration was applied to the live project on 2026-11-01. On a project where it hasn't run, `saveProfile` skips these details with a console warning (PostgREST answers `PGRST205`), and registration still finishes. In demo mode they're kept in this browser (`bypass_registration`), and Skip moves to the next step, or on the last step finishes registration in that browser.
 
 ## Portal layout
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit*, *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
 - **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
 
-**Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row, deliberately unlike the tinted session cards. **One role at a time:** signed in, only your current role continues straight to the dashboard ("Continue as …"). Every other role goes to its sign-in page, which notes that signing in ends your current role. Signing in again replaces the session: a Google sign-in clears a demo session, and a demo or expert sign-in ends the Google session. The account then moves to the new role if the sheets allow it. If they don't, you're signed out and the roles page shows "You aren't eligible to sign up as …", so you never fall back into the old role. Visiting the sign-in page for the role you already hold goes straight to the dashboard. Volunteer, Admin, and Expert are marked "Approval needed". The rule is enforced in the app; the database still accepts a direct role change by API, as long as the sheets allow the new role.
+**Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row, deliberately unlike the tinted session cards. **One role at a time:** signed in, only your current role continues straight to the dashboard ("Continue as …"). Every other role goes to its sign-in page, which notes that signing in ends your current role. Signing in again replaces the session: a Google sign-in clears a demo session, and a demo or expert sign-in ends the Google session. The account then moves to the new role if the sheets allow it. If they don't, you're signed out and the roles page shows "You aren't eligible to sign up as …", so you never fall back into the old role or into participant. `getCurrentProfile` (`src/services/auth.ts`) does the checking. It throws `SignInRefusedError` whenever the role the server kept isn't the one picked. `AuthContext` then signs out and exposes the message as `signInError`. A new account asking for Volunteer or Admin is checked against its own `role_allowlist` rows first, so a refused sign-up creates no `users` row. A role that never signs in with Google (Expert) is refused without touching the database. The two profile loads on page load (`getSession` and `onAuthStateChange`) share one request, so only one of them reads the picked role. If the account can't be loaded at all, you're signed out with "We couldn't load your account." Visiting the sign-in page for the role you already hold goes straight to the dashboard. Volunteer, Admin, and Expert are marked "Approval needed". The rule is enforced in the app; the database still accepts a direct role change by API, as long as the sheets allow the new role.
 
 The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** card: the reserved sessions in time order, then **Tracks**: the app's tracks (areas within each verse, such as Genetics, Mock Trial, or CADathon, from `src/models/tracks.ts`), as cards in each verse's colors that open that verse's page. They're labeled as Summit '26's list until the '27 tracks are set. A Build your schedule button appears once you have sessions. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate the top section, **Explore the verses**, and a row of four quick links.
 
@@ -266,9 +287,9 @@ The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greet
 
 Clicking a card opens the verse's page the way the app does: a circle of its color grows from the click point, the full-size motif plays, and a liquid border flows around the edge, pouring in from the top. The page shows the verse's sessions, seats, and which are on your day. Back or Escape reverses the circle. Motifs pause when off screen or in a hidden tab, and show a single still frame under reduced motion. Palettes live in `src/models/verseVibes.ts`; keep them in step with the app's `discipline_vibe.dart`. `VERSE_DISCIPLINES` there gives each verse its accent as `color`, and the landing hero's verse dots and orbit use it, so they match these cards. The plain `USER_DISCIPLINES` colors stay for light surfaces, where the lighter accents would be too faint.
 
-**Track pages.** Each track has its own page inside its verse's world (same colors, motif, and border). It shows what the track covers, its formats (workshop, exhibit, or presentation, as described in the app's knowledge base), ideas for what to bring or do, the sessions in that track, and chips for the verse's other tracks. Open one from the Tracks row on the dashboard, from a session's track tag on the Schedule page, or from the chips and session tags on a verse page. The verse badge at the top goes back to the whole verse. Track details live in `src/models/tracks.ts` (`TRACKS`), and each mock session names its track in `trackName` (`src/models/sessions.ts`). Every track has at least one mock session, with its own seats, so each verse page lists a session per track. Like the list itself, they're Summit '26's tracks until the '27 tracks are set.
+**Track pages.** Each track has its own page inside its verse's world (same colors, motif, and border). It shows what the track covers, its formats (workshop, exhibit, or presentation, as described in the app's knowledge base), ideas for what to bring or do, the sessions in that track, and chips for the verse's other tracks. Open one from the Tracks row on the dashboard, from a session's track tag on the Schedule page, or from the chips and session tags on a verse page. The verse badge at the top goes back to the whole verse. For participants and experts, each session card on a verse page or a track page has a **+** in its top right, including when the page is opened from the Schedule page (`VersePortalProvider`'s `canAdd`). Every add-to-schedule + in the app, on these cards and on the Schedule page, is dark green (`emerald-deep`) with a white +. Hovering a card's + shows "Add to schedule" (or "Session full", disabled). Clicking it closes the verse page and goes to `/schedule` with `{ add: sessionId }` in router state. The Schedule page adds the session under its usual rules: a session that's full, or at the same time as one already on your day, isn't added, and a toast says why. Otherwise it's added, the entry in My Schedule is scrolled to, ringed, and tagged "Added" for a few seconds, and a toast confirms it. A session already on your day shows "On your day" instead of the +. Track details live in `src/models/tracks.ts` (`TRACKS`), and each mock session names its track in `trackName` (`src/models/sessions.ts`). Every track has at least one mock session, with its own seats, so each verse page lists a session per track. Like the list itself, they're Summit '26's tracks until the '27 tracks are set.
 
-**Schedule page.** Each session card in Build Your Schedule is tinted in its verse's color with a colored left edge, and shows its track as a tag. Clicking the card, its title, or the tag opens the track's page; the add, spectate, and drag controls keep their own jobs. My Schedule tints each item in its verse's color, with a colored edge and time, and keynotes in emerald.
+**Schedule page.** Each session card in Build Your Schedule is tinted in its verse's color with a colored left edge, and shows its track as a tag. Clicking the card, its title, or the tag opens the track's page; the add, spectate, and drag controls keep their own jobs. My Schedule tints each item in its verse's color, with a colored edge and time, and keynotes in emerald. On wide screens the session list and My Schedule split the width 3:2 (`minmax(0,3fr)` and `minmax(0,2fr)`), so the split doesn't shift as sessions are added.
 
 ## Light, dark, and system themes
 
@@ -296,11 +317,11 @@ Experts sign in with their email, and an admin approves each one in a Google She
 | Admin sets the row to Approved | The applicant gets an email with a sign-in link |
 | Email approved | They are signed in as an expert |
 
-The app talks to the sheet through a small Apps Script web app (`apps-script/approvals.gs`) whose URL goes in `VITE_APPROVALS_URL`. Setup steps, including the trigger that sends approval emails, are in `apps-script/README.md`. Without that variable, the email step says the backend isn't configured, and Bypass Login still works.
+The app talks to the sheet through a small Apps Script web app (`apps-script/approvals.gs`) whose URL goes in `VITE_APPROVALS_URL`. Setup steps, including the trigger that sends approval emails, are in `apps-script/README.md`. Without that variable, the email step says the backend isn't configured, and demo mode still works where it's on.
 
 The survey questions live in `src/models/approvalSurveys.ts`, and the script finds sheet columns by header name. Gating volunteers the same way means adding a `volunteer` entry there and a `Volunteers` tab to the sheet.
 
-This is a prototype: the typed email is trusted without verification, and approved users get the same local session as Bypass Login. Once Google sign-in is turned back on, the same check should run against the verified Google email.
+This is a prototype: the typed email is trusted without verification, and approved users get the same kind of local session as demo mode. Once Google sign-in is turned back on, the same check should run against the verified Google email.
 
 Relevant files: `apps-script/approvals.gs`, `src/services/approvals.ts`, `src/models/approvalSurveys.ts`, `src/pages/LoginPage.tsx`, `src/pages/ApplyPage.tsx`.
 

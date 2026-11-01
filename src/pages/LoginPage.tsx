@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { requiresApproval } from '../models/approvalSurveys';
 import { signInWithApprovedEmail, signInWithBypass, signInWithGoogle } from '../services/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { isDemoModeEnabled } from '../lib/demoMode';
 import { isValidEmail, lookupApproval } from '../services/approvals';
 import GoogleIcon from '../components/GoogleIcon';
 import LinkedInIcon from '../components/LinkedInIcon';
@@ -28,7 +29,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const role = SIGN_IN_ROLES.find((r) => r.name === roleName);
-  const { session, profile } = useAuth();
+  const { session, profile, clearSignInError } = useAuth();
   const signedInRole = session ? ((profile?.role as string | undefined) ?? null) : null;
 
   const incoming = (location.state as LoginLocationState | null) ?? {};
@@ -98,6 +99,7 @@ export default function LoginPage() {
   // created with this role (the Sheets allowlist decides volunteer/admin).
   const handleGoogle = async () => {
     setIsRedirecting(true);
+    clearSignInError();
     try {
       await signInWithGoogle(role.name);
     } catch (error) {
@@ -106,9 +108,11 @@ export default function LoginPage() {
     }
   };
 
+  // Demo sessions start at profile setup, like a first Google sign-in.
   const handleBypass = () => {
+    clearSignInError();
     signInWithBypass(role.name);
-    navigate('/home', { replace: true });
+    navigate('/profile', { replace: true });
   };
 
   const needsList = role.name === 'volunteer' || role.name === 'admin';
@@ -211,6 +215,7 @@ export default function LoginPage() {
             <span>LinkedIn sign-in</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold">Coming soon</span>
           </div>
+          {isDemoModeEnabled && (
           <button
             type="button"
             onClick={handleBypass}
@@ -219,11 +224,12 @@ export default function LoginPage() {
             <span>
               <span className="block text-[13.5px] font-semibold">Use demo mode</span>
               <span className="block text-[12px] text-muted-foreground">
-                A local session that skips the volunteer and admin lists.
+                For testing. Skips the sign-in lists, and nothing is saved.
               </span>
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </button>
+          )}
         </div>
       </div>
     </AuthLayout>

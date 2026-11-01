@@ -138,6 +138,8 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
       },
       loadingProfile: false,
       refreshProfile: vi.fn(),
+      signInError: null,
+      clearSignInError: vi.fn(),
     });
 
     render(
@@ -164,6 +166,8 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
       },
       loadingProfile: false,
       refreshProfile: vi.fn(),
+      signInError: null,
+      clearSignInError: vi.fn(),
     });
 
     render(
@@ -190,6 +194,8 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
       },
       loadingProfile: false,
       refreshProfile: vi.fn(),
+      signInError: null,
+      clearSignInError: vi.fn(),
     });
 
     const { rerender } = render(
@@ -214,6 +220,8 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
       },
       loadingProfile: false,
       refreshProfile: vi.fn(),
+      signInError: null,
+      clearSignInError: vi.fn(),
     });
 
     rerender(
@@ -240,6 +248,8 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
       },
       loadingProfile: false,
       refreshProfile: vi.fn(),
+      signInError: null,
+      clearSignInError: vi.fn(),
     });
 
     render(

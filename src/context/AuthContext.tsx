@@ -10,6 +10,8 @@ import {
   getCurrentProfile,
   getBypassSession,
   getBypassProfile,
+  signOut,
+  SignInRefusedError,
   type Profile,
 } from '../services/auth';
 import type { Session } from '@supabase/supabase-js';
@@ -19,6 +21,12 @@ interface AuthContextValue {
   profile: Profile | null;
   loadingProfile: boolean;
   refreshProfile: () => Promise<void>;
+  /**
+   * Why the last sign-in was ended, e.g. "You aren't eligible to sign up as
+   * a volunteer." Shown on the roles page until the next role is picked.
+   */
+  signInError: string | null;
+  clearSignInError: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -27,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   const refreshProfile = async (currentSession?: Session | null) => {
     const bypassS = getBypassSession();
@@ -48,8 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const next = await getCurrentProfile(s.user);
       setProfile(next);
     } catch (err) {
+      // A refused role or an unreadable account ends the session outright:
+      // no falling back to the account's old role or to participant.
       console.error(err);
+      setSession(null);
       setProfile(null);
+      setSignInError(
+        err instanceof SignInRefusedError
+          ? err.message
+          : "We couldn't load your account. Try signing in again.",
+      );
+      await signOut().catch(() => {});
     } finally {
       setLoadingProfile(false);
     }
@@ -113,7 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loadingProfile, refreshProfile }}
+      value={{
+        session,
+        profile,
+        loadingProfile,
+        refreshProfile,
+        signInError,
+        clearSignInError: () => setSignInError(null),
+      }}
     >
       {children}
     </AuthContext.Provider>

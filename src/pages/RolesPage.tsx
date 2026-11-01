@@ -1,5 +1,5 @@
 import ThemeToggle from '../components/ThemeToggle';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Info, ShieldCheck, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES, roleByName, roleLabelFor } from '../models/roles';
@@ -10,17 +10,6 @@ import { cn } from '@/lib/utils';
 /** Roles the database or the experts sheet has to approve. */
 const APPROVAL_ROLES = new Set(['volunteer', 'admin', 'expert']);
 
-/** Router state for a refused switch, e.g. after a Google sign-in. */
-export interface RolesLocationState {
-  denied?: string;
-}
-
-function notEligibleMessage(roleName: string): string {
-  const label = (roleByName(roleName)?.label ?? roleName).toLowerCase();
-  const article = /^[aeiou]/.test(label) ? 'an' : 'a';
-  return `You aren't eligible to sign up as ${article} ${label}.`;
-}
-
 /**
  * Pick a role. One role at a time: signed in, only the current role continues
  * straight to the dashboard; any other role means signing in again for it,
@@ -28,13 +17,12 @@ function notEligibleMessage(roleName: string): string {
  */
 export default function RolesPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { session, profile } = useAuth();
+  const { session, profile, signInError, clearSignInError } = useAuth();
   const signedIn = session != null;
   const currentRole = signedIn ? ((profile?.role as string | undefined) ?? null) : null;
 
-  const denied = (location.state as RolesLocationState | null)?.denied ?? null;
   const pick = (roleName: string) => {
+    clearSignInError();
     if (signedIn && roleName === currentRole) {
       navigate('/home');
       return;
@@ -138,14 +126,14 @@ export default function RolesPage() {
             </div>
           )}
 
-          {denied && (
+          {signInError && (
             <div
               role="alert"
               className="mb-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
             >
               <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
               <div className="text-sm">
-                <div className="font-semibold">{notEligibleMessage(denied)}</div>
+                <div className="font-semibold">{signInError}</div>
               </div>
             </div>
           )}

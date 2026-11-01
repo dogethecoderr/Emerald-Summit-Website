@@ -82,6 +82,13 @@ export function roleByName(name: string | undefined): RoleInfo | undefined {
   return USER_ROLES.find((r) => r.name === name);
 }
 
+/** The message for a role the sheets or the database refused. */
+export function notEligibleMessage(roleName: string): string {
+  const label = (roleByName(roleName)?.label ?? roleName).toLowerCase();
+  const article = /^[aeiou]/.test(label) ? 'an' : 'a';
+  return `You aren't eligible to sign up as ${article} ${label}.`;
+}
+
 /** Labels for the Allowed Volunteers sheet's subtype column. */
 export const VOLUNTEER_SUBTYPE_LABELS: Record<string, string> = {
   eaf_ambassador: 'EAF Ambassador',

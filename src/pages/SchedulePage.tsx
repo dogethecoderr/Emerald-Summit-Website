@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   Navigation,
@@ -7,6 +8,7 @@ import {
   Minus,
   Eye,
   CalendarDays,
+  Check,
   Clock,
   MapPin,
   GripVertical,
@@ -39,13 +41,18 @@ function filterLabel(name: string): string {
   return USER_DISCIPLINES.find((d) => d.name === name)?.label ?? name;
 }
 
+/** Router state from a track page's + button: the session to add. */
+export interface ScheduleLocationState {
+  add?: string;
+}
+
 /** Lets the session cards open verse and track pages. */
 export default function SchedulePage() {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
   const active = profile?.role === 'expert' ? expertSchedule : mySchedule;
   return (
-    <VersePortalProvider mine={new Set([...active, ...spectating])} canSchedule={false}>
+    <VersePortalProvider mine={new Set([...active, ...spectating])} canSchedule={false} canAdd>
       <ScheduleBody />
     </VersePortalProvider>
   );
@@ -71,6 +78,59 @@ function ScheduleBody() {
   const activeSchedule = isExpert ? expertSchedule : mySchedule;
   const [disciplineFilter, setDisciplineFilter] = useState('All');
   const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  const handledAdd = useRef<string | null>(null);
+
+  // A track page's + lands here with { add: id }: add it under the same rules
+  // as the + on this page, then point at it in My Schedule.
+  const requestedAdd = (location.state as ScheduleLocationState | null)?.add ?? null;
+  useEffect(() => {
+    if (!ready || !requestedAdd || handledAdd.current === requestedAdd) return;
+    handledAdd.current = requestedAdd;
+    navigate(location.pathname, { replace: true, state: null });
+
+    const session = MOCK_SESSIONS.find((s) => s.id === requestedAdd);
+    if (!session) return;
+    if (activeSchedule.includes(session.id) || spectating.includes(session.id)) {
+      setJustAdded(session.id);
+      toast(`${session.title} is already on your schedule.`);
+      return;
+    }
+    const counts = sessionCounts[session.id] ?? session;
+    const full = isExpert
+      ? counts.expertsEnrolled >= session.expertCapacity
+      : counts.enrolled >= session.capacity;
+    const conflict = MOCK_SESSIONS.find(
+      (s) => activeSchedule.includes(s.id) && s.time === session.time,
+    );
+    if (full) {
+      toast.error(`${session.title} is full.`);
+      return;
+    }
+    if (conflict) {
+      toast.error(`${session.title} conflicts with ${conflict.title} at ${session.time}.`);
+      return;
+    }
+    if (isExpert) setExpertSchedule([...expertSchedule, session.id]);
+    else setMySchedule([...mySchedule, session.id]);
+    updateSessionCount(session.id, isExpert ? 'expertsEnrolled' : 'enrolled', 1);
+    setJustAdded(session.id);
+    toast.success(`Added ${session.title} to your schedule.`);
+  }, [ready, requestedAdd]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll the new entry into view, and let the highlight fade after a while.
+  useEffect(() => {
+    if (!justAdded) return;
+    requestAnimationFrame(() =>
+      document
+        .getElementById(`my-schedule-${justAdded}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
+    const timer = window.setTimeout(() => setJustAdded(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [justAdded]);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -199,7 +259,7 @@ function ScheduleBody() {
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid items-start gap-6 lg:grid-cols-[5fr_2fr]">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           {/* session browser */}
           <Droppable droppableId="browser" isDropDisabled={true}>
             {(provided) => (
@@ -387,9 +447,11 @@ function ScheduleBody() {
                                         }
                                         className={cn(
                                           'flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-35',
+                                          // Every add-to-schedule + in the app is
+                                          // dark green with a white +.
                                           isAdded
                                             ? 'border-transparent bg-emerald text-white hover:bg-emerald-deep'
-                                            : 'border-border bg-secondary/50 text-foreground hover:border-emerald-glow/50 hover:text-emerald-mint',
+                                            : 'border-transparent bg-emerald-deep text-white hover:bg-emerald',
                                         )}
                                       >
                                         {isAdded ? (
@@ -476,7 +538,11 @@ function ScheduleBody() {
                       return (
                         <div
                           key={s.id}
-                          className="flex items-start gap-2 rounded-xl border p-3 pl-3.5"
+                          id={`my-schedule-${s.id}`}
+                          className={cn(
+                            'flex items-start gap-2 rounded-xl border p-3 pl-3.5 transition-shadow duration-500',
+                            justAdded === s.id && 'ring-2 ring-emerald ring-offset-2 ring-offset-background',
+                          )}
                           style={{
                             background: `linear-gradient(90deg, ${rgba(accent, 0.16)}, ${rgba(accent, 0.05)})`,
                             borderColor: rgba(accent, 0.3),
@@ -491,6 +557,11 @@ function ScheduleBody() {
                               {isSpec && (
                                 <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-400">
                                   Spectating
+                                </span>
+                              )}
+                              {justAdded === s.id && (
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald">
+                                  <Check className="h-2.5 w-2.5" strokeWidth={3} /> Added
                                 </span>
                               )}
                             </div>

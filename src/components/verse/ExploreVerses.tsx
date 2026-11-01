@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Lightbulb, Plus } from 'lucide-react';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../../models/sessions';
 import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';
@@ -124,17 +124,22 @@ const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A session in a verse's colors, with its track as a link. */
+/**
+ * A session in a verse's colors, with its track as a link. With onAdd, a +
+ * in the top right adds it to the viewer's schedule.
+ */
 function VerseSessionCard({
   session: s,
   vibe,
   mine,
   onTrack,
+  onAdd,
 }: {
   session: Session;
   vibe: VerseVibe;
   mine: Set<string>;
   onTrack?: (name: string) => void;
+  onAdd?: (id: string) => void;
 }) {
   const left = Math.max(s.capacity - s.enrolled, 0);
   return (
@@ -148,10 +153,12 @@ function VerseSessionCard({
       <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
         <span>{s.time}</span>
         <span style={{ color: vibe.textDim }}>· {s.duration}</span>
-        {mine.has(s.id) && (
+        {mine.has(s.id) ? (
           <span className="ml-auto inline-flex items-center gap-1">
             <Check className="h-3.5 w-3.5" /> On your day
           </span>
+        ) : (
+          onAdd && <AddToScheduleButton vibe={vibe} full={left === 0} onClick={() => onAdd(s.id)} />
         )}
       </div>
       <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
@@ -230,6 +237,7 @@ function VersePage({
   track: initialTrack,
   mine,
   canSchedule,
+  onAdd,
   onClosed,
 }: {
   discipline: DisciplineInfo;
@@ -237,6 +245,8 @@ function VersePage({
   track?: string;
   mine: Set<string>;
   canSchedule: boolean;
+  /** Adds a session to the viewer's schedule; no + on the cards without it. */
+  onAdd?: (id: string) => void;
   onClosed: () => void;
 }) {
   const navigate = useNavigate();
@@ -352,6 +362,7 @@ function VersePage({
                 vibe={vibe}
                 mine={mine}
                 canSchedule={canSchedule}
+                onAdd={onAdd}
                 onVerse={() => show(undefined)}
                 onTrack={show}
               />
@@ -391,7 +402,7 @@ function VersePage({
                     <p style={{ color: vibe.textDim }}>No sessions in this discipline yet.</p>
                   )}
                   {sessions.map((s) => (
-                    <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} onTrack={show} />
+                    <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} onTrack={show} onAdd={onAdd} />
                   ))}
                 </div>
               </>
@@ -418,6 +429,42 @@ function ScheduleButton({ vibe, onClick }: { vibe: VerseVibe; onClick: () => voi
   );
 }
 
+/**
+ * The session card's +, with an "Add to schedule" label above it on hover.
+ * Dark green with a white + in every verse, like the Schedule page's +.
+ */
+function AddToScheduleButton({
+  vibe,
+  full,
+  onClick,
+}: {
+  vibe: VerseVibe;
+  full: boolean;
+  onClick: () => void;
+}) {
+  const label = full ? 'Session full' : 'Add to schedule';
+  return (
+    <span className="group relative -my-1 ml-auto">
+      <button
+        type="button"
+        aria-label={label}
+        disabled={full}
+        onClick={onClick}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-deep text-white shadow-sm transition-all hover:scale-110 hover:bg-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-emerald-deep"
+      >
+        <Plus className="h-4 w-4" strokeWidth={2.6} />
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-lg px-2.5 py-1 text-[12px] font-semibold opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        style={{ background: vibe.text, color: vibe.surface }}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
 /** One track's page, inside its verse's world. */
 function TrackView({
   track,
@@ -425,6 +472,7 @@ function TrackView({
   vibe,
   mine,
   canSchedule,
+  onAdd,
   onVerse,
   onTrack,
 }: {
@@ -433,6 +481,7 @@ function TrackView({
   vibe: VerseVibe;
   mine: Set<string>;
   canSchedule: boolean;
+  onAdd?: (id: string) => void;
   onVerse: () => void;
   onTrack: (name: string) => void;
 }) {
@@ -513,7 +562,13 @@ function TrackView({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {sessions.map((s) => (
-              <VerseSessionCard key={s.id} session={s} vibe={vibe} mine={mine} />
+              <VerseSessionCard
+                key={s.id}
+                session={s}
+                vibe={vibe}
+                mine={mine}
+                onAdd={onAdd}
+              />
             ))}
           </div>
         )}
@@ -551,13 +606,18 @@ export function originOf(e: React.MouseEvent<HTMLElement>): Origin {
 export function VersePortalProvider({
   mine,
   canSchedule,
+  canAdd = canSchedule,
   children,
 }: {
   /** Session ids on the viewer's day (competing or spectating). */
   mine: Set<string>;
+  /** Shows the "Build your schedule" link on verse and track pages. */
   canSchedule: boolean;
+  /** Shows the + on session cards. Defaults to canSchedule. */
+  canAdd?: boolean;
   children: React.ReactNode;
 }) {
+  const navigate = useNavigate();
   const [opened, setOpened] = useState<{ discipline: DisciplineInfo; origin: Origin; track?: string } | null>(
     null,
   );
@@ -577,6 +637,16 @@ export function VersePortalProvider({
           track={opened.track}
           mine={mine}
           canSchedule={canSchedule}
+          // The Schedule page does the adding, so its conflict and capacity
+          // rules apply, then points at the session in My Schedule.
+          onAdd={
+            canAdd
+              ? (id) => {
+                  setOpened(null);
+                  navigate('/schedule', { state: { add: id } });
+                }
+              : undefined
+          }
           // Only clear this verse: a page still closing must not close the
           // next one opened in the meantime.
           onClosed={() =>
