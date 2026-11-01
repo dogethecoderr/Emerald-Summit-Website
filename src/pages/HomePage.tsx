@@ -219,6 +219,7 @@ export default function HomePage() {
   const firstName = name.split(/\s+/)[0];
   const roleName = (profile?.role as string | undefined) ?? 'participant';
   const ownKind = ownScheduleKind(roleName);
+  const showYourDay = roleName !== 'admin';
   const canSchedule = ownKind != null;
   const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
   const checkedInAt = profile?.checked_in_at as string | undefined;
@@ -366,55 +367,60 @@ export default function HomePage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* your day */}
         <section className="glass flex flex-col rounded-3xl p-4 sm:p-6 xl:min-h-[560px]">
-          <div className="mb-4 flex items-start gap-3 px-1">
-            <div className="min-w-0 flex-1">
-              <h2 className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-tight sm:text-[28px]">
-                Your day
-                {canSchedule && <CountChip count={agenda.length} />}
-              </h2>
-            </div>
-            {canSchedule && (
-              <button
-                type="button"
-                onClick={() => navigate('/schedule')}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-border bg-card px-3 py-2 text-[13px] font-semibold transition-colors hover:border-emerald/40"
-              >
-                Edit schedule <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {canSchedule && agenda.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-emerald">
-                <CalendarDays className="h-6 w-6" />
-              </span>
-              <div className="mt-3 text-[17px] font-semibold">
-                {ownKind === 'volunteering' ? 'No volunteer shifts yet' : 'No sessions yet'}
+          {/* Admins run the Summit rather than attend sessions: no Your day. */}
+          {showYourDay && (
+            <>
+              <div className="mb-4 flex items-start gap-3 px-1">
+                <div className="min-w-0 flex-1">
+                  <h2 className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-tight sm:text-[28px]">
+                    Your day
+                    {canSchedule && <CountChip count={agenda.length} />}
+                  </h2>
+                </div>
+                {canSchedule && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/schedule')}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-border bg-card px-3 py-2 text-[13px] font-semibold transition-colors hover:border-emerald/40"
+                  >
+                    Edit schedule <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/schedule')}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
-              >
-                {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {(canSchedule
-                ? agenda
-                : MOCK_SESSIONS.slice(0, 5).map((s) => ({
-                    session: s,
-                    kind: 'Session' as AgendaKind,
-                  }))
-              ).map((item, i) => (
-                <AgendaRow key={item.session.id} item={item} first={canSchedule && i === 0} />
-              ))}
-            </div>
+              {canSchedule && agenda.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-emerald">
+                    <CalendarDays className="h-6 w-6" />
+                  </span>
+                  <div className="mt-3 text-[17px] font-semibold">
+                    {ownKind === 'volunteering' ? 'No volunteer shifts yet' : 'No sessions yet'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/schedule')}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
+                  >
+                    {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {(canSchedule
+                    ? agenda
+                    : MOCK_SESSIONS.slice(0, 5).map((s) => ({
+                        session: s,
+                        kind: 'Session' as AgendaKind,
+                      }))
+                  ).map((item, i) => (
+                    <AgendaRow key={item.session.id} item={item} first={canSchedule && i === 0} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {/* Tracks: the app's tracks (areas within each verse), in verse colors */}
-          <div className="mt-6 border-t border-border/70 pt-5">
+          <div className={cn(showYourDay && 'mt-6 border-t border-border/70 pt-5')}>
             <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
               <div className="min-w-0 flex-1">
                 <h3 className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight sm:text-xl">
@@ -442,22 +448,25 @@ export default function HomePage() {
 
         {/* right rail — on xl, sized by Your day (h-0 + min-h-full) so it never adds empty space */}
         <div className="flex flex-col gap-6 xl:h-0 xl:min-h-full">
-          <div className="grid grid-cols-2 gap-3">
-            {stats.map((s) => (
-              <StatTile key={s.label} {...s}>
-                {s.label === 'Check-in' && isQrEligible && (
-                  <button
-                    type="button"
-                    onClick={() => setQrPassOpen(true)}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-full bg-sky-200 px-3 py-2 text-[12.5px] font-semibold text-navy transition-colors hover:bg-sky-100"
-                  >
-                    <QrCode className="h-4 w-4 shrink-0" />
-                    <span>My QR Pass</span>
-                  </button>
-                )}
-              </StatTile>
-            ))}
-          </div>
+          {/* Next up and Check-in are about attending, so admins don't get them. */}
+          {showYourDay && (
+            <div className="grid grid-cols-2 gap-3">
+              {stats.map((s) => (
+                <StatTile key={s.label} {...s}>
+                  {s.label === 'Check-in' && isQrEligible && (
+                    <button
+                      type="button"
+                      onClick={() => setQrPassOpen(true)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-full bg-sky-200 px-3 py-2 text-[12.5px] font-semibold text-navy transition-colors hover:bg-sky-100"
+                    >
+                      <QrCode className="h-4 w-4 shrink-0" />
+                      <span>My QR Pass</span>
+                    </button>
+                  )}
+                </StatTile>
+              ))}
+            </div>
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl">
             <AnnouncementsPanel
               announcements={announcements}
