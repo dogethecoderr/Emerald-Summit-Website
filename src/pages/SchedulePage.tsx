@@ -16,7 +16,7 @@ import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import CapacityBar from '../components/CapacityBar';
 import TrackPill from '../components/TrackPill';
-import { TrackTag, VersePortalProvider } from '../components/verse/ExploreVerses';
+import { TrackTag, VersePortalProvider, useOpenVerse } from '../components/verse/ExploreVerses';
 import { useTheme } from '../context/ThemeContext';
 import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
@@ -39,8 +39,21 @@ function filterLabel(name: string): string {
   return USER_DISCIPLINES.find((d) => d.name === name)?.label ?? name;
 }
 
+/** Lets the session cards open verse and track pages. */
 export default function SchedulePage() {
+  const { profile } = useAuth();
+  const { mySchedule, expertSchedule, spectating } = useSchedule();
+  const active = profile?.role === 'expert' ? expertSchedule : mySchedule;
+  return (
+    <VersePortalProvider mine={new Set([...active, ...spectating])} canSchedule={false}>
+      <ScheduleBody />
+    </VersePortalProvider>
+  );
+}
+
+function ScheduleBody() {
   const { ready, redirect } = useRequireRole(['participant', 'expert']);
+  const openVerse = useOpenVerse();
   const { profile } = useAuth();
   const roleName = profile?.role ?? 'participant';
   const isExpert = roleName === 'expert';
@@ -152,7 +165,6 @@ export default function SchedulePage() {
 
   return (
     <AppShell>
-      <VersePortalProvider mine={new Set([...activeSchedule, ...spectating])} canSchedule={false}>
       <PageHeader
         label="Emerald High School · Dublin, CA"
         title={isExpert ? 'Choose Sessions to Judge' : 'Build Your Schedule'}
@@ -223,6 +235,15 @@ export default function SchedulePage() {
                           const capacityFull = isExpert ? expertFull : full;
                           const isDragDisabled =
                             isAdded || isSpectating || capacityFull || !!conflict;
+                          const keynote = s.track === 'keynote';
+                          const accent = vibeFor(keynote ? null : s.track, theme).accent;
+                          // The card opens its track's page; its own buttons
+                          // and the drag handle keep their jobs.
+                          const openTrack = (e: React.MouseEvent<HTMLElement>) => {
+                            if (keynote) return;
+                            if ((e.target as HTMLElement).closest('button, [data-rfd-drag-handle-draggable-id]')) return;
+                            openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName);
+                          };
 
                           return (
                             <Draggable
@@ -235,14 +256,23 @@ export default function SchedulePage() {
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
+                                  onClick={openTrack}
                                   className={cn(
                                     'glass rounded-2xl p-4 transition-all sm:p-5',
+                                    !keynote && 'cursor-pointer hover:-translate-y-0.5',
                                     isAdded && 'ring-1 ring-emerald-glow/50',
                                     isSpectating && 'ring-1 ring-amber-400/50',
                                     snapshot.isDragging && 'shadow-2xl scale-[1.02] z-50 ring-2 ring-emerald opacity-95',
                                     isDragDisabled && !isAdded && !isSpectating && 'opacity-70 grayscale-[0.3]'
                                   )}
-                                  style={provided.draggableProps.style}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    background: `linear-gradient(120deg, ${rgba(accent, 0.22)}, ${rgba(accent, 0.06)} 65%), hsl(var(--card))`,
+                                    borderColor: rgba(accent, 0.3),
+                                    // A border, not a box-shadow, so the added
+                                    // and spectating rings still show.
+                                    borderLeft: `4px solid ${accent}`,
+                                  }}
                                 >
                                   {conflict && (
                                     <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
@@ -295,7 +325,18 @@ export default function SchedulePage() {
                                         )}
                                       </div>
                                       <h3 className="text-[15px] font-semibold leading-snug">
-                                        {s.title}
+                                        {keynote ? (
+                                          s.title
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName)}
+                                            className="text-left transition-colors hover:underline"
+                                            style={{ textDecorationColor: accent }}
+                                          >
+                                            {s.title}
+                                          </button>
+                                        )}
                                       </h3>
                                       <div className="mt-0.5 text-xs text-muted-foreground">
                                         {s.speaker}
@@ -303,7 +344,7 @@ export default function SchedulePage() {
                                       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                                         {s.description}
                                       </p>
-                                      <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-emerald-mint">
+                                      <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium" style={{ color: accent }}>
                                         <MapPin className="h-3 w-3" /> {s.location}
                                       </div>
                                       <CapacityBar
@@ -483,7 +524,6 @@ export default function SchedulePage() {
           </Droppable>
         </div>
       </DragDropContext>
-      </VersePortalProvider>
     </AppShell>
   );
 }
