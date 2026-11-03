@@ -1,3 +1,4 @@
+import { createCheckInRpcHandler } from '../../test/mocks/supabaseMock';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import {
   validateParticipantId,
@@ -9,42 +10,8 @@ const { mockSupabaseClient, usersTable } = vi.hoisted(() => {
   const users: any[] = [];
 
   const client = {
-    from: vi.fn((_table: string) => {
-      let filterId: string | null = null;
-      let updatePayload: any = null;
-
-      const builder: any = {
-        select: vi.fn(() => builder),
-        update: vi.fn((payload: any) => {
-          updatePayload = payload;
-          return builder;
-        }),
-        eq: vi.fn((col: string, val: any) => {
-          if (col === 'id') filterId = val;
-          return builder;
-        }),
-        then: vi.fn((onFulfilled: any) => {
-          if (updatePayload && filterId) {
-            const found = users.find((u) => u.id === filterId);
-            if (found) Object.assign(found, updatePayload);
-          }
-          // An update asked for its rows back gets the matched rows.
-          const matched = updatePayload && filterId ? users.filter((u) => u.id === filterId) : [];
-          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
-        }),
-        maybeSingle: vi.fn(async () => {
-          const found = users.find((u) => u.id === filterId);
-          if (!found) return { data: null, error: null };
-          return { data: { ...found }, error: null };
-        }),
-        single: vi.fn(async () => {
-          const found = users.find((u) => u.id === filterId);
-          if (!found) return { data: null, error: { message: 'Not found' } };
-          return { data: { ...found }, error: null };
-        }),
-      };
-      return builder;
-    }),
+    rpc: vi.fn(),
+    from: vi.fn(() => { throw new Error('Check-in must use the shared RPCs.'); }),
   };
 
   return { mockSupabaseClient: client, usersTable: users };
@@ -57,6 +24,7 @@ vi.mock('../../lib/supabase', () => ({
 describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabaseClient.rpc.mockImplementation(createCheckInRpcHandler(usersTable));
     usersTable.length = 0;
   });
 
@@ -131,6 +99,7 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       expect(result.data).toBeNull();
       expect(result.error).toBe('Invalid participant ID format');
       expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+      expect(mockSupabaseClient.rpc).not.toHaveBeenCalled();
     });
 
     test('gracefully handles user with non-ASCII unicode characters and null fields', async () => {
@@ -151,6 +120,7 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       expect(result.data?.role).toBe('participant');
       expect(result.data?.email).toBe('');
       expect(result.data?.checked_in_at).toBeNull();
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fetch_attendee_directory', { p_query: '' });
     });
 
     test('with a backend, a sample person who is not in the database is not found', async () => {
@@ -166,6 +136,13 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       const result = await fetchParticipantById(nonExistentUuid);
       expect(result.data).toBeNull();
       expect(result.error).toBe('Participant not found');
+    });
+
+    test('preserves permission errors without falling back to sample people', async () => {
+      mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Front-desk permission required' } });
+      const result = await fetchParticipantById('p8');
+      expect(result).toEqual({ data: null, error: 'Front-desk permission required' });
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled();
     });
   });
 
@@ -217,6 +194,28 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       const secondResult = await checkInParticipant(validUuid);
       expect(secondResult.success).toBe(false);
       expect(secondResult.alreadyCheckedIn).toBe(true);
+      expect(secondResult.user?.checked_in_at).toBe(result.user?.checked_in_at);
+      expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('scan_summit_checkin', { p_attendee_id: validUuid });
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+    });
+
+    test('concurrent scans produce one check-in and preserve its server timestamp', async () => {
+      const id = 'b2c3d4e5-f6a1-4b2c-8d3e-4f5a6b7c8d9e';
+      usersTable.push({ id, name: 'Attendee', checked_in_at: null });
+      const results = await Promise.all([checkInParticipant(id), checkInParticipant(id), checkInParticipant(id)]);
+      expect(results.filter((result) => result.success)).toHaveLength(1);
+      expect(results.filter((result) => result.alreadyCheckedIn)).toHaveLength(2);
+      expect(new Set(results.map((result) => result.user?.checked_in_at)).size).toBe(1);
+    });
+
+    test('denied check-in leaves the attendee unchanged and reports the RPC error', async () => {
+      const id = 'b2c3d4e5-f6a1-4b2c-8d3e-4f5a6b7c8d9e';
+      usersTable.push({ id, name: 'Attendee', checked_in_at: null });
+      mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Check-in permission denied' } });
+      const result = await checkInParticipant(id);
+      expect(result).toEqual({ success: false, error: 'Check-in permission denied' });
+      expect(usersTable[0].checked_in_at).toBeNull();
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled();
     });
   });
 });

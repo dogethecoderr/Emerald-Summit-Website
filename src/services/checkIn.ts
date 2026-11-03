@@ -44,127 +44,55 @@ function mockParticipant(id: string): ParticipantData | null {
   };
 }
 
-export async function fetchParticipantById(
-  id: string,
-): Promise<{ data: ParticipantData | null; error: string | null }> {
-  if (!validateParticipantId(id)) {
-    return { data: null, error: 'Invalid participant ID format' };
-  }
+function participantFromRow(row: Record<string, any>): ParticipantData {
+  return {
+    id: row.id,
+    name: row.full_name ?? 'Participant',
+    role: row.role === 'parentSpectator' ? 'attendee' : row.role ?? 'participant',
+    email: row.email ?? '',
+    checked_in_at: row.checked_in_at ?? (row.present ? 'checked-in' : null),
+    discipline: null,
+  };
+}
 
-  const trimmedId = id.trim();
-
-  // Without a configured client there is nothing to query; mock data is the
-  // only source available.
+export async function fetchParticipantById(id: string): Promise<{ data: ParticipantData | null; error: string | null }> {
+  if (!validateParticipantId(id)) return { data: null, error: 'Invalid participant ID format' };
+  const normalized = id.trim().toLowerCase();
   if (!supabase) {
-    const mockPerson = mockParticipant(trimmedId);
-    return mockPerson
-      ? { data: mockPerson, error: null }
-      : { data: null, error: 'Participant not found' };
+    const person = import.meta.env.DEV ? mockParticipant(normalized) : null;
+    return { data: person, error: person ? null : 'Participant not found' };
   }
-
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, name, role, email, checked_in_at, discipline')
-      .eq('id', trimmedId)
-      .maybeSingle();
-
-    if (!error && data) {
-      return {
-        data: {
-          id: data.id,
-          name: data.name ?? 'Participant',
-          role: data.role ?? 'participant',
-          email: data.email ?? '',
-          checked_in_at: data.checked_in_at ?? null,
-          discipline: data.discipline ?? null,
-        },
-        error: null,
-      };
-    }
-
-    // With a backend, only real accounts check in: no sample-people fallback.
-    if (error) {
-      return { data: null, error: error.message };
-    }
-
-    return { data: null, error: 'Participant not found' };
-  } catch (err: any) {
-    return { data: null, error: err?.message ?? 'Failed to fetch participant' };
+    const { data, error } = await supabase.rpc('fetch_attendee_directory', { p_query: '' });
+    if (error) return { data: null, error: error.message };
+    const row = data?.find((person: { id: string }) => person.id === normalized);
+    return { data: row ? participantFromRow(row) : null, error: row ? null : 'Participant not found' };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error.message : 'Failed to fetch participant' };
   }
 }
 
+/** The shared scan RPC checks identity, permission and double scans atomically. */
 export async function checkInParticipant(id: string): Promise<CheckInResult> {
-  const { data: user, error } = await fetchParticipantById(id);
-
-  if (error || !user) {
-    return {
-      success: false,
-      error: error ?? 'Participant not found',
-    };
-  }
-
-  if (user.checked_in_at) {
-    return {
-      success: false,
-      user,
-      alreadyCheckedIn: true,
-      error: `${user.name} is already checked in.`,
-    };
-  }
-
-  const checkInTimestamp = new Date().toISOString();
-
-  // Without a configured client the mock roster is the only state we can move.
+  if (!validateParticipantId(id)) return { success: false, error: 'Invalid participant ID format' };
+  const normalized = id.trim().toLowerCase();
   if (!supabase) {
-    const mockIndex = MOCK_PEOPLE.findIndex((p) => p.id === user.id);
-    if (mockIndex !== -1) {
-      MOCK_PEOPLE[mockIndex].status = 'checkedIn';
-      return {
-        success: true,
-        user: { ...user, checked_in_at: checkInTimestamp },
-      };
-    }
-    return {
-      success: false,
-      user,
-      error: 'Supabase is not configured, so this check-in cannot be saved.',
-    };
+    const { data: user, error } = await fetchParticipantById(normalized);
+    if (!user) return { success: false, error: error ?? 'Participant not found' };
+    if (user.checked_in_at) return { success: false, user, alreadyCheckedIn: true, error: `${user.name} is already checked in.` };
+    const person = MOCK_PEOPLE.find((p) => p.id === user.id);
+    if (person) person.status = 'checkedIn';
+    return { success: true, user: { ...user, checked_in_at: new Date().toISOString() } };
   }
-
-  // Execute database update. RLS lets only front-desk volunteers and admins
-  // change someone else's check-in; a refused update matches no row, so ask
-  // for the row back to tell that apart from success.
   try {
-    const { data: updated, error: updateError } = await supabase
-      .from('users')
-      .update({ checked_in_at: checkInTimestamp })
-      .eq('id', user.id)
-      .select('id');
-
-    if (updateError) {
-      return { success: false, user, error: updateError.message };
-    }
-    if (!updated || updated.length === 0) {
-      return {
-        success: false,
-        user,
-        error: "You don't have permission to check people in.",
-      };
-    }
-
-    return {
-      success: true,
-      user: {
-        ...user,
-        checked_in_at: checkInTimestamp,
-      },
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      user,
-      error: err?.message ?? 'Failed to update check-in status',
-    };
+    const { data, error } = await supabase.rpc('scan_summit_checkin', { p_attendee_id: normalized });
+    if (error) return { success: false, error: error.message };
+    const row = data?.[0];
+    if (!row?.attendee_found) return { success: false, error: 'Participant not found' };
+    const user = participantFromRow({ ...row, id: normalized });
+    if (row.already_checked_in) return { success: false, user, alreadyCheckedIn: true, error: `${user.name} is already checked in.` };
+    return { success: true, user };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update check-in status' };
   }
 }

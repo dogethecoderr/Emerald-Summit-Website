@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  Settings,
+  UserRound,
   Megaphone,
   ArrowLeftRight,
   Orbit,
@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Schedule',
     icon: CalendarDays,
     group: 'My Summit',
-    roles: ['participant', 'expert', 'volunteer'],
+    roles: ['participant', 'attendee', 'expert', 'volunteer', 'ambassador'],
   },
   {
     to: '/volunteer',
@@ -57,9 +57,8 @@ const NAV_ITEMS: NavItem[] = [
     roles: ['volunteer'],
   },
   { to: '/announcements', label: 'Announcements', icon: Megaphone, group: 'Event' },
-  { to: '/directory', label: 'Directory', icon: Users, group: 'Event' },
   { to: '/resources', label: 'Resources', icon: FolderOpen, group: 'Event' },
-  { to: '/settings', label: 'Settings', icon: Settings, group: 'Account' },
+  { to: '/account', label: 'Profile', icon: UserRound, group: 'Account' },
 ];
 
 const NAV_GROUPS: NavGroup[] = ['My Summit', 'Event', 'Account'];
@@ -275,8 +274,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const role = roleByName(roleName) ?? USER_ROLES[0];
   const roleLabel = roleLabelFor(roleName, profile?.volunteer_subtype);
   const items = navItemsForRole(roleName);
-  const settingsItem = items.find((n) => n.to === '/settings');
-  const otherItems = items.filter((n) => n.to !== '/settings');
+  const settingsItem = items.find((n) => n.to === '/account');
+  const otherItems = items.filter((n) => n.to !== '/account');
   const mobileItems = [
     ...otherItems.slice(0, 4),
     ...(settingsItem ? [settingsItem] : []),
@@ -392,7 +391,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {initials}
             </div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[13px] font-semibold">{name}</div>
+              <div className="break-words whitespace-normal text-[13px] font-semibold">{name}</div>
               <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
             </div>
             <span className="relative flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:bg-white/10 group-hover:text-white group-focus-visible:bg-white/10 group-focus-visible:text-white">

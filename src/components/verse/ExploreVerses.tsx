@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Plus } from 'lucide-react';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
-import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../../models/sessions';
+import { MOCK_SESSIONS, type Session } from '../../models/sessions';
 import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -14,7 +14,7 @@ import {
 } from '../../models/verseVibes';
 import VerseMotif from './VerseMotif';
 import { useAuth } from '../../context/AuthContext';
-import { canEditVerse, useSummitContent } from '../../services/summitContent';
+import { canEditVerse, useSummitContent, usesSharedBackend, toMinutes } from '../../services/summitContent';
 import {
   SessionEditorDialog,
   TrackEditorDialog,
@@ -25,7 +25,7 @@ import FlowingBorder from './FlowingBorder';
 
 export function sessionsFor(id: string): Session[] {
   return MOCK_SESSIONS.filter((s) => s.track === id).sort(
-    (a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time),
+    (a, b) => toMinutes(a.time) - toMinutes(b.time),
   );
 }
 
@@ -311,6 +311,7 @@ function VersePage({
   useSummitContent();
   const { profile } = useAuth();
   const canEdit = canEditVerse(profile, discipline.name);
+  const canEditTracks = canEdit && !usesSharedBackend();
   const [sessionEditor, setSessionEditor] = useState<SessionEditorTarget | null>(null);
   const [trackEditor, setTrackEditor] = useState<TrackEditorTarget | null>(null);
   const [trackName, setTrackName] = useState(initialTrack);
@@ -431,7 +432,7 @@ function VersePage({
                 onVerse={() => show(undefined)}
                 onTrack={show}
                 onEditTrack={
-                  canEdit
+                  canEditTracks
                     ? () =>
                         setTrackEditor({
                           verse: discipline.name,
@@ -481,7 +482,7 @@ function VersePage({
                     verse={discipline.name}
                     vibe={vibe}
                     onPick={show}
-                    onAddTrack={canEdit ? () => setTrackEditor({ verse: discipline.name }) : undefined}
+                    onAddTrack={canEditTracks ? () => setTrackEditor({ verse: discipline.name }) : undefined}
                   />
                 </section>
 

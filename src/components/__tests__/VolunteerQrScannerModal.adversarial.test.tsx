@@ -1,3 +1,4 @@
+import { createCheckInRpcHandler } from '../../test/mocks/supabaseMock';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -38,42 +39,8 @@ const {
   ];
 
   const client = {
-    from: vi.fn((_table: string) => {
-      let filterId: string | null = null;
-      let updatePayload: any = null;
-
-      const builder: any = {
-        select: vi.fn(() => builder),
-        update: vi.fn((payload: any) => {
-          updatePayload = payload;
-          return builder;
-        }),
-        eq: vi.fn((column: string, val: any) => {
-          if (column === 'id') filterId = val;
-          return builder;
-        }),
-        then: vi.fn((onFulfilled: any) => {
-          if (updatePayload && filterId) {
-            const u = users.find((item) => item.id === filterId);
-            if (u) Object.assign(u, updatePayload);
-          }
-          // An update asked for its rows back gets the matched rows.
-          const matched = updatePayload && filterId ? users.filter((item) => item.id === filterId) : [];
-          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
-        }),
-        single: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: { message: 'User not found' } };
-          return { data: { ...user }, error: null };
-        }),
-        maybeSingle: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: null };
-          return { data: { ...user }, error: null };
-        }),
-      };
-      return builder;
-    }),
+    rpc: vi.fn(),
+    from: vi.fn(() => { throw new Error('Check-in must use the shared RPCs.'); }),
   };
 
   return {
@@ -111,6 +78,7 @@ vi.mock('../../lib/supabase', () => ({
 describe('Adversarial Test: VolunteerQrScannerModal Lifecycle & Concurrency', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabaseClient.rpc.mockImplementation(createCheckInRpcHandler(usersDatabase));
     mockScanSuccessCallback = null;
     mockScannerInstance = null;
     // Reset check-in statuses
@@ -192,7 +160,7 @@ describe('Adversarial Test: VolunteerQrScannerModal Lifecycle & Concurrency', ()
     expect(mockScannerClearSpy).toHaveBeenCalled();
   });
 
-  test('concurrent/rapid scan callbacks without synchronous ref guard result in multiple check-in invocations', async () => {
+  test('concurrent camera frames create only one check-in through the atomic scan RPC', async () => {
     const handleSuccess = vi.fn();
     render(
       <VolunteerQrScannerModal
@@ -215,12 +183,11 @@ describe('Adversarial Test: VolunteerQrScannerModal Lifecycle & Concurrency', ()
       mockScanSuccessCallback!('11111111-2222-3333-4444-555555555555');
     });
 
-    // EMPIRICAL OBSERVATION:
-    // In VolunteerQrScannerModal, isProcessing is a React useState (asynchronous update).
-    // Because isProcessing is not a synchronous ref guard (useRef), rapid synchronous video frame callbacks
-    // bypass `if (isProcessing) return;` in the same tick and trigger multiple check-in calls.
-    expect(handleSuccess.mock.calls.length).toBeGreaterThan(1);
-    expect(await screen.findByTestId('scan-feedback-success')).toBeInTheDocument();
+    // The shared backend reports the later scans as duplicates, preserving the
+    // first timestamp even when several camera frames arrive before rerender.
+    expect(handleSuccess).toHaveBeenCalledTimes(1);
+    expect(usersDatabase[0].checked_in_at).toBeTruthy();
+    expect(await screen.findByTestId('scan-feedback-warning')).toBeInTheDocument();
   });
 
   test('Scan Next workflow resets prior participant data and enables scanning Participant B', async () => {

@@ -390,7 +390,7 @@ export default function WelcomePage() {
               </h2>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground lg:text-lg">
                 Emerald Summit is the Tri-Valley’s largest student-led STEAM
-                conference — a full day where hundreds of builders move between six
+                conference. It is a full day where hundreds of builders move between six
                 disciplines (universes), pitch to visiting experts, and leave
                 with something better than they started with.
               </p>

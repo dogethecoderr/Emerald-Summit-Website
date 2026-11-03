@@ -30,7 +30,7 @@ export default function BrandMark({
   return (
     <Link
       to="/"
-      aria-label="Emerald Summit — back to home"
+      aria-label="Emerald Summit, back to home"
       className={cn('group flex items-center', gap, className)}
     >
       <div

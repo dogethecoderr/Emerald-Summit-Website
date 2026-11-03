@@ -77,7 +77,7 @@ function CheckInPreview() {
           <CheckCircle2 className="h-5 w-5" />
         </span>
         <div>
-          <div className="text-[13px] font-semibold">Jordan Lee — checked in</div>
+          <div className="text-[13px] font-semibold">Jordan Lee, checked in</div>
           <div className="text-[11px] text-muted-foreground">9:02 AM · Front desk</div>
         </div>
       </div>
@@ -104,7 +104,7 @@ const FEATURE_ROWS = [
   {
     icon: Megaphone,
     title: 'Never miss a change',
-    body: 'Announcements land as push, feed, and email at once — room moves and schedule shifts reach you before you need to ask.',
+    body: 'Announcements land as push, feed, and email at once, so room moves and schedule shifts reach you before you need to ask.',
     Preview: AnnouncementsPreview,
   },
   {
@@ -156,7 +156,7 @@ export default function AppShowcasePage() {
             transition={{ duration: 0.6, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg"
           >
-            One app, tailored to who you are on Summit day — competitor,
+            One app, tailored to who you are on Summit day: competitor,
             attendee, volunteer, or judge. Sign in and it adapts.
           </motion.p>
           <motion.div

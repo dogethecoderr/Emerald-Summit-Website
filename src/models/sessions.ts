@@ -133,7 +133,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Core Science',
     duration: '60 min',
     description:
-      'From orbital mechanics to student-built model rockets — exploring beyond Earth.',
+      'From orbital mechanics to student-built model rockets, exploring beyond Earth.',
     capacity: 30,
     enrolled: 18,
     expertCapacity: 3,
@@ -189,7 +189,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Computer Science',
     duration: '60 min',
     description:
-      'Explore how vulnerabilities are found and patched — and the ethics behind disclosure.',
+      'Explore how vulnerabilities are found and patched, and the ethics behind disclosure.',
     capacity: 30,
     enrolled: 26,
     expertCapacity: 3,
@@ -246,7 +246,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Entrepreneurship',
     duration: '60 min',
     description:
-      'Stocks, compound interest, and personal finance — tools every student should know.',
+      'Stocks, compound interest, and personal finance: tools every student should know.',
     capacity: 35,
     enrolled: 19,
     expertCapacity: 3,

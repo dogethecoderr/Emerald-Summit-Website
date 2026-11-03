@@ -114,7 +114,7 @@ export const MOCK_PEOPLE: Person[] = [
     email: 'p.sharma@emeraldhigh.edu',
     phone: '(925) 555-0107',
     initials: 'PS',
-    bio: 'Sophomore in NovaSphere — fascinated by astrophysics and computational math.',
+    bio: 'Sophomore in NovaSphere, fascinated by astrophysics and computational math.',
     emailVisible: 'private',
     phoneVisible: 'private',
     status: 'checkedIn',

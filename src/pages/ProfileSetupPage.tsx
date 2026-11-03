@@ -50,7 +50,7 @@ const STEP_COPY: Record<Step, { eyebrow: string; title: string; intro: string }>
   about: {
     eyebrow: 'About you',
     title: 'Tell us a bit about yourself',
-    intro: 'Only your name and email are required — the rest helps others find and connect with you.',
+    intro: 'Add your name and contact details for your Summit profile.',
   },
   team: {
     eyebrow: 'Team',
@@ -136,6 +136,7 @@ export default function ProfileSetupPage() {
   // the profile in this browser.
   const demo = session != null && isDemoSession();
   const isStudent = profile?.role === 'participant';
+  const requiresPhone = ['volunteer', 'ambassador', 'admin'].includes(profile?.role ?? '');
   const steps: readonly Step[] = isStudent ? STUDENT_STEPS : ['about'];
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex >= steps.length - 1;
@@ -146,7 +147,7 @@ export default function ProfileSetupPage() {
   const overviewWords = useMemo(() => wordCount(projectOverview), [projectOverview]);
   const stepValid =
     step === 'about'
-      ? name.trim().length > 0 && email.length > 0 && bioWords <= BIO_WORD_LIMIT
+      ? name.trim().length > 0 && email.length > 0 && bioWords <= BIO_WORD_LIMIT && (!requiresPhone || phone.trim().length > 0)
       : step === 'project'
         ? overviewWords <= OVERVIEW_WORD_LIMIT
         : true;
@@ -256,7 +257,7 @@ export default function ProfileSetupPage() {
           <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight">
             {copy.title}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">{copy.intro}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{step === 'about' && requiresPhone ? 'Your name, email, and phone number are required for team coordination.' : copy.intro}</p>
           {demo && (
             <p className="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-[13px] text-muted-foreground">
               Demo mode: nothing on this page is saved to the Summit database.
@@ -296,11 +297,13 @@ export default function ProfileSetupPage() {
                 </p>
               </Field>
 
-              <Field id="phone" label="Phone" optional="optional, recommended for notifications">
+              <Field id="phone" label="Phone" optional={requiresPhone ? undefined : 'optional, recommended for notifications'}>
                 <IconInput icon={Phone}>
                   <Input
                     id="phone"
                     type="tel"
+                    required={requiresPhone}
+                    aria-describedby={requiresPhone ? 'phone-sharing-note' : undefined}
                     autoComplete="tel"
                     placeholder="(555) 123-4567"
                     value={phone}
@@ -308,6 +311,7 @@ export default function ProfileSetupPage() {
                     className={cn(FIELD_CLASS, 'pl-10')}
                   />
                 </IconInput>
+                {requiresPhone && <p id="phone-sharing-note" className="mt-1.5 text-[12px] text-muted-foreground">Your phone number is shared with other volunteers and admins for Summit-day coordination.</p>}
               </Field>
 
               {isStudent && (

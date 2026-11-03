@@ -13,6 +13,7 @@ import { useAuth } from './AuthContext';
 import { loadSummitContent, useSummitContent } from '../services/summitContent';
 import {
   fetchMyReservations,
+  fetchMyVolunteerAssignments,
   release,
   reserve,
   type ReservationKind,
@@ -37,8 +38,8 @@ const COUNT_FOR: Record<ReservationKind, keyof SessionCount> = {
  * The viewer's schedule: competing, judging (experts), volunteering
  * (volunteers), and spectating session ids, plus every session's seat counts.
  *
- * Signed in with Google, it's saved in session_reservations and the counts are
- * the database's (README: Saved schedules). Demo and expert sessions have no
+ * Signed in with Google, registrations and admin-assigned session_volunteers
+ * come from the shared backend. Demo and expert sessions have no
  * database credentials, so their schedule lives in this tab and the counts
  * move locally.
  */
@@ -47,7 +48,7 @@ interface ScheduleContextValue {
   setMySchedule: (ids: string[]) => void;
   expertSchedule: string[];
   setExpertSchedule: (ids: string[]) => void;
-  /** Sessions a volunteer signed up to help at. */
+  /** Sessions assigned to this volunteer by an admin. */
   volunteerSchedule: string[];
   spectating: string[];
   setSpectating: (ids: string[]) => void;
@@ -63,6 +64,9 @@ interface ScheduleContextValue {
   releaseSession: (sessionId: string) => Promise<void>;
   /** True when the schedule is saved to the database. */
   saved: boolean;
+  /** Wait for the account's saved schedule before handling an add request. */
+  loading: boolean;
+  scheduleError: string | null;
   /** The session ids held as this kind of seat. */
   listFor: (kind: ReservationKind) => string[];
 }
@@ -93,6 +97,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const [volunteerSchedule, setVolunteerSchedule] = useState<string[]>([]);
   const [spectating, setSpectating] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(Boolean(userId));
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
   // Local seat-count changes, on top of the loaded counts (local mode only).
   const [deltas, setDeltas] = useState<SessionCounts>({});
   const lists = useRef({ mySchedule, expertSchedule, volunteerSchedule, spectating });
@@ -107,17 +113,32 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     setSpectating([]);
     setDeltas({});
     setSaved(false);
+    setScheduleError(null);
+    setLoading(Boolean(userId));
     if (!userId) return;
-    fetchMyReservations().then((list) => {
-      if (!live || list == null) return;
-      setSaved(true);
-      setMySchedule(list.filter((r) => r.kind === 'competing').map((r) => r.sessionId));
-      setExpertSchedule(list.filter((r) => r.kind === 'judging').map((r) => r.sessionId));
-      setVolunteerSchedule(list.filter((r) => r.kind === 'volunteering').map((r) => r.sessionId));
-      setSpectating(list.filter((r) => r.kind === 'spectating').map((r) => r.sessionId));
-    });
+    const refresh = () => {
+      void Promise.all([fetchMyReservations(), fetchMyVolunteerAssignments()]).then(([list, assignments]) => {
+        if (!live) return;
+        if (list != null) {
+          setSaved(true);
+          setMySchedule(list.filter((r) => r.kind === 'competing').map((r) => r.sessionId));
+          setExpertSchedule(list.filter((r) => r.kind === 'judging').map((r) => r.sessionId));
+          setSpectating(list.filter((r) => r.kind === 'spectating').map((r) => r.sessionId));
+        }
+        if (assignments != null) setVolunteerSchedule(assignments);
+        setScheduleError(null);
+        setLoading(false);
+      }).catch((error: Error) => {
+        if (!live) return;
+        setScheduleError(error.message || 'We could not load your schedule.');
+        setLoading(false);
+      });
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
     return () => {
       live = false;
+      window.removeEventListener('focus', refresh);
     };
   }, [userId]);
 
@@ -172,6 +193,10 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
 
   const reserveSession = useCallback(
     async (id: string, kind: ReservationKind) => {
+      if (scheduleError) throw new Error('We could not load your saved schedule. Refresh the page before making changes.');
+      if (kind === 'volunteering' || lists.current.volunteerSchedule.includes(id)) {
+        throw new Error('Volunteer sessions are assigned by an admin.');
+      }
       const previous = kindOf(id);
       if (previous === kind) return;
       setKind(id, kind);
@@ -197,11 +222,15 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [saved, updateSessionCount],
+    [saved, updateSessionCount, scheduleError],
   );
 
   const releaseSession = useCallback(
     async (id: string) => {
+      if (scheduleError) throw new Error('We could not load your saved schedule. Refresh the page before making changes.');
+      if (lists.current.volunteerSchedule.includes(id)) {
+        throw new Error('Only an admin can remove a volunteer assignment.');
+      }
       const previous = kindOf(id);
       if (!previous) return;
       setKind(id, null);
@@ -219,7 +248,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [saved, updateSessionCount],
+    [saved, updateSessionCount, scheduleError],
   );
 
   return (
@@ -237,6 +266,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         reserveSession,
         releaseSession,
         saved,
+        loading,
+        scheduleError,
         listFor: (kind) =>
           kind === 'competing'
             ? mySchedule

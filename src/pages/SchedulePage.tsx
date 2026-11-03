@@ -1,22 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  AlertTriangle,
-  Navigation,
-  Plus,
-  Minus,
-  Eye,
-  CalendarDays,
-  Check,
-  Clock,
-  MapPin,
-  GripVertical,
-} from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { CalendarDays, Check, Clock, MapPin, Minus, ArrowRight } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
-import CapacityBar from '../components/CapacityBar';
 import TrackPill from '../components/TrackPill';
 import { TrackTag, VersePortalProvider, useOpenVerse } from '../components/verse/ExploreVerses';
 import { useTheme } from '../context/ThemeContext';
@@ -24,37 +11,37 @@ import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
-import { useSummitContent } from '../services/summitContent';
-import { USER_DISCIPLINES } from '../models/disciplines';
-import {
-  MOCK_SESSIONS,
-  TIME_SLOTS,
-  WALKING_TIME,
-  type Session,
-} from '../models/sessions';
+import { toMinutes, useSummitContent } from '../services/summitContent';
+import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-
-const FILTERS = ['All', ...USER_DISCIPLINES.map((d) => d.name)];
-
-function filterLabel(name: string): string {
-  if (name === 'All') return 'All';
-  return USER_DISCIPLINES.find((d) => d.name === name)?.label ?? name;
-}
 
 /** Router state from a track page's + button: the session to add. */
 export interface ScheduleLocationState {
   add?: string;
 }
 
-/** Lets the session cards open verse and track pages. */
+function startMinutes(session: Session): number {
+  return toMinutes(session.time);
+}
+
+function overlaps(a: Session, b: Session): boolean {
+  const startA = startMinutes(a);
+  const startB = startMinutes(b);
+  return startA < startB + (parseFloat(b.duration) || 0)
+    && startB < startA + (parseFloat(a.duration) || 0);
+}
+
 export default function SchedulePage() {
   const { profile } = useAuth();
-  const { listFor, spectating } = useSchedule();
-  const kind = ownScheduleKind(profile?.role);
-  const active = kind ? listFor(kind) : [];
+  const { mySchedule, expertSchedule, volunteerSchedule, spectating } = useSchedule();
+  const canAdd = profile?.role === 'participant' || profile?.role === 'expert' || profile?.role === 'attendee';
   return (
-    <VersePortalProvider mine={new Set([...active, ...spectating])} canSchedule={false} canAdd>
+    <VersePortalProvider
+      mine={new Set([...mySchedule, ...expertSchedule, ...volunteerSchedule, ...spectating])}
+      canSchedule={false}
+      canAdd={canAdd}
+    >
       <ScheduleBody />
     </VersePortalProvider>
   );
@@ -62,67 +49,47 @@ export default function SchedulePage() {
 
 function ScheduleBody() {
   useSummitContent();
-  const { ready, redirect } = useRequireRole(['participant', 'expert', 'volunteer']);
+  const { ready, redirect } = useRequireRole(['participant', 'expert', 'volunteer', 'ambassador', 'attendee']);
   const openVerse = useOpenVerse();
   const { profile } = useAuth();
   const roleName = profile?.role ?? 'participant';
-  const isExpert = roleName === 'expert';
-  // Volunteers (EAF ambassadors included) sign up to help run sessions.
   const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
-  const canSeeExpertCapacity = isExpert || isVolunteer;
-  const {
-    mySchedule,
-    expertSchedule,
-    volunteerSchedule,
-    spectating,
-    sessionCounts,
-    reserveSession,
-    releaseSession,
-  } = useSchedule();
-  const ownKind = isExpert ? 'judging' : isVolunteer ? 'volunteering' : 'competing';
-  /** Whether the viewer's own kind of seat is taken up in this session. */
-  const ownFull = (
-    session: Session,
-    counts: { enrolled: number; expertsEnrolled: number; volunteersEnrolled: number },
-  ) =>
-    isExpert
-      ? counts.expertsEnrolled >= session.expertCapacity
-      : isVolunteer
-        ? counts.volunteersEnrolled >= session.volunteerCapacity
-        : counts.enrolled >= session.capacity;
-  // Saves through ScheduleContext; a refusal (full, time conflict) says why.
-  const attempt = (work: Promise<void>, done?: string) =>
-    work
-      .then(() => done && toast.success(done))
-      .catch((e: Error) => toast.error(e.message));
-  const activeSchedule = isExpert ? expertSchedule : isVolunteer ? volunteerSchedule : mySchedule;
-  const [disciplineFilter, setDisciplineFilter] = useState('All');
+  const { mySchedule, expertSchedule, volunteerSchedule, spectating, sessionCounts, reserveSession, releaseSession, loading, scheduleError } = useSchedule();
+  const ownKind = ownScheduleKind(roleName) ?? 'spectating';
+  const committed = new Set([...mySchedule, ...expertSchedule, ...volunteerSchedule, ...spectating]);
   const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const handledAdd = useRef<string | null>(null);
 
-  // A track page's + lands here with { add: id }: add it under the same rules
-  // as the + on this page, then point at it in My Schedule.
   const requestedAdd = (location.state as ScheduleLocationState | null)?.add ?? null;
   useEffect(() => {
-    if (!ready || !requestedAdd || handledAdd.current === requestedAdd) return;
+    if (!ready || loading || !requestedAdd || handledAdd.current === requestedAdd) return;
     handledAdd.current = requestedAdd;
     navigate(location.pathname, { replace: true, state: null });
-
+    if (scheduleError) {
+      toast.error('We could not load your saved schedule. Refresh the page before making changes.');
+      return;
+    }
+    if (isVolunteer) {
+      toast.error('Volunteer sessions are assigned by an admin.');
+      return;
+    }
     const session = MOCK_SESSIONS.find((s) => s.id === requestedAdd);
     if (!session) return;
-    if (activeSchedule.includes(session.id) || spectating.includes(session.id)) {
+    if (committed.has(session.id)) {
       setJustAdded(session.id);
       toast(`${session.title} is already on your schedule.`);
       return;
     }
     const counts = sessionCounts[session.id] ?? session;
-    const full = ownFull(session, counts);
-    const conflict = MOCK_SESSIONS.find(
-      (s) => activeSchedule.includes(s.id) && s.time === session.time,
-    );
+    const full = ownKind === 'judging'
+      ? counts.expertsEnrolled >= session.expertCapacity
+      : ownKind === 'spectating'
+        ? counts.spectators >= session.spectatorCap
+        : counts.enrolled >= session.capacity;
+    const conflict = MOCK_SESSIONS.find((s) => committed.has(s.id) && overlaps(s, session));
     if (full) {
       toast.error(`${session.title} is full.`);
       return;
@@ -131,496 +98,85 @@ function ScheduleBody() {
       toast.error(`${session.title} conflicts with ${conflict.title} at ${session.time}.`);
       return;
     }
-    setJustAdded(session.id);
-    void attempt(
-      reserveSession(session.id, ownKind),
-      `Added ${session.title} to your schedule.`,
-    );
-  }, [ready, requestedAdd]); // eslint-disable-line react-hooks/exhaustive-deps
+    void reserveSession(session.id, ownKind).then(() => {
+      setJustAdded(session.id);
+      toast.success(`Added ${session.title} to your schedule.`);
+    }).catch((e: Error) => toast.error(e.message));
+  }, [ready, requestedAdd, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll the new entry into view, and let the highlight fade after a while.
   useEffect(() => {
     if (!justAdded) return;
-    requestAnimationFrame(() =>
-      document
-        .getElementById(`my-schedule-${justAdded}`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-    );
+    requestAnimationFrame(() => document.getElementById(`my-schedule-${justAdded}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     const timer = window.setTimeout(() => setJustAdded(null), 4000);
     return () => window.clearTimeout(timer);
   }, [justAdded]);
 
   if (redirect) return <Navigate to={redirect} replace />;
-  if (!ready) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-4 px-6 py-16">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
-    );
+  if (!ready || loading) {
+    return <div className="mx-auto max-w-3xl space-y-4 px-6 py-16"><Skeleton className="h-10 w-64" /><Skeleton className="h-64 w-full rounded-2xl" /></div>;
   }
 
-  const getConflict = (session: Session): Session | null => {
-    const competing = MOCK_SESSIONS.find(
-      (s) => activeSchedule.includes(s.id) && s.time === session.time,
-    );
-    return competing ?? null;
-  };
-
-  const getWalkWarning = (session: Session): number | null => {
-    const prevSlotIdx = TIME_SLOTS.indexOf(session.time) - 1;
-    if (prevSlotIdx < 0) return null;
-    const prevSlot = TIME_SLOTS[prevSlotIdx];
-    const prevSession = MOCK_SESSIONS.find(
-      (s) => activeSchedule.includes(s.id) && s.time === prevSlot,
-    );
-    if (!prevSession) return null;
-    const mins = WALKING_TIME[prevSession.room]?.[session.room];
-    return mins && mins >= 6 ? mins : null;
-  };
-
-  const toggle = (id: string) => {
-    void attempt(
-      activeSchedule.includes(id) ? releaseSession(id) : reserveSession(id, ownKind),
-    );
-  };
-
-  const toggleSpectate = (id: string) => {
-    void attempt(
-      spectating.includes(id) ? releaseSession(id) : reserveSession(id, 'spectating'),
-    );
-  };
-
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    
-    if (result.destination.droppableId === 'my-schedule') {
-      const sessionId = result.draggableId;
-      const session = MOCK_SESSIONS.find((s) => s.id === sessionId);
-      if (!session) return;
-      
-      const isAdded = activeSchedule.includes(session.id);
-      const isSpec = spectating.includes(session.id);
-      const conflict = !isAdded && getConflict(session);
-      const full = ownFull(session, sessionCounts[session.id] ?? session);
-      
-      if (!isAdded && !isSpec && !full && !conflict) {
-        toggle(session.id);
-      }
-    }
-  };
-
-  const added = MOCK_SESSIONS.filter(
-    (s) => activeSchedule.includes(s.id) || spectating.includes(s.id),
-  ).sort((a, b) => TIME_SLOTS.indexOf(a.time) - TIME_SLOTS.indexOf(b.time));
-
-  const filteredSessions =
-    disciplineFilter === 'All'
-      ? MOCK_SESSIONS
-      : MOCK_SESSIONS.filter(
-          (s) => s.track === disciplineFilter || s.track === 'keynote',
-        );
+  const added = MOCK_SESSIONS.filter((s) => committed.has(s.id)).sort((a, b) => startMinutes(a) - startMinutes(b));
 
   return (
     <AppShell>
-      <PageHeader
-        label="Emerald High School · Dublin, CA"
-        title={
-          isExpert
-            ? 'Choose Sessions to Judge'
-            : isVolunteer
-              ? 'Pick Sessions to Volunteer At'
-              : 'Build Your Schedule'
-        }
-      />
-
-      {/* discipline filters */}
-      <div className="scrollbar-none mb-6 flex gap-1.5 overflow-x-auto pb-1">
-        {FILTERS.map((f) => {
-          const active = disciplineFilter === f;
-          const color =
-            f === 'All'
-              ? undefined
-              : USER_DISCIPLINES.find((d) => d.name === f)?.color;
-          return (
-            <button
-              key={f}
-              onClick={() => setDisciplineFilter(f)}
-              className={cn(
-                'shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
-                active
-                  ? 'bg-emerald text-white'
-                  : 'bg-secondary/60 text-muted-foreground hover:bg-accent hover:text-foreground',
-              )}
-              style={
-                active && color ? { background: color, color: '#fff' } : undefined
-              }
-            >
-              {filterLabel(f)}
-            </button>
-          );
-        })}
+      <PageHeader label="Emerald High School · Dublin, CA" title="My Schedule" />
+      {scheduleError && <p role="alert" className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">We could not load your saved schedule. Refresh this page to retry.</p>}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{added.length} session{added.length !== 1 ? 's' : ''}{isVolunteer ? ' · Volunteer sessions are assigned by an admin.' : ''}</p>
+        <Link to="/verses" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald hover:underline">Browse sessions <ArrowRight className="h-4 w-4" /></Link>
       </div>
-
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          {/* session browser */}
-          <Droppable droppableId="browser" isDropDisabled={true}>
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="space-y-8"
-              >
-                {TIME_SLOTS.map((slot) => {
-                  const slotSessions = filteredSessions.filter((s) => s.time === slot);
-                  if (slotSessions.length === 0) return null;
-                  
-                  return (
-                    <div key={slot}>
-                      <div className="mb-3 flex items-center gap-3">
-                        <span className="font-display text-sm font-semibold text-emerald-mint">
-                          {slot}
-                        </span>
-                        <div className="h-px flex-1 bg-border/70" />
-                      </div>
-                      <div className="space-y-3">
-                        {slotSessions.map((s) => {
-                          const counts = sessionCounts[s.id] ?? s;
-                          const globalIndex = filteredSessions.indexOf(s);
-                          const isAdded = activeSchedule.includes(s.id);
-                          const isSpectating = spectating.includes(s.id);
-                          const conflict = !isAdded && getConflict(s);
-                          const walkWarn = getWalkWarning(s);
-                          const full = counts.enrolled >= s.capacity;
-                          const expertFull = counts.expertsEnrolled >= s.expertCapacity;
-                          const spectatorFull = counts.spectators >= s.spectatorCap;
-                          const near = !full && counts.enrolled / s.capacity >= 0.8;
-                          const volunteerFull = counts.volunteersEnrolled >= s.volunteerCapacity;
-                          const capacityFull = isExpert ? expertFull : isVolunteer ? volunteerFull : full;
-                          const isDragDisabled =
-                            isAdded || isSpectating || capacityFull || !!conflict;
-                          const keynote = s.track === 'keynote';
-                          const accent = vibeFor(keynote ? null : s.track, theme).accent;
-                          // The card opens its track's page; its own buttons
-                          // and the drag handle keep their jobs.
-                          const openTrack = (e: React.MouseEvent<HTMLElement>) => {
-                            if (keynote) return;
-                            if ((e.target as HTMLElement).closest('button, [data-rfd-drag-handle-draggable-id]')) return;
-                            openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName);
-                          };
-
-                          return (
-                            <Draggable
-                              key={s.id}
-                              draggableId={s.id}
-                              index={globalIndex}
-                              isDragDisabled={isDragDisabled}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  onClick={openTrack}
-                                  className={cn(
-                                    'glass rounded-2xl p-4 transition-all sm:p-5',
-                                    !keynote && 'cursor-pointer hover:-translate-y-0.5',
-                                    isAdded && 'ring-1 ring-emerald-glow/50',
-                                    isSpectating && 'ring-1 ring-amber-400/50',
-                                    snapshot.isDragging && 'shadow-2xl scale-[1.02] z-50 ring-2 ring-emerald opacity-95',
-                                    isDragDisabled && !isAdded && !isSpectating && 'opacity-70 grayscale-[0.3]'
-                                  )}
-                                  style={{
-                                    ...provided.draggableProps.style,
-                                    background: `linear-gradient(120deg, ${rgba(accent, 0.22)}, ${rgba(accent, 0.06)} 65%), hsl(var(--card))`,
-                                    borderColor: rgba(accent, 0.3),
-                                    // A border, not a box-shadow, so the added
-                                    // and spectating rings still show.
-                                    borderLeft: `4px solid ${accent}`,
-                                  }}
-                                >
-                                  {conflict && (
-                                    <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400">
-                                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>
-                                        Conflicts with <strong>{conflict.title}</strong>
-                                      </span>
-                                    </div>
-                                  )}
-                                  {walkWarn && (
-                                    <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400">
-                                      <Navigation className="h-3.5 w-3.5 shrink-0" />
-                                      {walkWarn} min walk from your previous session
-                                    </div>
-                                  )}
-
-                                  <div className="flex gap-4">
-                                    {!isDragDisabled && (
-                                      <div
-                                        {...provided.dragHandleProps}
-                                        className="flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-                                      >
-                                        <GripVertical className="h-5 w-5" />
-                                      </div>
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                      <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                        {s.track === 'keynote' ? (
-                                          <TrackPill track={s.track} />
-                                        ) : (
-                                          <TrackTag verse={s.track} track={s.trackName} />
-                                        )}
-                                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                                          <Clock className="h-3 w-3" /> {s.duration}
-                                        </span>
-                                        {full && (
-                                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                                            Full
-                                          </span>
-                                        )}
-                                        {isExpert && expertFull && (
-                                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                                            Expert spots full
-                                          </span>
-                                        )}
-                                        {isVolunteer && volunteerFull && (
-                                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
-                                            Volunteer spots full
-                                          </span>
-                                        )}
-                                        {near && (
-                                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
-                                            Nearly full
-                                          </span>
-                                        )}
-                                      </div>
-                                      <h3 className="text-[15px] font-semibold leading-snug">
-                                        {keynote ? (
-                                          s.title
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={(e) => openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName)}
-                                            className="text-left transition-colors hover:underline"
-                                            style={{ textDecorationColor: accent }}
-                                          >
-                                            {s.title}
-                                          </button>
-                                        )}
-                                      </h3>
-                                      <div className="mt-0.5 text-xs text-muted-foreground">
-                                        {s.speaker}
-                                      </div>
-                                      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-                                        {s.description}
-                                      </p>
-                                      <div className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium" style={{ color: accent }}>
-                                        <MapPin className="h-3 w-3" /> {s.location}
-                                      </div>
-                                      <CapacityBar
-                                        enrolled={counts.enrolled}
-                                        capacity={s.capacity}
-                                        label="Competitor seats"
-                                      />
-                                      {canSeeExpertCapacity && (
-                                        <CapacityBar
-                                          enrolled={counts.expertsEnrolled}
-                                          capacity={s.expertCapacity}
-                                          label="Expert spots"
-                                        />
-                                      )}
-                                      {s.spectatorCap > 0 && (
-                                        <CapacityBar
-                                          enrolled={counts.spectators}
-                                          capacity={s.spectatorCap}
-                                          label="Spectator seats"
-                                        />
-                                      )}
-                                      {isVolunteer && s.volunteerCapacity > 0 && (
-                                        <CapacityBar
-                                          enrolled={counts.volunteersEnrolled}
-                                          capacity={s.volunteerCapacity}
-                                          label="Volunteer spots"
-                                        />
-                                      )}
-                                    </div>
-
-                                    <div className="flex shrink-0 flex-col gap-2">
-                                      <button
-                                        onClick={() => toggle(s.id)}
-                                        disabled={!isAdded && (capacityFull || !!conflict)}
-                                        title={
-                                          isAdded
-                                            ? 'Remove'
-                                            : capacityFull
-                                              ? isExpert
-                                                ? 'Expert spots full'
-                                                : isVolunteer
-                                                  ? 'Volunteer spots full'
-                                                  : 'Session full'
-                                              : conflict
-                                                ? 'Time conflict'
-                                                : isExpert
-                                                  ? 'Sign up as expert'
-                                                  : isVolunteer
-                                                    ? 'Volunteer at this session'
-                                                    : 'Add as competitor'
-                                        }
-                                        className={cn(
-                                          'flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-35',
-                                          // Every add-to-schedule + in the app is
-                                          // dark green with a white +.
-                                          isAdded
-                                            ? 'border-transparent bg-emerald text-white hover:bg-emerald-deep'
-                                            : 'border-transparent bg-emerald-deep text-white hover:bg-emerald',
-                                        )}
-                                      >
-                                        {isAdded ? (
-                                          <Minus className="h-4 w-4" />
-                                        ) : (
-                                          <Plus className="h-4 w-4" />
-                                        )}
-                                      </button>
-                                      {s.spectatorCap > 0 && !isAdded && !isVolunteer && (
-                                        <button
-                                          onClick={() => toggleSpectate(s.id)}
-                                          disabled={
-                                            !isSpectating && (spectatorFull || !!conflict)
-                                          }
-                                          title={
-                                            isSpectating
-                                              ? 'Remove spectator spot'
-                                              : spectatorFull
-                                                ? 'Spectator seats full'
-                                                : 'Attend as spectator'
-                                          }
-                                          className={cn(
-                                            'flex h-9 w-9 items-center justify-center rounded-lg border transition-all disabled:cursor-not-allowed disabled:opacity-35',
-                                            isSpectating
-                                              ? 'border-transparent bg-amber-500 text-white hover:bg-amber-600'
-                                              : 'border-border bg-secondary/50 text-foreground hover:border-amber-400/50 hover:text-amber-400',
-                                          )}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-
-          {/* my schedule summary */}
-          <Droppable droppableId="my-schedule">
-            {(provided, snapshot) => (
-              <aside
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={cn(
-                  "glass sticky top-10 rounded-2xl p-5 transition-all duration-300",
-                  snapshot.isDraggingOver && "ring-2 ring-emerald bg-emerald/5"
-                )}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-mint/80">
-                      {isExpert ? 'Expert Signups' : isVolunteer ? 'My Volunteer Shifts' : 'My Schedule'}
-                    </div>
-                    <div className="font-display text-lg font-semibold">
-                      {added.length} session{added.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-
-                {added.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-10 text-center">
-                    <CalendarDays className="h-8 w-8 text-muted-foreground/60" />
-                    <div className="text-sm font-medium">No sessions added yet.</div>
-                      <div className="text-xs text-muted-foreground">
-                      Drag sessions here or use{' '}
-                      {isExpert
-                        ? 'the award button to sign up as an expert.'
-                        : isVolunteer
-                          ? '+ to volunteer.'
-                          : '+ to compete.'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {added.map((s) => {
-                      const isSpec = spectating.includes(s.id);
-                      // Keynotes take the house emerald; the rest their verse.
-                      const accent = vibeFor(s.track === 'keynote' ? null : s.track, theme).accent;
-                      return (
-                        <div
-                          key={s.id}
-                          id={`my-schedule-${s.id}`}
-                          className={cn(
-                            'flex items-start gap-2 rounded-xl border p-3 pl-3.5 transition-shadow duration-500',
-                            justAdded === s.id && 'ring-2 ring-emerald ring-offset-2 ring-offset-background',
-                          )}
-                          style={{
-                            background: `linear-gradient(90deg, ${rgba(accent, 0.16)}, ${rgba(accent, 0.05)})`,
-                            borderColor: rgba(accent, 0.3),
-                            boxShadow: `inset 3px 0 0 ${accent}`,
-                          }}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-bold" style={{ color: accent }}>
-                                {s.time}
-                              </span>
-                              {isSpec && (
-                                <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-400">
-                                  Spectating
-                                </span>
-                              )}
-                              {justAdded === s.id && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald">
-                                  <Check className="h-2.5 w-2.5" strokeWidth={3} /> Added
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-0.5 truncate text-[13px] font-semibold">
-                              {s.title}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {s.location}
-                            </div>
-                            {s.track !== 'keynote' && (
-                              <div className="mt-1.5">
-                                <TrackTag verse={s.track} track={s.trackName} />
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => (isSpec ? toggleSpectate(s.id) : toggle(s.id))}
-                            aria-label="Remove"
-                            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-red-400"
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                {provided.placeholder}
-              </aside>
-            )}
-          </Droppable>
+      {added.length === 0 && !scheduleError ? (
+        <div className="glass flex flex-col items-center gap-3 rounded-2xl px-6 py-16 text-center">
+          <CalendarDays className="h-9 w-9 text-muted-foreground/60" />
+          <h2 className="text-lg font-semibold">No sessions on your schedule yet.</h2>
+          <p className="text-sm text-muted-foreground">{isVolunteer ? 'Your sessions will appear here when an admin assigns them.' : 'Explore the verses to find sessions and add them to your day.'}</p>
+          <Link to="/verses" className="mt-2 rounded-xl bg-emerald px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-deep">Explore the verses</Link>
         </div>
-      </DragDropContext>
+      ) : (
+        <div className="space-y-4">
+          {added.map((s) => {
+            const managing = volunteerSchedule.includes(s.id);
+            const isSpec = !managing && spectating.includes(s.id);
+            const label = managing ? 'Managing' : isSpec ? 'Spectating' : expertSchedule.includes(s.id) ? 'Expert' : 'Participating';
+            const keynote = s.track === 'keynote';
+            const accent = vibeFor(keynote ? null : s.track, theme).accent;
+            return (
+              <article
+                key={s.id}
+                id={`my-schedule-${s.id}`}
+                className={cn('glass rounded-2xl border p-4 sm:p-5', justAdded === s.id && 'ring-2 ring-emerald ring-offset-2 ring-offset-background')}
+                style={{ background: `linear-gradient(120deg, ${rgba(accent, 0.22)}, ${rgba(accent, 0.06)} 65%), hsl(var(--card))`, borderColor: rgba(accent, 0.3), borderLeft: `4px solid ${accent}` }}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-bold" style={{ color: accent }}>{s.time}</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold">{label}</span>
+                      {justAdded === s.id && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald"><Check className="h-3 w-3" /> Added</span>}
+                    </div>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      {keynote ? <TrackPill track={s.track} /> : <TrackTag verse={s.track} track={s.trackName} />}
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {s.duration}</span>
+                    </div>
+                    <h2 className="text-base font-semibold">{keynote ? s.title : <button type="button" className="text-left hover:underline" onClick={(e) => openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName)}>{s.title}</button>}</h2>
+                    {s.speaker && <p className="mt-1 text-xs text-muted-foreground">{s.speaker}</p>}
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.description}</p>
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium" style={{ color: accent }}><MapPin className="h-3 w-3" /> {s.location}</p>
+                  </div>
+                  {!managing && <button
+                    type="button"
+                    aria-label={`Remove ${s.title} from schedule`}
+                    title="Remove from schedule"
+                    className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-red-400"
+                    onClick={() => void releaseSession(s.id).catch((e: Error) => toast.error(e.message))}
+                  ><Minus className="h-4 w-4" /></button>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </AppShell>
   );
 }

@@ -4,12 +4,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { useSchedule } from './ScheduleContext';
+import { MOCK_SESSIONS } from '../models/sessions';
+import { canEditVerse, useSummitContent } from '../services/summitContent';
 import {
   createAnnouncement,
+  announcementsForUser,
   deleteAnnouncement,
   canPublishRemotely,
   fetchAnnouncements,
@@ -74,12 +79,27 @@ const AnnouncementsContext = createContext<AnnouncementsContextValue | undefined
 
 export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
+  const contentVersion = useSummitContent();
+  const { mySchedule, expertSchedule, spectating } = useSchedule();
   // Empty until the feed loads; there are no sample posts for real users.
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [storedAnnouncements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const userId = profile?.id;
+  const [feedUserId, setFeedUserId] = useState(userId);
+  const announcements = useMemo(() => {
+    if (feedUserId !== userId) return [];
+    const registered = new Set([...mySchedule, ...expertSchedule, ...spectating]);
+    const disciplines = new Set(MOCK_SESSIONS.filter((s) => registered.has(s.id)).map((s) => s.track));
+    return announcementsForUser(storedAnnouncements, {
+      userId,
+      registeredDisciplines: disciplines,
+      canManageDiscipline: (id) => canEditVerse(profile, id),
+    });
+  }, [storedAnnouncements, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion]);
+  const activeUser = useRef(userId);
+  activeUser.current = userId;
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));
 
   // Switching accounts loads that account's read state.
@@ -117,31 +137,35 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const result = await fetchAnnouncements();
+      const remotelyWritable = result.source === 'remote' && !result.error &&
+        isBackendConfigured() && (await canPublishRemotely());
+      if (activeUser.current !== userId) return;
+      setFeedUserId(userId);
       setAnnouncements(sortAnnouncements(result.announcements));
       setError(result.error ?? null);
       // Live means a post will actually reach other people: the feed is
       // served remotely and this admin has real credentials behind it.
-      setLive(
-        result.source === 'remote' &&
-          isBackendConfigured() &&
-          (await canPublishRemotely()),
-      );
+      setLive(remotelyWritable);
     } catch (err: any) {
+      if (activeUser.current !== userId) return;
       setError(err?.message ?? 'Could not load announcements');
       setLive(false);
     } finally {
-      setLoading(false);
+      if (activeUser.current === userId) setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
+    setFeedUserId(userId);
+    setAnnouncements([]);
+    setLoading(true);
     void refresh();
     // Every admin write anywhere lands here, which is what keeps a new post
     // visible on other people's screens without a reload.
     return subscribeToAnnouncements(() => {
       void refresh();
     });
-  }, [refresh]);
+  }, [refresh, userId]);
 
   const create = useCallback(
     async (draft: AnnouncementDraft) => {

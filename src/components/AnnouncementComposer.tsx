@@ -201,7 +201,7 @@ export default function AnnouncementComposer({
             <span>
               {configured
                 ? "Local bypass sign-in has no credentials to publish with. Sign in with a real admin account to post to everyone; uploads stay in memory until then."
-                : 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to publish to other devices. Uploaded files are previewed from memory and won\'t persist.'}
+                : 'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to publish to other devices. Uploaded files are previewed from memory and won\'t persist.'}
             </span>
           </div>
         )}
@@ -229,7 +229,7 @@ export default function AnnouncementComposer({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+            {!configured && <div className="space-y-1.5">
               <Label>Category</Label>
               <Select
                 value={draft.category}
@@ -248,9 +248,9 @@ export default function AnnouncementComposer({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
 
-            <div className="space-y-1.5">
+            {!configured && <div className="space-y-1.5">
               <Label>Audience</Label>
               <Select
                 value={draft.audience}
@@ -267,7 +267,7 @@ export default function AnnouncementComposer({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div>}
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/70 bg-secondary/30 px-3 py-2.5">
@@ -356,7 +356,7 @@ export default function AnnouncementComposer({
                 {dragging ? 'Drop to attach' : 'Drag files here, or click to browse'}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Images, video, audio, PDFs and documents · up to 100 MB each
+                Images, video, audio, PDFs and documents · up to 10 MB each
               </p>
               <input
                 ref={fileInput}

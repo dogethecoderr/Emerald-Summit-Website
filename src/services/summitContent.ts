@@ -1,11 +1,4 @@
-// Tracks and sessions, editable in the app by admins and by ambassadors for
-// their verses (README: Editing tracks and sessions).
-//
-// The bundled lists in src/models (TRACKS, UNIVERSE_TRACKS, MOCK_SESSIONS) are
-// the live store: loadSummitContent() replaces their contents in place with
-// the summit_tracks / summit_sessions tables, and every edit updates them the
-// same way. Everything that already reads those lists keeps working; a
-// component that should re-render on a change calls useSummitContent().
+// Shared mobile catalog, exposed through the existing website model lists.
 import { useSyncExternalStore } from 'react';
 import { supabase } from '../lib/supabase';
 import { disciplineByName } from '../models/disciplines';
@@ -14,7 +7,6 @@ import {
   TRACKS,
   UNIVERSE_TRACKS,
   slugify,
-  type TrackFormat,
   type TrackInfo,
 } from '../models/tracks';
 import { getBypassSession, type Profile } from './auth';
@@ -61,83 +53,114 @@ function replaceSessions(next: Session[]) {
 // Rows
 // ---------------------------------------------------------------------------
 
-interface TrackRow {
-  verse: string;
+/** The shared mobile backend owns this catalog; there is no separate tracks table. */
+interface DisciplineRow {
+  id: string;
   name: string;
-  about: string;
-  ideas: string[];
-  formats: string[];
-  sort_order: number;
+  tagline: string;
 }
 
 interface SessionRow {
   id: string;
-  verse: string;
-  track_name: string | null;
+  discipline_id: string;
   title: string;
-  speaker: string;
-  time_slot: string;
-  duration: string;
-  location: string;
+  track: string;
+  expert_name: string;
+  start_time: string;
+  end_time: string;
   room: string;
   description: string;
   capacity: number;
   enrolled: number;
-  expert_capacity: number;
-  experts_enrolled: number;
-  spectator_cap: number;
-  spectators: number;
-  // Absent until the volunteer_spots migration runs.
-  volunteer_capacity?: number;
-  volunteers_enrolled?: number;
 }
 
-const trackFromRow = (r: TrackRow): TrackInfo => ({
-  verse: r.verse,
-  name: r.name,
-  slug: slugify(r.name),
-  about: r.about,
-  ideas: r.ideas ?? [],
-  formats: (r.formats ?? []) as TrackFormat[],
-});
+export function usesSharedBackend(): boolean {
+  return supabase !== null;
+}
+
+export function toMinutes(time: string): number {
+  const match = /^(\d{1,2}):(\d{2})(?:[:.]\d+)?(?:\s*([AP]M))?$/i.exec(time.trim());
+  if (!match) return NaN;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (minute > 59 || (match[3] ? hour < 1 || hour > 12 : hour > 23)) return NaN;
+  if (match[3]) hour = hour % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+  return hour * 60 + minute;
+}
+
+function clockTime(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+function displayTime(time: string): string {
+  const minutes = toMinutes(time);
+  const hour = Math.floor(minutes / 60);
+  return `${hour % 12 || 12}:${String(minutes % 60).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
 
 const sessionFromRow = (r: SessionRow): Session => ({
   id: r.id,
-  track: r.verse,
-  trackName: r.track_name ?? undefined,
+  track: r.discipline_id,
+  trackName: r.track || r.title,
   title: r.title,
-  speaker: r.speaker,
-  time: r.time_slot,
-  duration: r.duration,
-  location: r.location,
+  speaker: r.expert_name,
+  time: displayTime(r.start_time),
+  duration: `${Math.max(0, toMinutes(r.end_time) - toMinutes(r.start_time))} min`,
+  location: r.room,
   room: r.room,
   description: r.description,
   capacity: r.capacity,
   enrolled: r.enrolled,
-  expertCapacity: r.expert_capacity,
-  expertsEnrolled: r.experts_enrolled,
-  spectatorCap: r.spectator_cap,
-  spectators: r.spectators,
-  volunteerCapacity: r.volunteer_capacity ?? 2,
-  volunteersEnrolled: r.volunteers_enrolled ?? 0,
+  // The shared backend counts participants, spectators, and experts against
+  // one capacity. It has no separate expert/spectator/volunteer seat quotas.
+  expertCapacity: r.capacity,
+  expertsEnrolled: r.enrolled,
+  spectatorCap: r.capacity,
+  spectators: r.enrolled,
+  volunteerCapacity: 0,
+  volunteersEnrolled: 0,
 });
 
-/**
- * Swaps the bundled lists for the database's. With no backend, or before the
- * summit_tracks_sessions migration runs, the bundled lists stay.
- */
+/** Read the same disciplines and session view as the mobile app. */
 export async function loadSummitContent(): Promise<void> {
   if (!supabase) return;
-  const [tracks, sessions] = await Promise.all([
-    supabase.from('summit_tracks').select('*').order('sort_order').order('name'),
-    supabase.from('summit_sessions').select('*'),
+  if (source === 'bundle') {
+    replaceTracks([]);
+    replaceSessions([]);
+    source = 'database';
+    changed();
+  }
+  const [disciplines, sessions] = await Promise.all([
+    supabase.from('disciplines').select('*').order('sort_order', { ascending: true }),
+    supabase.from('sessions_with_counts').select('*').order('start_time', { ascending: true }),
   ]);
-  if (tracks.error || sessions.error) {
-    console.warn('Using the bundled tracks and sessions.', tracks.error ?? sessions.error);
+  if (disciplines.error || sessions.error) {
+    console.warn('Could not load Summit sessions.', disciplines.error ?? sessions.error);
+    // A configured shared backend must never present sample seats as live data.
+    replaceTracks([]);
+    replaceSessions([]);
+    source = 'database';
+    changed();
     return;
   }
-  replaceTracks((tracks.data as TrackRow[]).map(trackFromRow));
-  replaceSessions((sessions.data as SessionRow[]).map(sessionFromRow));
+  const rows = (sessions.data ?? []) as SessionRow[];
+  const names = new Set(((disciplines.data ?? []) as DisciplineRow[]).map((d) => d.id));
+  const mapped = rows.filter((r) => names.has(r.discipline_id)).map(sessionFromRow);
+  const tracks = new Map<string, TrackInfo>();
+  for (const session of mapped) {
+    const name = session.trackName!;
+    const key = `${session.track}:${name}`;
+    if (!tracks.has(key)) tracks.set(key, {
+      verse: session.track,
+      name,
+      slug: slugify(name),
+      about: session.description,
+      ideas: [],
+      formats: [],
+    });
+  }
+  replaceTracks([...tracks.values()]);
+  replaceSessions(mapped);
   source = 'database';
   changed();
 }
@@ -193,24 +216,28 @@ export type SessionInput = Omit<
 >;
 
 function sessionColumns(s: SessionInput) {
+  const start = toMinutes(s.time);
+  const durationMatch = /^(\d+)\s*(?:min(?:utes?)?)?$/i.exec(s.duration.trim());
+  const duration = durationMatch ? Number(durationMatch[1]) : 0;
+  if (!Number.isFinite(start) || duration <= 0 || start + duration >= 24 * 60) {
+    throw new Error('Use a valid start time and a positive length in minutes.');
+  }
+  if (!Number.isInteger(s.capacity) || s.capacity <= 0) {
+    throw new Error('Capacity must be a positive number.');
+  }
+  // Room fields stay out while rooms are locked, matching the mobile editor.
   return {
-    verse: s.track,
-    track_name: s.trackName || null,
+    discipline_id: s.track,
     title: s.title.trim(),
-    speaker: s.speaker.trim(),
-    time_slot: s.time,
-    duration: s.duration.trim(),
-    location: s.location.trim(),
-    room: s.room.trim(),
+    expert_name: s.speaker.trim(),
+    start_time: clockTime(start),
+    end_time: clockTime(start + duration),
     description: s.description.trim(),
     capacity: s.capacity,
-    expert_capacity: s.expertCapacity,
-    spectator_cap: s.spectatorCap,
-    volunteer_capacity: s.volunteerCapacity,
   };
 }
 
-const newSessionId = () => `s-${Math.random().toString(36).slice(2, 12)}`;
+const newSessionId = () => crypto.randomUUID();
 
 /** Creates a session, or updates the one with `id`. */
 export async function saveSession(input: SessionInput, id?: string): Promise<SaveResult> {
@@ -235,7 +262,7 @@ export async function saveSession(input: SessionInput, id?: string): Promise<Sav
     changed();
     return 'local';
   }
-  const table = supabase!.from('summit_sessions');
+  const table = supabase!.from('sessions');
   check(
     id
       ? await table.update(sessionColumns(input)).eq('id', id).select('id').single()
@@ -251,7 +278,7 @@ export async function deleteSession(id: string): Promise<SaveResult> {
     changed();
     return 'local';
   }
-  check(await supabase!.from('summit_sessions').delete().eq('id', id).select('id').single());
+  check(await supabase!.from('sessions').delete().eq('id', id).select('id').single());
   await loadSummitContent();
   return 'saved';
 }
@@ -296,29 +323,7 @@ export async function saveTrack(input: TrackInput, originalName?: string): Promi
     return 'local';
   }
 
-  const columns = {
-    verse: cleaned.verse,
-    name: cleaned.name,
-    about: cleaned.about,
-    ideas: cleaned.ideas,
-    formats: cleaned.formats,
-  };
-  const table = supabase!.from('summit_tracks');
-  if (originalName) {
-    check(
-      await table
-        .update(columns)
-        .eq('verse', input.verse)
-        .eq('name', originalName)
-        .select('name')
-        .single(),
-    );
-  } else {
-    const last = TRACKS.filter((t) => t.verse === input.verse).length;
-    check(await table.insert({ ...columns, sort_order: 1000 + last }).select('name').single());
-  }
-  await loadSummitContent();
-  return 'saved';
+  throw new Error('Tracks are sessions in the Summit database. Edit the session instead.');
 }
 
 /** Deletes a track. One that still has sessions can't be deleted. */
@@ -331,15 +336,5 @@ export async function deleteTrack(verse: string, name: string): Promise<SaveResu
     changed();
     return 'local';
   }
-  check(
-    await supabase!
-      .from('summit_tracks')
-      .delete()
-      .eq('verse', verse)
-      .eq('name', name)
-      .select('name')
-      .single(),
-  );
-  await loadSummitContent();
-  return 'saved';
+  throw new Error('Tracks are sessions in the Summit database. Delete the session instead.');
 }

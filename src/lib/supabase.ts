@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 /**
  * Null when the environment is not configured.
@@ -13,7 +13,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  * the real sign-in paths check for null and say what is missing.
  */
 export const supabase: SupabaseClient | null =
-  url && anonKey ? createClient(url, anonKey) : null;
+  url && publishableKey ? createClient(url, publishableKey) : null;
 
 /** True when real (non-bypass) auth can actually be attempted. */
 export const isSupabaseConfigured = supabase !== null;
