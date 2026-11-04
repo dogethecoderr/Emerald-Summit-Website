@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -11,19 +11,17 @@ import {
   Megaphone,
   QrCode,
   Settings,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { MOCK_SESSIONS, TIME_SLOTS, type Session } from '../models/sessions';
+import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
-import { useSummitContent } from '../services/summitContent';
+import { toMinutes, useSummitContent } from '../services/summitContent';
 import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
 import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
-import QrPassModal from '../components/QrPassModal';
 import ExploreVerses, {
   trackCount,
   VersePortalProvider,
@@ -60,8 +58,8 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
   volunteer: [
     {
       to: '/schedule',
-      label: 'Pick sessions to volunteer at',
-      sub: 'Sign up for volunteer spots',
+      label: 'View assigned sessions',
+      sub: 'Sessions assigned by an admin',
       icon: CalendarDays,
     },
     {
@@ -91,10 +89,9 @@ interface AgendaItem {
 }
 
 const QUICK_LINKS: QuickAction[] = [
-  { to: '/directory', label: 'Directory', sub: 'Find experts & teams', icon: Users },
   { to: '/resources', label: 'Resources', sub: 'Rubrics, guides, files', icon: FolderOpen },
   { to: '/announcements', label: 'Announcements', sub: 'News & schedule changes', icon: Megaphone },
-  { to: '/settings', label: 'Settings', sub: 'Profile & preferences', icon: Settings },
+  { to: '/account', label: 'Profile', sub: 'QR pass & preferences', icon: Settings },
 ];
 
 function greetingFor(date: Date) {
@@ -193,7 +190,6 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { listFor, spectating } = useSchedule();
   const { announcements, canManage, isUnread, markRead } = useAnnouncements();
-  const [qrPassOpen, setQrPassOpen] = useState(false);
 
   const isSignedIn = session != null;
 
@@ -215,6 +211,24 @@ export default function HomePage() {
     return <RolesPage />;
   }
 
+  if (profile?.role === 'expert' && profile.expert_status !== 'approved') {
+    return (
+      <AppShell>
+        <section className="glass mx-auto max-w-xl rounded-3xl p-8">
+          <h1 className="font-display text-2xl font-bold">
+            {profile.expert_status === 'declined' ? 'Expert application declined' : 'Awaiting approval'}
+          </h1>
+          <p className="mt-3 text-muted-foreground">
+            {profile.expert_status === 'declined'
+              ? 'Your expert application was declined. Contact the Summit team if you have questions.'
+              : 'An admin needs to approve your expert application before you can register as an expert.'}
+          </p>
+          <button type="button" onClick={() => navigate('/account')} className="mt-5 rounded-[10px] bg-emerald px-4 py-2 text-sm font-semibold text-white">View profile</button>
+        </section>
+      </AppShell>
+    );
+  }
+
   const name = (profile?.name as string | undefined) ?? 'User';
   const firstName = name.split(/\s+/)[0];
   const roleName = (profile?.role as string | undefined) ?? 'participant';
@@ -226,7 +240,7 @@ export default function HomePage() {
 
   const ownIds = ownKind ? listFor(ownKind) : [];
   const scheduleLabel =
-    ownKind === 'volunteering' ? 'Pick sessions to volunteer at' : 'Build your schedule';
+    ownKind === 'volunteering' ? 'View assigned sessions' : 'Browse sessions';
   const ownLabel: AgendaKind =
     ownKind === 'judging' ? 'Judging' : ownKind === 'volunteering' ? 'Volunteering' : 'Competing';
   const agenda: AgendaItem[] = MOCK_SESSIONS.filter(
@@ -238,11 +252,12 @@ export default function HomePage() {
     }))
     .sort(
       (a, b) =>
-        TIME_SLOTS.indexOf(a.session.time) - TIME_SLOTS.indexOf(b.session.time),
+        toMinutes(a.session.time) - toMinutes(b.session.time),
     );
   const mine = new Set([...ownIds, ...spectating]);
   const next = agenda[0];
-  const slotIndex = next ? TIME_SLOTS.indexOf(next.session.time) : -1;
+  const daySlots = [...new Set(MOCK_SESSIONS.map((s) => s.time))].sort((a, b) => toMinutes(a) - toMinutes(b));
+  const slotIndex = next ? daySlots.indexOf(next.session.time) : -1;
 
   const actions = QUICK_ACTIONS[roleName] ?? [];
   const primaryAction = actions[0];
@@ -254,7 +269,7 @@ export default function HomePage() {
   const stats = [
     {
       label: 'Next up',
-      value: next ? next.session.time : '—',
+      value: next ? next.session.time : 'None yet',
       sub: next ? next.session.location : 'Nothing scheduled yet',
       icon: Clock,
     },
@@ -272,7 +287,7 @@ export default function HomePage() {
 
   return (
     <AppShell>
-      <VersePortalProvider mine={mine} canSchedule={canSchedule}>
+      <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd={['participant', 'expert', 'attendee'].includes(roleName)}>
       {/* hero */}
       <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
         <div
@@ -332,7 +347,7 @@ export default function HomePage() {
                     {next.session.location} · {next.session.duration}
                   </div>
                   <div className="mt-4 flex gap-1" aria-hidden>
-                    {TIME_SLOTS.map((t, i) => (
+                    {daySlots.map((t, i) => (
                       <span
                         key={t}
                         className={cn(
@@ -343,7 +358,7 @@ export default function HomePage() {
                     ))}
                   </div>
                   <div className="mt-2 text-[11.5px] text-white/60">
-                    Time slot {slotIndex + 1} of {TIME_SLOTS.length}
+                    Time slot {slotIndex + 1} of {daySlots.length}
                   </div>
                 </>
               ) : (
@@ -355,7 +370,7 @@ export default function HomePage() {
                     {ownKind === 'volunteering' ? 'No shifts yet' : 'Nothing on your day yet'}
                   </div>
                   <div className="mt-1 text-[13px] text-white/75">
-                    {MOCK_SESSIONS.length} sessions across {TIME_SLOTS.length} time slots are open.
+                    {ownKind === 'volunteering' ? 'An admin will assign your sessions.' : 'Browse the verses to add a session.'}
                   </div>
                 </>
               )}
@@ -383,7 +398,7 @@ export default function HomePage() {
                     onClick={() => navigate('/schedule')}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-border bg-card px-3 py-2 text-[13px] font-semibold transition-colors hover:border-emerald/40"
                   >
-                    Edit schedule <ArrowRight className="h-3.5 w-3.5" />
+                    View schedule <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
@@ -397,7 +412,7 @@ export default function HomePage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/schedule')}
+                    onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/verses')}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
                   >
                     {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
@@ -428,14 +443,14 @@ export default function HomePage() {
                   <CountChip count={trackCount()} />
                 </h3>
                 <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                  From Summit '26. The '27 tracks are still being finalized.
+                  Explore this year's tracks and sessions.
                 </p>
               </div>
               {/* The empty state above already offers this; avoid two in a row. */}
               {canSchedule && agenda.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => navigate('/schedule')}
+                  onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/verses')}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-emerald px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-deep"
                 >
                   {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
@@ -456,7 +471,7 @@ export default function HomePage() {
                   {s.label === 'Check-in' && isQrEligible && (
                     <button
                       type="button"
-                      onClick={() => setQrPassOpen(true)}
+                      onClick={() => navigate('/account')}
                       className="flex w-full items-center justify-center gap-1.5 rounded-full bg-sky-200 px-3 py-2 text-[12.5px] font-semibold text-navy transition-colors hover:bg-sky-100"
                     >
                       <QrCode className="h-4 w-4 shrink-0" />
@@ -494,7 +509,7 @@ export default function HomePage() {
           Quick access
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          {QUICK_LINKS.map(({ to, label, sub, icon: Icon }) => (
+          {[...QUICK_LINKS, ...(['volunteer', 'admin', 'ambassador'].includes(roleName) ? [{ to: '/volunteer/contacts', label: 'Volunteer contacts', sub: 'Contact the volunteer team', icon: BookUser }] : [])].map(({ to, label, sub, icon: Icon }) => (
             <button
               key={to}
               type="button"
@@ -513,9 +528,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-      {isQrEligible && (
-        <QrPassModal open={qrPassOpen} onOpenChange={setQrPassOpen} profile={profile} />
-      )}
       </VersePortalProvider>
     </AppShell>
   );

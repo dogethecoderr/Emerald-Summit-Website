@@ -45,10 +45,11 @@ export default function VersesPage() {
   const { profile } = useAuth();
   const { listFor, spectating } = useSchedule();
   const kind = ownScheduleKind(profile?.role);
-  const canSchedule = kind != null;
+  const canAdd = profile?.role === 'participant' || profile?.role === 'expert' || profile?.role === 'attendee';
+  const canSchedule = kind != null || profile?.role === 'attendee';
   const mine = new Set([...(kind ? listFor(kind) : []), ...spectating]);
   return (
-    <VersePortalProvider mine={mine} canSchedule={canSchedule}>
+    <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd={canAdd}>
       <VersesBody mine={mine} />
     </VersePortalProvider>
   );

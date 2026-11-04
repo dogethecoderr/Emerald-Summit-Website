@@ -70,7 +70,7 @@ export default function AnnouncementsPage() {
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Showing the local feed — the announcements backend answered:{' '}
+            Announcements could not be loaded:{' '}
             <code>{error}</code>. Run the pending Supabase migration to publish
             to every profile.
           </span>

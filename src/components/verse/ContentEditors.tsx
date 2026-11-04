@@ -13,6 +13,7 @@ import {
   saveTrack,
   type SaveResult,
   type SessionInput,
+  usesSharedBackend,
 } from '../../services/summitContent';
 import {
   Dialog,
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 const FORMATS: TrackFormat[] = ['Workshop', 'Exhibit', 'Presentation'];
 const NO_TRACK = '__none__';
@@ -121,6 +123,8 @@ export function SessionEditorDialog({
 
 function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose: () => void }) {
   const s = target.session;
+  const shared = usesSharedBackend();
+  const { profile } = useAuth();
   const [title, setTitle] = useState(s?.title ?? '');
   const [trackName, setTrackName] = useState(s?.trackName ?? target.trackName ?? '');
   const [time, setTime] = useState(s?.time ?? TIME_SLOTS[1]);
@@ -192,7 +196,7 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="session-track" label="Track">
+          {!shared && <Field id="session-track" label="Track">
             <Select value={trackName || NO_TRACK} onValueChange={(v) => setTrackName(v === NO_TRACK ? '' : v)}>
               <SelectTrigger id="session-track">
                 <SelectValue />
@@ -206,12 +210,12 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
                 ))}
               </SelectContent>
             </Select>
-          </Field>
+          </Field>}
           <Field id="session-speaker" label="Led by">
             <Input id="session-speaker" value={speaker} onChange={(e) => setSpeaker(e.target.value)} />
           </Field>
           <Field id="session-time" label="Time">
-            <Select value={time} onValueChange={setTime}>
+            {shared ? <Input id="session-time" value={time} onChange={(e) => setTime(e.target.value)} placeholder="10:00 AM" /> : <Select value={time} onValueChange={setTime}>
               <SelectTrigger id="session-time">
                 <SelectValue />
               </SelectTrigger>
@@ -222,18 +226,19 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select>}
           </Field>
           <Field id="session-duration" label="Length">
             <Input id="session-duration" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="60 min" />
           </Field>
-          <Field id="session-location" label="Room name">
+          {!shared && <Field id="session-location" label="Room name">
             <Input id="session-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Computer Lab" />
-          </Field>
-          <Field id="session-room" label="Room code (walking times)">
+          </Field>}
+          {!shared && <Field id="session-room" label="Room code (walking times)">
             <Input id="session-room" value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())} maxLength={2} placeholder="C" />
-          </Field>
+          </Field>}
         </div>
+        {shared && <p className="text-sm text-muted-foreground">Rooms are locked for now. Participants, spectators and experts all count toward capacity.</p>}
 
         <Field id="session-description" label="Description">
           <Textarea id="session-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
@@ -243,7 +248,7 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
           <Field id="session-capacity" label="Seats">
             <Input id="session-capacity" type="number" min={0} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
           </Field>
-          <Field id="session-experts" label="Expert spots">
+          {!shared && <><Field id="session-experts" label="Expert spots">
             <Input id="session-experts" type="number" min={0} value={expertCapacity} onChange={(e) => setExpertCapacity(e.target.value)} />
           </Field>
           <Field id="session-spectators" label="Spectator seats">
@@ -251,11 +256,11 @@ function SessionForm({ target, onClose }: { target: SessionEditorTarget; onClose
           </Field>
           <Field id="session-volunteers" label="Volunteer spots">
             <Input id="session-volunteers" type="number" min={0} value={volunteerCapacity} onChange={(e) => setVolunteerCapacity(e.target.value)} />
-          </Field>
+          </Field></>}
         </div>
 
         <DialogFooter className="gap-2 sm:items-center">
-          {s && <DeleteButton label="Delete session" busy={busy} onConfirm={() => void remove()} />}
+          {s && (!shared || profile?.role === 'admin') && <DeleteButton label="Delete session" busy={busy} onConfirm={() => void remove()} />}
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>

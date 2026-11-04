@@ -77,13 +77,13 @@ export default function VolunteerDashboard({
   useEffect(() => {
     if (!fromDatabase || !ready) return;
     let live = true;
-    fetchPeople(['participant', 'attendee'])
+    fetchPeople(['participant', 'attendee'], canCheckIn)
       .then((people) => live && setRoster(people))
       .catch((e: Error) => live && toast.error(`Couldn't load the roster: ${e.message}`));
     return () => {
       live = false;
     };
-  }, [fromDatabase, ready]);
+  }, [fromDatabase, ready, canCheckIn, profile?.id]);
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -135,10 +135,10 @@ export default function VolunteerDashboard({
   };
 
   const visibleRoster =
-    canCheckIn || allDisciplines
+    fromDatabase || canCheckIn || allDisciplines
       ? (roster ?? [])
       : (roster ?? []).filter((p) => p.discipline && knownScope.includes(p.discipline));
-  const hasRoster = canCheckIn || knownScope.length > 0;
+  const hasRoster = fromDatabase || canCheckIn || knownScope.length > 0;
 
   const filteredRoster = visibleRoster.filter((p) => {
     const matchesSearch =

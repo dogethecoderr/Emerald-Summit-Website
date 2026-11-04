@@ -15,6 +15,42 @@ export interface MockUserRecord {
   [key: string]: any;
 }
 
+/** Shared front-desk RPC contract, including the server's atomic scan result. */
+export function createCheckInRpcHandler(users: MockUserRecord[], directoryUsers = users) {
+  return async (name: string, args: Record<string, unknown> = {}) => {
+    if (name === 'fetch_attendee_directory') {
+      return {
+        data: directoryUsers.map((user) => ({
+          id: user.id, full_name: user.name, email: user.email,
+          role: user.role, present: Boolean(user.checked_in_at),
+          checked_in_at: user.checked_in_at ?? null,
+        })),
+        error: null,
+      };
+    }
+    const user = users.find((item) => item.id === args.p_attendee_id);
+    if (name === 'scan_summit_checkin') {
+      if (!user) return { data: [{ attendee_found: false, already_checked_in: false }], error: null };
+      const alreadyCheckedIn = Boolean(user.checked_in_at);
+      if (!alreadyCheckedIn) user.checked_in_at = new Date().toISOString();
+      return {
+        data: [{
+          attendee_found: true, already_checked_in: alreadyCheckedIn,
+          full_name: user.name, email: user.email, role: user.role,
+          checked_in_at: user.checked_in_at,
+        }],
+        error: null,
+      };
+    }
+    if (name === 'mark_summit_checkin') {
+      if (!user) return { data: null, error: { message: 'Participant not found' } };
+      user.checked_in_at = args.p_present ? new Date().toISOString() : null;
+      return { data: null, error: null };
+    }
+    throw new Error(`Unexpected check-in RPC: ${name}`);
+  };
+}
+
 export function createMockSupabase(initialUsers: MockUserRecord[] = []) {
   const users = initialUsers.map((u) => ({ ...u }));
 

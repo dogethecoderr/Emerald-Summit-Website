@@ -1,5 +1,6 @@
+import { createCheckInRpcHandler, type MockUserRecord } from '../../test/mocks/supabaseMock';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import VolunteerDashboard from '../VolunteerDashboard';
@@ -8,7 +9,7 @@ import { MOCK_PEOPLE } from '../../models/people';
 
 
 const { mockSupabaseClient, mockDbUsers } = vi.hoisted(() => {
-  const users = [
+  const users: MockUserRecord[] = [
     {
       id: 'p8',
       name: 'Jordan Wu',
@@ -26,43 +27,8 @@ const { mockSupabaseClient, mockDbUsers } = vi.hoisted(() => {
   ];
 
   const client = {
-    from: vi.fn((_table: string) => {
-      let filterId: string | null = null;
-      let updatePayload: any = null;
-
-      const builder: any = {
-        select: vi.fn(() => builder),
-        update: vi.fn((payload: any) => {
-          updatePayload = payload;
-          return builder;
-        }),
-        eq: vi.fn((col: string, val: any) => {
-          if (col === 'id') filterId = val;
-          return builder;
-        }),
-        then: vi.fn((onFulfilled: any) => {
-          if (updatePayload && filterId) {
-            const u = users.find((item) => item.id === filterId);
-            if (u) Object.assign(u, updatePayload);
-          }
-          // An update asked for its rows back (.select('id')) gets the
-          // matched rows, as PostgREST returns them.
-          const matched = updatePayload && filterId ? users.filter((item) => item.id === filterId) : [];
-          return Promise.resolve({ data: matched.map((u) => ({ id: u.id })), error: null }).then(onFulfilled);
-        }),
-        single: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: { message: 'User not found' } };
-          return { data: { ...user }, error: null };
-        }),
-        maybeSingle: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: null };
-          return { data: { ...user }, error: null };
-        }),
-      };
-      return builder;
-    }),
+    rpc: vi.fn(),
+    from: vi.fn(() => { throw new Error('Check-in must use the shared RPCs.'); }),
   };
 
   return { mockSupabaseClient: client, mockDbUsers: users };
@@ -131,9 +97,13 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     const jordan = MOCK_PEOPLE.find((p) => p.id === 'p8');
     if (jordan) jordan.status = 'validated';
 
-    // Reset mock database records
-    mockDbUsers[0].checked_in_at = null;
-    mockDbUsers[1].checked_in_at = null;
+    // Use the RPC-backed roster so scanner and manual buttons both persist.
+    const roster = MOCK_PEOPLE.filter((p) => p.role === 'participant' || p.role === 'attendee')
+      .map((p) => ({ id: p.id, name: p.name, role: p.role, email: p.email, checked_in_at: p.status === 'checkedIn' ? '2026-09-06T09:00:00Z' : null }));
+    mockDbUsers.splice(0, mockDbUsers.length, ...roster, {
+      id: '44444444-4444-4444-8888-444444444444', name: 'External Attendee', role: 'participant', email: 'external@example.com', checked_in_at: null,
+    });
+    mockSupabaseClient.rpc.mockImplementation(createCheckInRpcHandler(mockDbUsers, roster));
 
     vi.spyOn(useRequireProfileModule, 'useRequireRole').mockReturnValue({
       ready: true,
@@ -147,8 +117,6 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
       <MemoryRouter>
         <VolunteerDashboard
           assignedTrack="novasphere"
-          // The sample roster; with a backend the hub would load it from users.
-          participants={MOCK_PEOPLE.filter((p) => p.role === 'participant' || p.role === 'attendee')}
         />
       </MemoryRouter>,
     );
@@ -158,8 +126,8 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     const user = userEvent.setup();
     renderDashboard();
 
-    // In novasphere track: 3 participants initially (2 checked in [Priya, Nadia], 1 pending [Jordan])
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    // The front desk has 3 participants (2 checked in, 1 pending).
+    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
 
     // Find Jordan Wu's card container
     const jordanCard = screen.getByText('Jordan Wu').closest('.grid > div');
@@ -177,6 +145,7 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     await user.click(screen.getByTestId('manual-checkin-button'));
 
     expect(await screen.findByTestId('scan-feedback-success')).toBeInTheDocument();
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('scan_summit_checkin', { p_attendee_id: 'p8' });
 
     // Close modal
     await user.click(screen.getByRole('button', { name: /Done/i }));
@@ -190,9 +159,10 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
 
     // 2. Click "Undo Check-in" manually on Jordan's card
     await user.click(jordanUndoBtn);
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('mark_summit_checkin', { p_attendee_id: 'p8', p_present: false });
 
     // Counter should decrement back to 2 / 3
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
 
     // Jordan's card should now show "Check In"
     const jordanCheckInBtn = within(jordanCard as HTMLElement).getByRole('button', { name: /^Check In$/i });
@@ -200,6 +170,7 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
 
     // 3. Click manual "Check In" on Jordan's card
     await user.click(jordanCheckInBtn);
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('mark_summit_checkin', { p_attendee_id: 'p8', p_present: true });
 
     // Counter increments again to 3 / 3
     expect(screen.getByText('3 / 3')).toBeInTheDocument();
@@ -209,7 +180,7 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     const user = userEvent.setup();
     renderDashboard();
 
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
 
     // Open scanner modal
     await user.click(screen.getByRole('button', { name: /Scan QR Code/i }));
@@ -232,6 +203,7 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
   test('filtering roster by pending participants updates live when checked in via scanner', async () => {
     const user = userEvent.setup();
     renderDashboard();
+    await screen.findByText('2 / 3');
 
     // Filter by "Pending" tab
     const pendingTab = screen.getByRole('button', { name: /^Pending \(/i });
@@ -253,5 +225,17 @@ describe('Adversarial Test: VolunteerDashboard State Synchronization & Fallback 
     expect(screen.queryByText('Jordan Wu')).not.toBeInTheDocument();
     // Empty state should be visible for pending tab
     expect(screen.getByText('No participants match your current search or filter criteria.')).toBeInTheDocument();
+  });
+
+  test('a denied manual check-in restores the roster instead of reporting success', async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await screen.findByText('2 / 3');
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Check-in permission denied' } });
+    const card = screen.getByText('Jordan Wu').closest('.grid > div') as HTMLElement;
+    await user.click(within(card).getByRole('button', { name: /^Check In$/i }));
+    await waitFor(() => expect(within(card).getByRole('button', { name: /^Check In$/i })).toBeInTheDocument());
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    expect(mockDbUsers.find((p) => p.id === 'p8')?.checked_in_at).toBeNull();
   });
 });

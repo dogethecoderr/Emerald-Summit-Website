@@ -10,7 +10,7 @@ interface FaqItem {
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Who can attend Emerald Summit?',
-    a: 'Any Tri-Valley high schooler — last year’s Summit drew 225+ signups from six schools. Come as a competitor, or just stop by to explore as a spectator.',
+    a: 'Any Tri-Valley high schooler. Last year’s Summit drew 225+ signups from six schools. Come as a competitor, or just stop by to explore as a spectator.',
   },
   {
     q: 'When and where is the next Summit?',
@@ -18,11 +18,11 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'What are the six universes?',
-    a: 'TechVerse, BioSphere, NovaSphere, ImagineX, VentureVerse, and CivicVerse — 20+ tracks and 30+ visiting experts across them.',
+    a: 'TechVerse, BioSphere, NovaSphere, ImagineX, VentureVerse, and CivicVerse, with 20+ tracks and 30+ visiting experts across them.',
   },
   {
     q: 'Do I need a team?',
-    a: 'No — every track is open to solo competitors. Team up if you want, but it’s never required.',
+    a: 'No. Every track is open to solo competitors. Team up if you want, but it’s never required.',
   },
   {
     q: 'Is it free?',
@@ -30,7 +30,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Do I need to be technical to join?',
-    a: 'Not at all. The six universes span arts, business, civics, and science — not just tech.',
+    a: 'Not at all. The six universes span arts, business, civics, and science, as well as tech.',
   },
   {
     q: 'What’s the difference between competing and spectating?',
@@ -38,7 +38,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Can I get involved beyond competing?',
-    a: 'Yes — sign in as a Volunteer to help run the day, or as an Expert to judge a track. Check-in on the day is one tap at the front desk.',
+    a: 'Yes. Sign in as a Volunteer to help run the day, or as an Expert to judge a track. Check-in on the day is one tap at the front desk.',
   },
 ];
 

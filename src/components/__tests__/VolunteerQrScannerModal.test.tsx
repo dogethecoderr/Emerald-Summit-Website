@@ -1,3 +1,4 @@
+import { createCheckInRpcHandler } from '../../test/mocks/supabaseMock';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +11,7 @@ const {
   mockScannerStartSpy,
   mockScannerStopSpy,
   mockScannerClearSpy,
+  usersDatabase,
 } = vi.hoisted(() => {
   const users = [
     {
@@ -37,45 +39,13 @@ const {
   ];
 
   const client = {
-    from: vi.fn((_table: string) => {
-      let filterId: string | null = null;
-      let updatePayload: any = null;
-
-      const builder: any = {
-        select: vi.fn(() => builder),
-        update: vi.fn((payload: any) => {
-          updatePayload = payload;
-          return builder;
-        }),
-        eq: vi.fn((column: string, val: any) => {
-          if (column === 'id') filterId = val;
-          return builder;
-        }),
-        single: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: { message: 'User not found' } };
-          if (updatePayload) Object.assign(user, updatePayload);
-          return { data: { ...user }, error: null };
-        }),
-        // An update asked for its rows back (.select('id')) resolves here.
-        then: (onFulfilled: any) => {
-          const matched = updatePayload && filterId ? users.filter((u: any) => u.id === filterId) : [];
-          for (const u of matched) Object.assign(u, updatePayload);
-          return Promise.resolve({ data: matched.map((u: any) => ({ id: u.id })), error: null }).then(onFulfilled);
-        },
-        maybeSingle: vi.fn(async () => {
-          const user = users.find((u) => u.id === filterId);
-          if (!user) return { data: null, error: null };
-          if (updatePayload) Object.assign(user, updatePayload);
-          return { data: { ...user }, error: null };
-        }),
-      };
-      return builder;
-    }),
+    rpc: vi.fn(),
+    from: vi.fn(() => { throw new Error('Check-in must use the shared RPCs.'); }),
   };
 
   return {
     mockSupabaseClient: client,
+    usersDatabase: users,
     mockScannerStartSpy: vi.fn(),
     mockScannerStopSpy: vi.fn(),
     mockScannerClearSpy: vi.fn(),
@@ -107,7 +77,11 @@ vi.mock('../../lib/supabase', () => ({
 describe('VolunteerQrScannerModal Component Suite (Requirement R2 & R4)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabaseClient.rpc.mockImplementation(createCheckInRpcHandler(usersDatabase));
     mockScanSuccessCallback = null;
+    usersDatabase[0].checked_in_at = null;
+    usersDatabase[1].checked_in_at = null;
+    usersDatabase[2].checked_in_at = '2026-09-06T09:00:00Z';
   });
 
   test('renders scanner modal with camera container, tab controls, and header', async () => {

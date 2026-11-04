@@ -105,11 +105,11 @@ export default function ResourcesPage() {
         <div className="glass flex flex-col items-center gap-2 rounded-2xl px-6 py-14 text-center">
           <FileText className="h-8 w-8 text-muted-foreground/60" />
           <div className="text-sm font-medium">
-            {RESOURCES.length === 0 ? 'No resources posted yet.' : 'No resources match your search.'}
+            {RESOURCES.length === 0 ? 'Coming soon' : 'No resources match your search.'}
           </div>
           {RESOURCES.length === 0 && (
             <div className="text-xs text-muted-foreground">
-              The campus map, schedule, and track briefs will be here before the Summit.
+              Summit resources will be added here.
             </div>
           )}
         </div>

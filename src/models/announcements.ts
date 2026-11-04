@@ -61,6 +61,9 @@ export interface Announcement {
   pinned: boolean;
   author: string;
   authorId?: string;
+  /** Shared backend targeting, applied after RLS has protected personal notices. */
+  disciplineId?: string;
+  targetUserId?: string;
   audience: string;
   attachments?: AnnouncementAttachment[];
   createdAt?: string;
@@ -124,7 +127,7 @@ export function formatAnnouncementDate(iso: string): string {
 export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a1',
-    title: 'Summit Date TBD — Stay Tuned!',
+    title: 'Summit Date TBD. Stay Tuned!',
     body: 'We are finalizing the Summit date and will announce it as soon as it is confirmed. Please check back here for the official date and begin exploring the six discipline tracks.',
     category: 'General',
     date: 'Jun 29',
@@ -135,7 +138,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a2',
     title: 'Discipline Track Sign-Ups Opening Soon',
-    body: 'Registration for TechVerse, BioSphere, ImagineX, NovaSphere, VentureVerse, and CivicVerse opens once the Summit date is confirmed. Each track has limited spots — mark your interest now in the Schedule Builder.',
+    body: 'Registration for TechVerse, BioSphere, ImagineX, NovaSphere, VentureVerse, and CivicVerse opens once the Summit date is confirmed. Each track has limited spots. Mark your interest now in the Schedule Builder.',
     category: 'General',
     date: 'Jun 29',
     pinned: true,
@@ -182,7 +185,7 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   {
     id: 'a6',
     title: 'Summit Promo Video Is Live',
-    body: "Get a preview of last year's Summit — share it with friends and family who are curious what the day looks like.",
+    body: "Get a preview of last year's Summit. Share it with friends and family who are curious what the day looks like.",
     category: 'General',
     date: 'Jun 24',
     pinned: false,

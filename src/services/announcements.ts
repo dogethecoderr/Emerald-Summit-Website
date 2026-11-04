@@ -7,7 +7,7 @@ import {
   type AnnouncementCategory,
 } from '../models/announcements';
 
-const BUCKET = 'announcement-media';
+const BUCKET = 'announcement_attachments';
 // v2: a browser's saved copy from before the feed started empty held the
 // sample posts too, so it's left behind.
 const LOCAL_KEY = 'local_announcements_v2';
@@ -64,18 +64,27 @@ function client() {
 // Row mapping
 // ---------------------------------------------------------------------------
 
+interface SharedAttachment {
+  url: string;
+  path: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 interface AnnouncementRow {
   id: string;
   title: string;
   body: string;
-  category: AnnouncementCategory;
   audience: string;
   pinned: boolean;
-  author_id: string | null;
-  author_name: string;
-  attachments: AnnouncementAttachment[] | null;
+  created_by: string | null;
+  author: string;
+  discipline_id?: string | null;
+  target_user_id?: string | null;
+  attachments: SharedAttachment[] | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 function rowToAnnouncement(row: AnnouncementRow): Announcement {
@@ -83,12 +92,22 @@ function rowToAnnouncement(row: AnnouncementRow): Announcement {
     id: row.id,
     title: row.title,
     body: row.body,
-    category: row.category,
+    category: 'General',
     audience: row.audience,
     pinned: row.pinned,
-    author: row.author_name,
-    authorId: row.author_id ?? undefined,
-    attachments: row.attachments ?? [],
+    author: row.author,
+    authorId: row.created_by ?? undefined,
+    disciplineId: row.discipline_id ?? undefined,
+    targetUserId: row.target_user_id ?? undefined,
+    attachments: (row.attachments ?? []).map((a, index) => ({
+      id: a.path || `${row.id}-${index}`,
+      title: a.name,
+      type: attachmentTypeForFile({ name: a.name, type: a.type }),
+      url: a.url,
+      path: a.path,
+      mimeType: a.type,
+      bytes: a.size,
+    })),
     date: formatAnnouncementDate(row.created_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -99,12 +118,34 @@ function draftToRow(draft: AnnouncementDraft, author?: AnnouncementAuthor) {
   return {
     title: draft.title.trim(),
     body: draft.body.trim(),
-    category: draft.category,
     audience: draft.audience.trim() || 'Everyone',
     pinned: draft.pinned,
-    attachments: draft.attachments,
-    ...(author ? { author_id: author.id ?? null, author_name: author.name } : {}),
+    attachments: draft.attachments.map((a) => ({
+      url: a.url ?? '',
+      path: a.path ?? '',
+      name: a.title,
+      type: a.mimeType ?? 'application/octet-stream',
+      size: a.bytes ?? 0,
+    })),
+    ...(author ? { created_by: author.id ?? null, author: author.name } : {}),
   };
+}
+
+/** Match the mobile feed's audience rules in addition to database RLS. */
+export function announcementsForUser(
+  list: Announcement[],
+  audience: {
+    userId?: string;
+    registeredDisciplines: ReadonlySet<string>;
+    canManageDiscipline: (id: string) => boolean;
+  },
+): Announcement[] {
+  return list.filter((announcement) => {
+    if (announcement.targetUserId) return announcement.targetUserId === audience.userId;
+    if (!announcement.disciplineId) return true;
+    return audience.canManageDiscipline(announcement.disciplineId)
+      || audience.registeredDisciplines.has(announcement.disciplineId);
+  });
 }
 
 /** Pinned first, then newest. Mirrors the announcements_feed_idx ordering. */
@@ -163,13 +204,11 @@ export async function fetchAnnouncements(): Promise<FeedResult> {
     .order('pinned', { ascending: false })
     .order('created_at', { ascending: false });
 
-  // A configured backend that can't answer (missing migration, network) falls
-  // back to the local feed so the app still reads, but the error travels with
-  // it so the UI can say why this isn't live.
+  // Keep a failed real feed separate from private browser-only demo posts.
   if (error) {
     return {
-      announcements: sortAnnouncements(readLocal()),
-      source: 'local',
+      announcements: [],
+      source: 'remote',
       error: error.message,
     };
   }
@@ -192,19 +231,34 @@ export function subscribeToAnnouncements(onChange: () => void): () => void {
     return () => channel.close();
   }
 
-  // Captured so the cleanup closure keeps the non-null narrowing above.
   const client = supabase;
-  const channel = client
-    .channel('announcements-feed')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'announcements' },
-      () => onChange(),
-    )
-    .subscribe();
-
+  let disposed = false;
+  let authVersion = 0;
+  let channel: ReturnType<typeof client.channel> | undefined;
+  const sync = (signedIn: boolean) => {
+    if (disposed) return;
+    if (!signedIn && channel) {
+      void client.removeChannel(channel);
+      channel = undefined;
+    } else if (signedIn && !channel) {
+      channel = client.channel('public:announcements')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, onChange)
+        .subscribe();
+    }
+  };
+  const initialVersion = authVersion;
+  void client.auth.getSession().then(({ data }) => {
+    if (authVersion === initialVersion) sync(data.session != null);
+  }).catch(() => {});
+  const { data: auth } = client.auth.onAuthStateChange((_event, session) => {
+    authVersion++;
+    sync(session != null);
+    if (!disposed) onChange();
+  });
   return () => {
-    void client.removeChannel(channel);
+    disposed = true;
+    auth.subscription.unsubscribe();
+    if (channel) void client.removeChannel(channel);
   };
 }
 
@@ -305,8 +359,8 @@ export async function setAnnouncementPinned(
 // Attachments
 // ---------------------------------------------------------------------------
 
-/** 100 MB — matches the bucket's file_size_limit in the migration. */
-export const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+/** Shared announcement_attachments bucket limit (mobile storage_upload_limits.sql). */
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 /**
  * Upload one file and return the attachment record to store on the
@@ -317,7 +371,7 @@ export async function uploadAttachment(
   file: File,
 ): Promise<AnnouncementAttachment> {
   if (file.size > MAX_ATTACHMENT_BYTES) {
-    throw new Error(`${file.name} is larger than the 100 MB limit`);
+    throw new Error(`${file.name} is larger than the 10 MB limit`);
   }
 
   const base: AnnouncementAttachment = {
@@ -335,11 +389,13 @@ export async function uploadAttachment(
   // Keep the extension so the browser and storage agree on content type, and
   // prefix with a uuid so two "map.pdf" uploads can coexist.
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${new Date().getFullYear()}/${base.id}-${safeName}`;
+  const { data: auth } = await client().auth.getSession();
+  if (!auth.session) throw new Error('Not signed in');
+  const path = `${auth.session.user.id}/${base.id}-${safeName}`;
 
   const { error } = await client().storage
     .from(BUCKET)
-    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', cacheControl: '31536000', upsert: false });
 
   if (error) throw new Error(`${file.name}: ${error.message}`);
 

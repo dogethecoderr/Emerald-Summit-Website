@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_PROFILE_SETTINGS } from './auth';
+import { MOCK_SESSIONS } from '../models/sessions';
 import { MOCK_PEOPLE, type Person } from '../models/people';
 
 interface UserRow {
@@ -47,19 +48,38 @@ function personFromRow(r: UserRow): Person {
   };
 }
 
-/** Everyone, or only these roles, ordered by name. */
-export async function fetchPeople(roles?: string[]): Promise<Person[]> {
-  if (!supabase) {
-    return MOCK_PEOPLE.filter((p) => !roles || roles.includes(p.role));
+/** Read only the front-desk directory or the rosters of assigned sessions. */
+export async function fetchPeople(roles?: string[], frontDesk = false): Promise<Person[]> {
+  if (!supabase) return import.meta.env.DEV ? MOCK_PEOPLE.filter((p) => !roles || roles.includes(p.role)) : [];
+  const people = new Map<string, Person>();
+  if (frontDesk) {
+    const { data, error } = await supabase.rpc('fetch_attendee_directory', { p_query: '' });
+    if (error) throw new Error(error.message);
+    for (const r of data ?? []) {
+      const person = personFromRow({ ...r, name: r.full_name, role: r.role === 'parentSpectator' ? 'attendee' : r.role,
+        checked_in_at: r.present ? 'checked-in' : null });
+      people.set(person.id, person);
+    }
+  } else {
+    const { data: auth, error: authError } = await supabase.auth.getSession();
+    if (authError) throw authError;
+    if (!auth.session) return [];
+    const { data: assignments, error } = await supabase.from('session_volunteers').select('session_id').eq('user_id', auth.session.user.id);
+    if (error) throw new Error(error.message);
+    for (const assignment of assignments ?? []) {
+      const { data: roster, error: rosterError } = await supabase.rpc('fetch_session_roster', { p_session_id: assignment.session_id });
+      if (rosterError) throw new Error(rosterError.message);
+      const session = MOCK_SESSIONS.find((s) => s.id === assignment.session_id);
+      for (const r of roster ?? []) {
+        const person = personFromRow({ ...r, id: r.user_id, name: r.full_name,
+          role: r.role === 'parentSpectator' ? 'attendee' : r.role,
+          phone: r.details?.phone, bio: r.details?.bio, discipline: session?.track ?? null,
+          checked_in_at: null });
+        people.set(person.id, person);
+      }
+    }
   }
-  let query = supabase
-    .from('users')
-    .select('id, name, role, email, phone, bio, discipline, checked_in_at')
-    .order('name');
-  if (roles) query = query.in('role', roles);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data as UserRow[]).map(personFromRow);
+  return [...people.values()].filter((p) => !roles || roles.includes(p.role)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** fetchPeople as state: `people` is null while loading. */
@@ -85,18 +105,9 @@ export function usePeople(roles?: string[], enabled = true) {
   return { people, setPeople, error };
 }
 
-/**
- * Sets or clears someone's check-in. Only front-desk volunteers and admins
- * may (enforce_users_update_rules); a refused write changes no row, which is
- * reported as an error rather than a silent success.
- */
+/** Summit check-in is permission-checked by the mobile backend's RPC. */
 export async function setCheckedIn(id: string, checkedIn: boolean): Promise<void> {
   if (!supabase) return;
-  const { data, error } = await supabase
-    .from('users')
-    .update({ checked_in_at: checkedIn ? new Date().toISOString() : null })
-    .eq('id', id)
-    .select('id');
+  const { error } = await supabase.rpc('mark_summit_checkin', { p_attendee_id: id, p_present: checkedIn });
   if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("You don't have permission to change check-in.");
 }

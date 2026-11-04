@@ -208,7 +208,7 @@ export default function JudgingPage() {
         <aside className="glass sticky top-10 rounded-2xl p-5">
           <h2 className="font-display text-base font-semibold">Campus Route</h2>
           <p className="mb-4 mt-1 text-xs text-muted-foreground">
-            Your day in order — numbered stops match the timeline.
+            Your day in order. Numbered stops match the timeline.
           </p>
           <CampusMap route={route} />
         </aside>

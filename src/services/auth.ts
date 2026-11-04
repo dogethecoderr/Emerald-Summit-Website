@@ -3,7 +3,6 @@ import type { Person, Visibility } from '../models/people';
 import type { PersonStatus } from '../models/personStatus';
 import type { User } from '@supabase/supabase-js';
 import { isDemoModeEnabled } from '../lib/demoMode';
-import { requiresApproval } from '../models/approvalSurveys';
 import { SIGN_IN_ROLES, notEligibleMessage } from '../models/roles';
 
 export type Profile = {
@@ -23,6 +22,8 @@ export type Profile = {
   created_at?: string;
   updated_at?: string;
   checked_in_at?: string;
+  details?: Record<string, unknown>;
+  expert_status?: string | null;
   // Set from the Allowed Volunteers sheet by the users_role_allowlist trigger
   // (README: Volunteer and admin allowlist). The client never writes these.
   volunteer_subtype?: VolunteerSubtype | null;
@@ -59,17 +60,9 @@ interface RegistrationRow {
 
 const DEMO_REGISTRATION_KEY = 'bypass_registration';
 
-/**
- * PostgREST's answer for a table it doesn't know (PGRST205), or Postgres's
- * (42P01): the student_registrations migration hasn't run yet.
- */
-function isMissingTable(error: { code?: string } | null): boolean {
-  return error?.code === 'PGRST205' || error?.code === '42P01';
-}
-
 function registrationFromRow(row: RegistrationRow): RegistrationDetails {
   return {
-    grade: row.grade,
+    grade: row.grade == null ? null : Number(row.grade),
     school: row.school ?? undefined,
     teamName: row.team_name ?? undefined,
     teammates: row.teammates ?? [],
@@ -116,19 +109,13 @@ function requireSupabase() {
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Set VITE_SUPABASE_URL and ' +
-        'VITE_SUPABASE_ANON_KEY, or use bypass sign-in.',
+        'VITE_SUPABASE_PUBLISHABLE_KEY.',
     );
   }
   return supabase;
 }
 
-/** Roles the Google Sheets allowlist decides (see role_allowlist in README). */
-const GATED_ROLES = ['volunteer', 'ambassador', 'admin'];
-
-/** Roles a Google sign-in may ask for. Experts sign in by email instead. */
-const GOOGLE_SIGN_IN_ROLES = SIGN_IN_ROLES.map((r) => r.name).filter(
-  (name) => !requiresApproval(name),
-);
+const GOOGLE_SIGN_IN_ROLES = SIGN_IN_ROLES.map((r) => r.name);
 
 const LOAD_FAILED_MESSAGE = "We couldn't load your account. Try signing in again.";
 
@@ -162,21 +149,26 @@ export function takePendingRole(): string | null {
   return value;
 }
 
-/**
- * Whether the signed-in email is on the sheet for a gated role. RLS lets a
- * user read only their own role_allowlist rows.
- */
-async function isOnAllowlist(roleName: string): Promise<boolean> {
-  const { data, error } = await requireSupabase()
-    .from('role_allowlist')
-    .select('role, subtype')
-    .eq('role', roleName === 'admin' ? 'admin' : 'volunteer');
-  if (error) throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
-  const rows = (data ?? []) as { role: string; subtype: string | null }[];
-  if (roleName === 'ambassador') {
-    return rows.some((r) => r.subtype === 'eaf_ambassador');
-  }
-  return rows.length > 0;
+/** Map the shared mobile profile into the website's existing view model. */
+export function profileFromRow(row: Record<string, any>): Profile {
+  const details = row.details && typeof row.details === 'object' ? row.details : {};
+  return {
+    ...row,
+    id: row.id,
+    email: row.email ?? '',
+    name: row.full_name ?? '',
+    role: row.role === 'parentSpectator' ? 'attendee' : row.role,
+    profile_setup_complete: row.onboarded === true,
+    details,
+    phone: details.phone ?? '',
+    bio: details.bio ?? details.expertise ?? '',
+    org: details.school ?? '',
+    discipline: details.discipline ?? null,
+  };
+}
+
+function storedRole(role: string): string {
+  return role === 'attendee' ? 'parentSpectator' : role === 'ambassador' ? 'volunteer' : role;
 }
 
 // AuthContext asks twice on load (getSession and onAuthStateChange). Both
@@ -184,11 +176,7 @@ async function isOnAllowlist(roleName: string): Promise<boolean> {
 // the second could create the account as a participant.
 const inFlight = new Map<string, Promise<Profile>>();
 
-/**
- * Loads the signed-in user's public.users row, creating it on first sign-in,
- * and moves it to the role picked on the login page. Throws
- * SignInRefusedError when that role isn't allowed or the row can't be read.
- */
+/** Read the same server-owned profile as the mobile app. Never insert a second account. */
 export function getCurrentProfile(user: User): Promise<Profile> {
   const pending = inFlight.get(user.id);
   if (pending) return pending;
@@ -199,67 +187,25 @@ export function getCurrentProfile(user: User): Promise<Profile> {
 
 async function loadProfile(user: User): Promise<Profile> {
   const requested = takePendingRole();
-  if (requested && !GOOGLE_SIGN_IN_ROLES.includes(requested)) {
-    throw refused(requested);
+  if (requested && !GOOGLE_SIGN_IN_ROLES.includes(requested)) throw refused(requested);
+  const client = requireSupabase();
+  const { data, error } = await client.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  if (error || !data) throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
+  let row = data;
+
+  // A completed mobile profile must survive signing in from another role's page.
+  // A role change needs the app's explicit preview/confirmation flow.
+  if (!row.onboarded && requested && row.role !== storedRole(requested)) {
+    const { data: updated, error: updateError } = await client.from('profiles')
+      .update({ role: storedRole(requested) }).eq('id', user.id).select('*').single();
+    if (updateError || !updated) throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
+    row = updated;
+    if (row.role !== storedRole(requested)) throw refused(requested);
   }
-
-  const { data, error } = await requireSupabase()
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (error) {
-    console.error('Failed to fetch user profile', error);
-    throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
-  }
-
-  let row = data as Profile | null;
-
-  if (!row) {
-    // First sign-in. The role_allowlist trigger would quietly turn a gated
-    // role into participant, so check the sheet first and create nothing
-    // for a refused role.
-    const role = requested ?? 'participant';
-    if (GATED_ROLES.includes(role) && !(await isOnAllowlist(role))) {
-      throw refused(role);
-    }
-    const { data: inserted, error: insertError } = await requireSupabase()
-      .from('users')
-      .insert({
-        id: user.id,
-        email: user.email!,
-        name: user.user_metadata?.full_name || 'New User',
-        role,
-        profile_setup_complete: false,
-      })
-      .select('*')
-      .single();
-    if (insertError || !inserted) {
-      console.error('Failed to create user profile', insertError);
-      throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
-    }
-    row = inserted as Profile;
-  } else if (requested && row.role !== requested) {
-    // An existing account signing in with a different role: ask the server to
-    // switch. enforce_users_update_rules allows participant/attendee for anyone
-    // and volunteer/ambassador/admin only for emails on that Google Sheet; it
-    // refuses anything else with 42501.
-    const { data: updated, error: updateError } = await requireSupabase()
-      .from('users')
-      .update({ role: requested })
-      .eq('id', user.id)
-      .select('*')
-      .single();
-    if (updateError && updateError.code !== '42501') {
-      console.error('Failed to switch role', updateError);
-      throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
-    }
-    if (updated) row = updated as Profile;
-  }
-
-  // Whatever the server kept must be the role that was asked for.
-  if (requested && row.role !== requested) throw refused(requested);
-  return row;
+  const profile = profileFromRow(row);
+  const { data: checkins, error: checkinError } = await client.rpc('my_summit_checkin');
+  if (!checkinError && checkins?.[0]?.present) profile.checked_in_at = checkins[0].checked_in_at;
+  return profile;
 }
 
 const DEMO_EMAIL = 'bypass@example.com';
@@ -274,7 +220,7 @@ export function getBypassSession(): any | null {
     const session = JSON.parse(raw);
     // A demo session left over from a dev build doesn't carry into a build
     // where demo mode is off.
-    if (session?.demo && !isDemoModeEnabled) {
+    if (!isDemoModeEnabled) {
       clearBypass();
       return null;
     }
@@ -322,6 +268,7 @@ export function signInWithApprovedEmail(
   email: string,
   name: string,
 ): void {
+  if (!isDemoModeEnabled) throw new Error('Sign in with Google or an email code.');
   startLocalSession(roleName, email, name || email, false);
 }
 
@@ -423,10 +370,18 @@ export async function signInWithGoogle(roleName: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function signInWithLinkedIn(roleName: string): Promise<void> {
+export async function sendSignInCode(email: string, roleName: string): Promise<void> {
+  clearBypass();
   savePendingRole(roleName);
-  // Not implemented in DB by default, but left for compatibility
-  throw new Error('LinkedIn login is currently not supported with the real backend.');
+  const { error } = await requireSupabase().auth.signInWithOtp({
+    email, options: { shouldCreateUser: true },
+  });
+  if (error) throw error;
+}
+
+export async function verifySignInCode(email: string, token: string): Promise<void> {
+  const { error } = await requireSupabase().auth.verifyOtp({ email, token, type: 'email' });
+  if (error) throw error;
 }
 
 export interface SaveProfileInput {
@@ -443,43 +398,34 @@ export interface SaveProfileInput {
   registration?: RegistrationDetails;
 }
 
-export async function saveProfile(input: SaveProfileInput): Promise<void> {
+async function writeProfile(input: Partial<SaveProfileInput>, complete: boolean): Promise<void> {
   const session = await requireRealSession();
-
-  const updatePayload: any = {
-    name: input.name,
-    profile_setup_complete: true,
-  };
-  
-  if (input.phone) updatePayload.phone = input.phone;
-  if (input.discipline) updatePayload.discipline = input.discipline;
-  if (input.bio) updatePayload.bio = input.bio;
-
-  // Team, track, and project go in their own table, which only the student
-  // and admins can read. Until its migration runs, finishing setup must not
-  // depend on it.
+  const client = requireSupabase();
+  const { data: current, error: readError } = await client.from('profiles').select('*')
+    .eq('id', session.user.id).single();
+  if (readError || !current) throw new Error(LOAD_FAILED_MESSAGE);
+  const details = { ...(current.details ?? {}) };
+  if (input.phone !== undefined) details.phone = input.phone;
+  if (input.bio !== undefined) details.bio = input.bio;
+  if (input.discipline !== undefined) details.discipline = input.discipline;
+  if (input.org !== undefined) details.school = input.org;
   if (input.registration) {
-    const { error } = await requireSupabase()
-      .from('student_registrations')
-      .upsert({ user_id: session.user.id, ...registrationColumns(input.registration) });
-    if (error && !isMissingTable(error)) throw error;
-    if (error) {
-      console.warn('Registration details not saved: run the student_registrations migration.', error);
-    }
+    Object.assign(details, registrationColumns(input.registration));
+    if (input.registration.grade != null) details.grade = String(input.registration.grade);
   }
-
-  const { error } = await requireSupabase()
-    .from('users')
-    .update(updatePayload)
-    .eq('id', session.user.id);
-    
-  if (error) throw error;
+  const payload: Record<string, unknown> = { details, updated_at: new Date().toISOString() };
+  if (input.name !== undefined) payload.full_name = input.name;
+  if (complete) payload.onboarded = true;
+  const { data: updated, error } = await client.from('profiles').update(payload)
+    .eq('id', session.user.id).select('*').single();
+  if (error || !updated) throw error ?? new Error(LOAD_FAILED_MESSAGE);
 }
 
-/**
- * The signed-in student's registration details, to prefill profile setup:
- * from this browser for a demo session, else from student_registrations.
- */
+export async function saveProfile(input: SaveProfileInput): Promise<void> {
+  await writeProfile(input, true);
+}
+
+/** Prefill existing answers without maintaining a second registration database. */
 export async function getRegistration(): Promise<RegistrationDetails | null> {
   if (getBypassSession()) {
     const raw = localStorage.getItem(DEMO_REGISTRATION_KEY);
@@ -488,16 +434,9 @@ export async function getRegistration(): Promise<RegistrationDetails | null> {
   if (!supabase) return null;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
-  const { data, error } = await supabase
-    .from('student_registrations')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .maybeSingle();
-  if (error) {
-    if (!isMissingTable(error)) console.error('Failed to load registration', error);
-    return null;
-  }
-  return data ? registrationFromRow(data as RegistrationRow) : null;
+  const { data, error } = await supabase.from('profiles').select('details').eq('id', session.user.id).single();
+  if (error) throw error;
+  return data?.details ? registrationFromRow(data.details as RegistrationRow) : null;
 }
 
 export function needsProfileSetup(profile: Profile | null): boolean {
@@ -505,23 +444,8 @@ export function needsProfileSetup(profile: Profile | null): boolean {
   return profile.profile_setup_complete !== true;
 }
 
-export async function updateProfileSettings(
-  input: Partial<SaveProfileInput>,
-): Promise<void> {
-  const session = await requireRealSession();
-
-  const payload: any = {};
-  if (input.name !== undefined) payload.name = input.name;
-  if (input.phone !== undefined) payload.phone = input.phone;
-  if (input.discipline !== undefined) payload.discipline = input.discipline;
-  if (input.bio !== undefined) payload.bio = input.bio;
-
-  const { error } = await requireSupabase()
-    .from('users')
-    .update(payload)
-    .eq('id', session.user.id);
-
-  if (error) throw error;
+export async function updateProfileSettings(input: Partial<SaveProfileInput>): Promise<void> {
+  await writeProfile(input, false);
 }
 
 export async function signOut(): Promise<void> {

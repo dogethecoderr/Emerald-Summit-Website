@@ -1,102 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Phone, Search, UserRound } from 'lucide-react';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
-import PersonCard from '../components/PersonCard';
-import { useRequireProfile } from '../hooks/useRequireProfile';
-import { useAuth } from '../context/AuthContext';
-import { usePeople } from '../services/people';
-import { SIGN_IN_ROLES, roleByName } from '../models/roles';
-import { getProfileSettings, profileToPerson } from '../services/auth';
+import { useRequireRole } from '../hooks/useRequireProfile';
+import { roleLabelFor } from '../models/roles';
+import { fetchVolunteerContacts, type VolunteerContact } from '../services/volunteerContacts';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-
-const ROLE_FILTERS = ['All', ...SIGN_IN_ROLES.map((r) => r.name)];
 
 export default function DirectoryPage() {
-  const { ready, redirect } = useRequireProfile();
-  const { profile } = useAuth();
+  const { ready, redirect } = useRequireRole(['volunteer', 'ambassador', 'admin']);
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
-  // Every account on the Summit (signed-in readers only); loads once ready.
-  const { people } = usePeople(undefined, ready);
+  const [people, setPeople] = useState<VolunteerContact[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    fetchVolunteerContacts().then((list) => {
+      if (active) setPeople(list);
+    }).catch((reason: Error) => {
+      if (active) {
+        setError(reason.message);
+        setPeople([]);
+      }
+    });
+    return () => { active = false; };
+  }, [ready]);
 
   if (redirect) return <Navigate to={redirect} replace />;
-  if (!ready || profile == null || people == null) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-4 px-6 py-16">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
-    );
-  }
-
-  const viewerRoleName = (profile.role as string | undefined) ?? 'participant';
-  const settings = getProfileSettings(profile);
-  const selfPerson = settings.directoryVisible ? profileToPerson(profile) : null;
-
-  const filtered = people.filter((p) => {
-    const q = query.trim().toLowerCase();
-    const matchesQuery =
-      !q || p.name.toLowerCase().includes(q) || p.org.toLowerCase().includes(q);
-    const matchesRole = roleFilter === 'All' || p.role === roleFilter;
-    return matchesQuery && matchesRole;
-  });
-
-  const directoryPeople = selfPerson
-    ? [selfPerson, ...filtered.filter((p) => p.id !== selfPerson.id)]
-    : filtered;
+  if (!ready || people == null) return <div className="mx-auto max-w-3xl space-y-4 px-6 py-16"><Skeleton className="h-10 w-64" /><Skeleton className="h-64 w-full rounded-2xl" /></div>;
+  const filtered = people.filter((person) => person.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <AppShell>
-      <PageHeader
-        label="Emerald High School · Dublin, CA"
-        title="Directory"
-      />
-
-      <div className="mb-6 space-y-3">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by name or school…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="h-11 w-full rounded-xl border border-input bg-secondary/40 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-emerald-glow/60"
-          />
-        </div>
-        <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-1">
-          {ROLE_FILTERS.map((r) => {
-            const active = roleFilter === r;
-            return (
-              <button
-                key={r}
-                onClick={() => setRoleFilter(r)}
-                className={cn(
-                  'shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
-                  active
-                    ? 'bg-emerald text-white'
-                    : 'bg-secondary/60 text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                {r === 'All' ? 'All' : (roleByName(r)?.label ?? r)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {directoryPeople.map((p) => (
-          <PersonCard key={p.id} person={p} viewerRoleName={viewerRoleName} />
-        ))}
-      </div>
-
-      {directoryPeople.length === 0 && (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          No results for &ldquo;{query}&rdquo;
-        </div>
+      <PageHeader label="Summit team" title="Volunteer hub" />
+      <p className="mb-5 text-sm text-muted-foreground">Numbers are shared here so volunteers and admins can reach each other on Summit day.</p>
+      <label className="relative mb-6 block max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input aria-label="Search volunteers by name" placeholder="Search by name…" value={query} onChange={(e) => setQuery(e.target.value)} className="h-11 w-full rounded-xl border border-input bg-secondary/40 pl-9 pr-3 text-sm outline-none focus:border-emerald-glow/60" />
+      </label>
+      {error ? <p role="alert" className="py-10 text-center text-sm text-muted-foreground">Could not load the volunteer hub. Please try again later.</p> : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((person) => (
+              <div key={person.id} className="glass rounded-2xl p-5">
+                <div className="flex items-start gap-3"><UserRound className="mt-1 h-5 w-5 shrink-0 text-emerald" /><div className="min-w-0"><h2 className="break-words font-semibold">{person.name}</h2><p className="mt-1 text-xs text-muted-foreground">{roleLabelFor(person.role, person.subtype)}</p></div></div>
+                {person.phone ? <a href={`tel:${person.phone}`} className="mt-4 inline-flex items-center gap-2 text-sm text-emerald"><Phone className="h-4 w-4" />{person.phone}</a> : <p className="mt-4 text-sm text-muted-foreground">No phone number provided</p>}
+              </div>
+            ))}
+          </div>
+          {filtered.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">{people.length === 0 ? 'No other volunteers or admins have signed up yet.' : 'No one matches your search.'}</p>}
+        </>
       )}
     </AppShell>
   );

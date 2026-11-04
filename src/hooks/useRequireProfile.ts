@@ -9,7 +9,7 @@ import { needsProfileSetup } from '../services/auth';
  *   if (redirect) return <Navigate to={redirect} replace />;
  *   if (!ready) return <Skeleton />;
  */
-export function useRequireProfile(): {
+export function useRequireProfile(options: { allowPendingExpert?: boolean } = {}): {
   ready: boolean;
   redirect: string | null;
   roleName: string;
@@ -25,6 +25,9 @@ export function useRequireProfile(): {
   }
   if (needsProfileSetup(profile)) {
     return { ready: false, redirect: '/profile', roleName };
+  }
+  if (!options.allowPendingExpert && roleName === 'expert' && profile?.expert_status !== 'approved') {
+    return { ready: false, redirect: '/home', roleName };
   }
   return { ready: true, redirect: null, roleName };
 }
