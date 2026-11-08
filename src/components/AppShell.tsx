@@ -41,7 +41,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/home', label: 'Dashboard', icon: LayoutDashboard, group: 'My Summit' },
-  { to: '/verses', label: 'Verses', icon: Orbit, group: 'My Summit' },
+  { to: '/disciplines', label: 'Disciplines', icon: Orbit, group: 'My Summit' },
   {
     to: '/schedule',
     label: 'Schedule',
@@ -346,7 +346,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {isQrEligible && (
           <div className="relative overflow-hidden rounded-2xl bg-[#0b1428] p-4 ring-1 ring-inset ring-white/10">
-            {/* concentric arcs, echoing the gem-cut facets */}
             <svg
               className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 text-white/[0.07]"
               viewBox="0 0 160 160"
@@ -373,9 +372,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        {/* The profile card goes back to the roles page, still signed in; its
-            ⇆ shows "Switch role" above it on hover. The red button beside it
-            signs out; it reads "Sign out" on hover. */}
         <div className="relative">
           <button
             type="button"
@@ -394,11 +390,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <div className="break-words whitespace-normal text-[13px] font-semibold">{name}</div>
               <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
             </div>
-            <span className="relative flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:bg-white/10 group-hover:text-white group-focus-visible:bg-white/10 group-focus-visible:text-white">
+            <span className="relative flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-white/55 transition-colors group-hover:bg-white/10 group-hover:text-white group-hover:shadow-sm">
               <ArrowLeftRight className="h-4 w-4" />
               <span
                 aria-hidden
-                className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[11.5px] font-semibold text-navy opacity-0 shadow-lg transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100"
+                className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[11.5px] font-semibold text-navy shadow-lg"
               >
                 Switch role
               </span>
@@ -409,7 +405,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             onClick={handleSignOut}
             title="Sign out"
             aria-label="Sign out"
-            className="group/signout absolute inset-y-1.5 right-1.5 z-10 flex items-center justify-center gap-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 text-rose-300 transition-all hover:gap-1.5 hover:border-rose-500 hover:bg-rose-600 hover:text-white focus-visible:gap-1.5 focus-visible:bg-rose-600 focus-visible:text-white"
+            className="group/signout absolute inset-y-1.5 right-1.5 z-10 flex items-center justify-center gap-0 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 text-rose-300 transition-all hover:bg-rose-500/25"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span className="max-w-0 overflow-hidden whitespace-nowrap text-[12px] font-semibold transition-all duration-200 group-hover/signout:max-w-[64px] group-focus-visible/signout:max-w-[64px]">
@@ -420,7 +416,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="lg:pl-64">
-        {/* Desktop top bar */}
         <header className="sticky top-0 z-20 hidden items-center gap-4 border-b border-border/80 bg-card/85 px-8 py-3 backdrop-blur-xl lg:flex">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
             <span className="text-muted-foreground">Portal</span>
@@ -450,7 +445,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Mobile top bar */}
         <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between bg-navy px-4 py-2.5 text-white dark:border-b dark:border-white/10 lg:hidden">
           <BrandMark
             logoClassName="h-8 w-8"
@@ -496,7 +490,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      {/* Mobile bottom nav — Settings last */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around bg-navy px-1 dark:border-t dark:border-white/10 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
         {mobileItems.map(({ to, label, icon: Icon }) => (
           <NavLink
