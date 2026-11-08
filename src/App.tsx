@@ -50,7 +50,7 @@ export default function App() {
           <Route path="/directory" element={<Navigate to="/home" replace />} />
           <Route path="/volunteer/contacts" element={<DirectoryPage />} />
           <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/verses" element={<VersesPage />} />
+          <Route path="/disciplines" element={<VersesPage />} />
           <Route path="/judging" element={<Navigate to="/schedule" replace />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
