@@ -79,7 +79,6 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
   ],
 };
 
-
 /** 'Session' is a plain listing for roles with no schedule of their own. */
 type AgendaKind = 'Competing' | 'Judging' | 'Volunteering' | 'Spectating' | 'Session';
 
@@ -289,7 +288,7 @@ export default function HomePage() {
     <AppShell>
       <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd={['participant', 'expert', 'attendee'].includes(roleName)}>
       {/* hero */}
-      <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
+      <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_3[...]
         <div
           className="pointer-events-none absolute -right-16 -top-40 h-[420px] w-[420px] rounded-full bg-emerald-300/30 blur-[110px]"
           aria-hidden
@@ -370,7 +369,7 @@ export default function HomePage() {
                     {ownKind === 'volunteering' ? 'No shifts yet' : 'Nothing on your day yet'}
                   </div>
                   <div className="mt-1 text-[13px] text-white/75">
-                    {ownKind === 'volunteering' ? 'An admin will assign your sessions.' : 'Browse the verses to add a session.'}
+                    {ownKind === 'volunteering' ? 'An admin will assign your sessions.' : 'Browse the disciplines to add a session.'}
                   </div>
                 </>
               )}
@@ -380,9 +379,7 @@ export default function HomePage() {
       </section>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        {/* your day */}
         <section className="glass flex flex-col rounded-3xl p-4 sm:p-6 xl:min-h-[560px]">
-          {/* Admins run the Summit rather than attend sessions: no Your day. */}
           {showYourDay && (
             <>
               <div className="mb-4 flex items-start gap-3 px-1">
@@ -412,7 +409,7 @@ export default function HomePage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/verses')}
+                    onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/disciplines')}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
                   >
                     {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
@@ -434,7 +431,6 @@ export default function HomePage() {
             </>
           )}
 
-          {/* Tracks: the app's tracks (areas within each verse), in verse colors */}
           <div className={cn(showYourDay && 'mt-6 border-t border-border/70 pt-5')}>
             <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
               <div className="min-w-0 flex-1">
@@ -446,11 +442,10 @@ export default function HomePage() {
                   Explore this year's tracks and sessions.
                 </p>
               </div>
-              {/* The empty state above already offers this; avoid two in a row. */}
               {canSchedule && agenda.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/verses')}
+                  onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/disciplines')}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-emerald px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-deep"
                 >
                   {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
@@ -461,9 +456,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* right rail — on xl, sized by Your day (h-0 + min-h-full) so it never adds empty space */}
         <div className="flex flex-col gap-6 xl:h-0 xl:min-h-full">
-          {/* Next up and Check-in are about attending, so admins don't get them. */}
           {showYourDay && (
             <div className="grid grid-cols-2 gap-3">
               {stats.map((s) => (
@@ -498,12 +491,10 @@ export default function HomePage() {
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
-      {/* explore the verses (replaces the old featured sessions) */}
       <ExploreVerses mine={mine} />
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
-      {/* quick access — one full-width row */}
       <section>
         <h2 className="mb-3 font-display text-xl font-bold tracking-tight sm:text-2xl">
           Quick access
