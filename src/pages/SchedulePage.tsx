@@ -121,17 +121,17 @@ function ScheduleBody() {
   return (
     <AppShell>
       <PageHeader label="Emerald High School · Dublin, CA" title="My Schedule" />
-      {scheduleError && <p role="alert" className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">We could not load your saved schedule. Refresh this page to retry.</p>}
+      {scheduleError && <p role="alert" className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">We could not load your saved schedule. Refresh the page to retry.</p>}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{added.length} session{added.length !== 1 ? 's' : ''}{isVolunteer ? ' · Volunteer sessions are assigned by an admin.' : ''}</p>
-        <Link to="/verses" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald hover:underline">Browse sessions <ArrowRight className="h-4 w-4" /></Link>
+        <Link to="/disciplines" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald hover:underline">Browse sessions <ArrowRight className="h-4 w-4" /></Link>
       </div>
       {added.length === 0 && !scheduleError ? (
         <div className="glass flex flex-col items-center gap-3 rounded-2xl px-6 py-16 text-center">
           <CalendarDays className="h-9 w-9 text-muted-foreground/60" />
           <h2 className="text-lg font-semibold">No sessions on your schedule yet.</h2>
-          <p className="text-sm text-muted-foreground">{isVolunteer ? 'Your sessions will appear here when an admin assigns them.' : 'Explore the verses to find sessions and add them to your day.'}</p>
-          <Link to="/verses" className="mt-2 rounded-xl bg-emerald px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-deep">Explore the verses</Link>
+          <p className="text-sm text-muted-foreground">{isVolunteer ? 'Your sessions will appear here when an admin assigns them.' : 'Explore the disciplines to find sessions and add them to your day.'}</p>
+          <Link to="/disciplines" className="mt-2 rounded-xl bg-emerald px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-deep">Explore the disciplines</Link>
         </div>
       ) : (
         <div className="space-y-4">
