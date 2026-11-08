@@ -36,10 +36,10 @@ function useWideScreen(): boolean {
 }
 
 /**
- * The Verses tab: the six verses side by side, each a panel in its own
+ * The Disciplines tab: the six disciplines side by side, each a panel in its own
  * colors and live motif. On wide screens they sit in a row and the one under
  * the pointer (or keyboard focus) opens up to show its tracks; on phones they
- * stack. Each opens its verse page, and each track chip that track's page.
+ * stack. Each opens its discipline page, and each track chip opens that track's page.
  */
 export default function VersesPage() {
   const { profile } = useAuth();
@@ -94,8 +94,8 @@ function VersesBody({ mine }: { mine: Set<string> }) {
     <AppShell>
       <PageHeader
         label="Emerald Summit 2027"
-        title="The six verses"
-        sub="Every track at the Summit lives in one of six verses. Open one to see its tracks and sessions."
+        title="The six disciplines"
+        sub="Every track at the Summit lives in one of six disciplines. Open one to see its tracks and sessions."
       />
 
       {wide ? (
@@ -188,7 +188,6 @@ function VersePanel({
         aria-hidden
       />
 
-      {/* Collapsed: the badge on top, the name running up the panel. */}
       {!stacked && (
         <div
           className={cn(
@@ -210,7 +209,6 @@ function VersePanel({
         </div>
       )}
 
-      {/* Open: everything about the verse, anchored to the bottom. */}
       <div
         className={cn(
           'pointer-events-none absolute inset-x-0 bottom-0 flex flex-col p-6 sm:p-8',
