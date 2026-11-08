@@ -37,7 +37,23 @@ vi.mock('../../services/summitContent', async (importOriginal) => ({
   useSummitContent: () => 0,
 }));
 vi.mock('../../models/sessions', () => {
-  const base = { track: 'techverse', trackName: 'Engineering', speaker: 'Summit team', location: 'Lab', room: 'A', duration: '60 min', description: 'Session details', capacity: 30, enrolled: 0, expertCapacity: 3, expertsEnrolled: 0, spectatorCap: 10, spectators: 0, volunteerCapacity: 2, volunteersEnrolled: 0 };
+  const base = {
+    track: 'techverse',
+    trackName: 'Engineering',
+    speaker: 'Summit team',
+    location: 'Lab',
+    room: 'A',
+    duration: '60 min',
+    description: 'Session details',
+    capacity: 30,
+    enrolled: 0,
+    expertCapacity: 3,
+    expertsEnrolled: 0,
+    spectatorCap: 10,
+    spectators: 0,
+    volunteerCapacity: 2,
+    volunteersEnrolled: 0,
+  };
   return { MOCK_SESSIONS: [
     { ...base, id: 'afternoon', title: 'Afternoon registered session', time: '14:15' },
     { ...base, id: 'morning', title: 'Morning registered session', time: '10:30' },
@@ -63,7 +79,7 @@ beforeEach(() => {
 });
 
 describe('personal schedule', () => {
-  test('shows only committed sessions in time order, with browsing in Verses', () => {
+  test('shows only committed sessions in time order, with browsing in Disciplines', () => {
     state.schedule.mySchedule = ['afternoon'];
     state.schedule.spectating = ['morning'];
     render(page());
@@ -71,7 +87,7 @@ describe('personal schedule', () => {
     const sessions = screen.getAllByRole('article');
     expect(sessions[0]).toHaveTextContent('Morning registered session');
     expect(sessions[1]).toHaveTextContent('Afternoon registered session');
-    expect(screen.getByRole('link', { name: /Browse sessions/ })).toHaveAttribute('href', '/verses');
+    expect(screen.getByRole('link', { name: /Browse sessions/ })).toHaveAttribute('href', '/disciplines');
   });
 
   test('admin-assigned volunteer sessions have no remove action and cannot be added through router state', async () => {
