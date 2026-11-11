@@ -98,22 +98,16 @@ PORT=5174 npm run dev
 
 ### Google sign-in
 
-The website uses Supabase's redirect flow (`signInWithOAuth({ provider: 'google', options: { redirectTo: <site>/home } })`), while the app uses Google's native ID-token flow. Both land on the same Supabase project, and Supabase links identities by verified email, so **Google and the emailed code reach the same account and the same data** on the website and in the app.
+The website uses **Google's own sign-in button** (Google Identity Services), the same kind of sign-in as the app's native Google button. Google's popup gives the page a signed ID token, and the page hands it to Supabase with `signInWithIdToken`. Nothing leaves the site, and Google's popup names **this website**, not the Supabase project URL. Supabase links identities by verified email, so **Google (website or app) and the emailed code reach the same account and the same data**.
 
-**Why it fails on Vercel today (checked 2026-11-10).** Nothing in the website code is wrong; two dashboard settings are:
+- Code: `src/lib/googleIdentity.ts` loads Google's script and holds the client ID; `src/components/GoogleSignInButton.tsx` draws the button; `signInWithGoogleIdToken` in `src/services/auth.ts` finishes it. A random nonce goes to Google hashed (SHA-256) and to Supabase raw, so a token can't be reused from another sign-in.
+- Client: the app's **Web** OAuth client `665674617320-97u477dvell0tsalugj3i3p7eifkk7qr` (the app's `GOOGLE_WEB_CLIENT_ID`) in Google Cloud project `inspiring-chess-491023-g8` (number `665674617320`). Client IDs are public, so it's in code.
+- **Every address that shows the button must be under that Web client's *Authorized JavaScript origins*** in Google Cloud. `https://emerald-summit.vercel.app` is there. To try Google sign-in locally, add `http://localhost` and `http://localhost:5173` too. A new domain (say `emeraldsummit.org`) needs adding before it goes live, and the popup will then show that domain.
+- Supabase's Google provider must list the Web client in *Client IDs* (it does, first, followed by the Android `…igtl…` and iOS `…khls…` IDs the app needs). Supabase rejects a token whose audience isn't on that list.
+- **Fallback:** if Google's script can't load (an ad blocker, a network filter), the page shows its own "Continue with Google" button, which uses the older redirect sign-in (`signInWithOAuth`, website → Supabase → Google → back). That route shows Google the Supabase URL and needs: the Supabase callback `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback` under the Web client's *Authorized redirect URIs*, the Web client's secret in Supabase, Site URL `https://emerald-summit.vercel.app`, and `https://emerald-summit.vercel.app/**` in Supabase's Redirect URLs. All of that was set up on 2026-11-11.
+- If a redirect sign-in comes back with an error, the roles page says so ("Google sign-in didn't finish (…)", `takeOAuthError`). If Supabase refuses a token from the button, a toast says why and the button resets.
 
-1. **Google refuses the request with `redirect_uri_mismatch`.** The first ID in Supabase's Google *Client IDs* is the app's **Android** client (`665674617320-igtl…`), so that is the client the web redirect sends to Google. Android clients can't hold redirect URIs or a secret, so this can never work. The redirect needs the app's **Web** client (`665674617320-97u…`, the app's `GOOGLE_WEB_CLIENT_ID`). All three clients (Android, iOS `665674617320-khls…`, Web) are in the same Google Cloud project, `inspiring-chess-491023-g8` (number `665674617320`).
-2. **Supabase doesn't allow the Vercel address.** A sign-in started from `https://emerald-summit.vercel.app` is sent back to the Site URL, `http://localhost:3000`, instead. (`http://localhost:5173/**` is allowed.)
-
-**The fix (no code change; someone with access to each dashboard does it):**
-
-- **Google Cloud console**, project `inspiring-chess-491023-g8` (number `665674617320`, the app's project) → APIs & Services → Credentials → the **Web application** client the app uses (`GOOGLE_WEB_CLIENT_ID`, starts `665674617320-97u`) → **Authorized redirect URIs** → add `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback`. Copy that client's **Client secret**. If the OAuth consent screen is still in **Testing**, only listed test users can sign in: publish it, or add the testers.
-- **Supabase dashboard**, project `dgrskmykbkvphnaasfzl` → Authentication → Sign In / Providers → **Google**: make *Client IDs* read Web, then Android, then iOS (`665674617320-97u…,665674617320-igtl…,665674617320-khls…`, comma-separated, full IDs; keeping the phone IDs lets the app's native sign-in keep working), paste that client's secret into *Client Secret*, and save. The first ID is the one the web redirect uses.
-- **Supabase dashboard** → Authentication → URL Configuration: set **Site URL** to `https://emerald-summit.vercel.app`, and add `https://emerald-summit.vercel.app/**` and `http://localhost:5173/**` to **Redirect URLs**.
-
-Nothing changes on Vercel. To check afterwards, open `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://emerald-summit.vercel.app/home` in a private window: Google's account picker should appear (not "Access blocked"), and after picking an account you should land on the website's `/home`, not `localhost:3000`.
-
-If Google sends someone back with an error, the roles page now says so ("Google sign-in didn't finish (…)") instead of failing silently (`takeOAuthError` in `src/services/auth.ts`).
+**History (fixed 2026-11-11):** Google sign-in on Vercel failed because Supabase's *Client IDs* listed the Android client first (the redirect flow always sends the first one, and Android clients can't hold redirect URIs), and the Site URL was still `http://localhost:3000` with the Vercel address not on the redirect list.
 
 ### Scripts
 

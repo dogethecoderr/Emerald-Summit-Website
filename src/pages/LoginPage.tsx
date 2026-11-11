@@ -7,13 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import {
   isTestAccount,
   sendSignInCode,
-  signInWithGoogle,
   signInWithTestAccount,
   verifySignInCode,
 } from '../services/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { isValidEmail } from '../lib/email';
-import GoogleIcon from '../components/GoogleIcon';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import ChangeRolePanel from '../components/ChangeRolePanel';
 import AuthLayout, { AUTH_ENTER, authStagger } from '../components/AuthLayout';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,6 @@ export default function LoginPage() {
   const [testAccount, setTestAccount] = useState(false);
   const [password, setPassword] = useState('');
   const [isChecking, setIsChecking] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   if (!role) {
     return (
@@ -99,19 +97,6 @@ export default function LoginPage() {
     setPassword('');
   };
 
-  // Leaves for Google and comes back to /home, where the new account is
-  // created with this role (the Sheets allowlist decides volunteer/admin).
-  const handleGoogle = async () => {
-    setIsRedirecting(true);
-    clearSignInError();
-    try {
-      await signInWithGoogle(role.name);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-      setIsRedirecting(false);
-    }
-  };
-
   const needsList = role.name === 'volunteer' || role.name === 'admin';
 
   return (
@@ -136,16 +121,13 @@ export default function LoginPage() {
         )}
 
         <div style={authStagger(3)} className={cn(AUTH_ENTER, 'space-y-3')}>
-          <Button
-            type="button"
-            className="h-12 w-full gap-3 rounded-xl bg-navy text-[15px] font-semibold text-white shadow-[0_10px_30px_-14px_rgba(16,28,54,0.8)] hover:bg-navy-bright dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
-            disabled={!isSupabaseConfigured || isRedirecting || isChecking}
-            onClick={handleGoogle}
-          >
-            {isRedirecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><GoogleIcon size={15} /></span>}
-            {isRedirecting ? 'Opening Google…' : 'Continue with Google'}
-          </Button>
-          <span role="status" className="sr-only">{isRedirecting ? 'Opening Google' : ''}</span>
+          {/* New accounts get this role (the allowlist decides volunteer/admin). */}
+          <GoogleSignInButton
+            roleName={role.name}
+            disabled={isChecking}
+            onStart={clearSignInError}
+            onSignedIn={() => navigate('/home', { replace: true })}
+          />
           <div className="py-1 text-center text-xs text-muted-foreground">or use your email</div>
           <form onSubmit={handleEmail} className="space-y-3">
             <label htmlFor="login-email" className="block text-[13px] font-medium">Email</label>

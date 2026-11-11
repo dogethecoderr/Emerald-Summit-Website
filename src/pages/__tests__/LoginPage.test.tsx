@@ -7,8 +7,10 @@ import LoginPage from '../LoginPage';
 
 const auth = vi.hoisted(() => ({ send: vi.fn(), verify: vi.fn(), google: vi.fn(), isTest: vi.fn(), testSignIn: vi.fn() }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ session: null, profile: null, clearSignInError: vi.fn() }) }));
-vi.mock('../../services/auth', () => ({ sendSignInCode: (email: string, role: string) => auth.send(email, role), verifySignInCode: (email: string, code: string) => auth.verify(email, code), signInWithGoogle: auth.google, isTestAccount: (email: string) => auth.isTest(email), signInWithTestAccount: (email: string, password: string) => auth.testSignIn(email, password) }));
+vi.mock('../../services/auth', () => ({ sendSignInCode: (email: string, role: string) => auth.send(email, role), verifySignInCode: (email: string, code: string) => auth.verify(email, code), signInWithGoogle: auth.google, signInWithGoogleIdToken: vi.fn(), isTestAccount: (email: string) => auth.isTest(email), signInWithTestAccount: (email: string, password: string) => auth.testSignIn(email, password) }));
 vi.mock('../../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: null }));
+// Google's script can't load in tests, so the page shows the redirect button.
+vi.mock('../../lib/googleIdentity', () => ({ GOOGLE_WEB_CLIENT_ID: 'web', loadGoogleIdentity: async () => null, makeNonce: async () => ({ raw: 'r', hashed: 'h' }) }));
 vi.mock('../../components/AuthLayout', () => ({ default: ({ children }: { children: ReactNode }) => <>{children}</>, AUTH_ENTER: '', authStagger: () => ({}) }));
 
 beforeEach(() => {
@@ -22,7 +24,7 @@ beforeEach(() => {
 test('expert email sign-in requires a verified code and offers no LinkedIn or local approval bypass', async () => {
   const user = userEvent.setup();
   render(<MemoryRouter initialEntries={['/login/expert']}><Routes><Route path="/login/:role" element={<LoginPage />} /><Route path="/home" element={<div>Signed-in dashboard</div>} /></Routes></MemoryRouter>);
-  expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
   expect(screen.queryByText('LinkedIn sign-in')).not.toBeInTheDocument();
   expect(screen.queryByText('Use demo mode')).not.toBeInTheDocument();
   await user.type(screen.getByLabelText('Email'), 'Expert@Example.com');

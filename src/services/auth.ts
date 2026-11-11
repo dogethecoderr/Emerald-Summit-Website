@@ -230,6 +230,35 @@ async function requireRealSession() {
   return session;
 }
 
+/**
+ * Finishes Google's own sign-in button: Supabase checks the Google ID token
+ * (its audience must be in the Google provider's Client IDs, and its nonce
+ * must hash from `rawNonce`). Same check as the app's native Google sign-in,
+ * so it's the same account. No page leaves the site.
+ */
+export async function signInWithGoogleIdToken(
+  idToken: string,
+  rawNonce: string,
+  roleName: string,
+): Promise<void> {
+  // A new account moves to this role (see getCurrentProfile).
+  savePendingRole(roleName);
+  const { error } = await requireSupabase().auth.signInWithIdToken({
+    provider: 'google',
+    token: idToken,
+    nonce: rawNonce,
+  });
+  if (error) {
+    localStorage.removeItem(PENDING_ROLE_KEY);
+    throw new Error(`Google sign-in didn't finish (${error.message}). Try again, or use your email.`);
+  }
+}
+
+/**
+ * The older redirect sign-in (website → Supabase → Google → back). Used only
+ * when Google's button script can't load; Google's page then names the
+ * Supabase project URL instead of this site.
+ */
 export async function signInWithGoogle(roleName: string): Promise<void> {
   // On return the account moves to this role if it is new
   // (see getCurrentProfile).
