@@ -82,7 +82,7 @@ Then open the printed local URL (Vite defaults to `http://localhost:5173`).
 
 ### Test accounts
 
-With `VITE_DEV_LOGIN=true`, test accounts sign in with a shared password instead of an emailed code, like the app's dev builds. It's on for the live site (Vercel **Production**), because the deploy has only that environment and every test account still needs the password. Turn it off (remove the variable and redeploy) once the site is marketed widely. A real email never sees a password box: the function only says `test: true` for emails on its test list.
+Test accounts sign in with a shared password instead of an emailed code, like the app's dev builds. The switch is in code, `isDevLoginEnabled` in `src/lib/devLogin.ts`, not a Vercel variable, so nobody has to change the deploy settings. It's `true`, the live site included, because every test account still needs the password and the site isn't marketed widely yet. To turn it off, set it to `false` and push to `main`. A real email never sees a password box: the function only says `test: true` for emails on its test list.
 
 1. Type the test account's email in the normal email box and press **Send sign-in code**. The page first asks the shared `dev-login` Edge Function whether it's a test account (`check: true`). If not, or if the call fails, a normal code is sent.
 2. For a test account, a password box appears instead. The function checks the password and returns a one-time code, which the page verifies, so it's a real Supabase session.

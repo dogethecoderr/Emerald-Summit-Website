@@ -37,7 +37,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState(incoming.email ?? '');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-  // Test accounts (VITE_DEV_LOGIN builds only) type the shared password instead of a code.
+  // Test accounts (when isDevLoginEnabled is on) type the shared password instead of a code.
   const [testAccount, setTestAccount] = useState(false);
   const [password, setPassword] = useState('');
   const [isChecking, setIsChecking] = useState(false);

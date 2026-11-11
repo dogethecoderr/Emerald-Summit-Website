@@ -76,7 +76,7 @@ beforeEach(() => {
 });
 
 describe('test account check', () => {
-  test('never asks the function when VITE_DEV_LOGIN is off', async () => {
+  test('never asks the function when the switch is off', async () => {
     db.devLogin = false;
     expect(await auth.isTestAccount('admin@test.example')).toBe(false);
     expect(backend.functions.invoke).not.toHaveBeenCalled();
@@ -111,7 +111,7 @@ describe('test account sign-in', () => {
     expect(stored).not.toContain('shared-secret');
   });
 
-  test('refuses in a build without VITE_DEV_LOGIN', async () => {
+  test('refuses when the switch is off', async () => {
     db.devLogin = false;
     await expect(auth.signInWithTestAccount('a@test.example', 'pw')).rejects.toThrow('Test accounts are off in this build.');
   });

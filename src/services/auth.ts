@@ -313,7 +313,7 @@ export function takeTestAccountNotice(): string | null {
 
 /**
  * True when this email is a test account, so the page asks for the shared
- * password instead of sending a code. Always false unless VITE_DEV_LOGIN is
+ * password instead of sending a code. Always false when isDevLoginEnabled is
  * on; any failure means a normal code.
  */
 export async function isTestAccount(email: string): Promise<boolean> {
