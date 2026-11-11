@@ -52,7 +52,7 @@ Roles are the app's roles, stored in `profiles.role` on the shared backend. The 
 |---|---|---|
 | `participant` | Participant | Students who compete or present. Anyone can pick it. |
 | `parentSpectator` | Attendee | Parents and spectators. Adding a session always spectates. |
-| `expert` | Expert | Judges and speakers. Picking it sets `expert_status = pending` until an admin approves (`review_expert`, done in the app). |
+| `expert` | Expert | Judges and speakers. Picking it sets `expert_status = pending` until an admin approves (`review_expert`, on the website's Expert approvals page or in the app). |
 | `volunteer` | Volunteer | Only if the email is on the Allowed Volunteers sheet. `volunteer_subtype` (`eaf_ambassador`, `student_volunteer`, `parent_volunteer`) and the `can_*` flags come from the sheet. |
 | `admin` | Admin | Only if the email is on the Allowed Admins sheet. |
 
@@ -154,7 +154,24 @@ The website uses the **app's** Supabase project (`dgrskmykbkvphnaasfzl`), so an 
 - **Write through the app's RPCs.** `register_for_session` (with `p_intent`), `set_session_manage`, `mark_summit_checkin`, `scan_summit_checkin` and the rest. Several tables have no direct write grant on purpose.
 - **RLS and the RPCs are the security.** If a call is refused, the website is doing something the app doesn't allow either. Match the app; don't ask for a looser policy.
 
-**What the website reads and writes today:** `profiles` (own row), `disciplines` and `sessions_with_counts` (catalog), `sessions` (editors), `registrations` and `session_volunteers` (schedule), `announcements` plus the `announcement_attachments` bucket, `role_allowlist` (test accounts only), and the RPCs `register_for_session`, `my_summit_checkin`, `fetch_attendee_directory`, `fetch_session_roster`, `fetch_volunteer_hub`, `mark_summit_checkin`, `scan_summit_checkin` and `fetch_summit_status`.
+**What the website reads and writes today:** `profiles` (own row), `disciplines` and `sessions_with_counts` (catalog), `sessions` (editors), `registrations` and `session_volunteers` (schedule), `rooms`, `volunteer_hour_logs`, `expert_feedback`, `eaf_future_interest`, `announcements`, `announcement_reads` and `announcement_dismissals` plus the `announcement_attachments` bucket, `role_allowlist`, and these RPCs: registration (`register_for_session`, `update_my_registration`, `fetch_my_project`, `find_team`, `transfer_team_ownership`, `remove_team_member`, `session_experts`), organizing (`set_session_manage`, `fetch_session_roster`, `mark_session_attendance`, `fetch_session_volunteers`, `fetch_volunteers`, `assign_volunteer_to_session`, `unassign_volunteer_from_session`, `session_time_conflicts`, `notify_session_time_conflicts`), admin (`fetch_expert_requests`, `review_expert`, `fetch_summit_metrics`), check-in (`my_summit_checkin`, `fetch_attendee_directory`, `mark_summit_checkin`, `scan_summit_checkin`), and `fetch_volunteer_hub`, `preview_role_change`, `acknowledge_expert_decline`, `submit_expert_feedback`, `set_eaf_future_interest`, `fetch_summit_status`.
+
+**Not on the website yet:** Archie (the AI assistant and its insights page), session photos (hero and gallery uploads), the discipline editor, and live check-in counts at the front desk. The Discover page still lists the six disciplines from `src/models/disciplines.ts`, so a discipline an admin adds in the app won't show here until it's added to that list.
+
+---
+
+## Sessions
+
+Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), ported from the app's session screen; session cards and schedule entries link to it, and a card's + opens it with the add choices.
+
+- **Add to my day** offers each role the app's choices (`addModesForRole` in `src/models/registration.ts`): participants and volunteers participate or spectate, experts serve as an expert or spectate, admins can also manage the session, and parents and spectators are added as spectators straight away.
+- **Participating** opens the registration form (`src/components/session/RegistrationForm.tsx`): solo or team, the project name (in the session's own wording), a team code to join or a new team to create, and the session's own questions. Registered participants see their project card with the team code and members, and can edit the registration, leave the team, transfer ownership or remove a member. A team owner with teammates picks a new owner before leaving or removing the session.
+- **Organizer tabs.** Admins, the session's managers and its editors also get Participants and Experts (grouped by project, with attendance for admins and managers), Volunteers (admins assign and remove) and Metrics (schools and grades).
+- **Editing** (`src/components/verse/SharedSessionForm.tsx`) writes the app's fields: start and end, capacity, team size, participant deadline, the project question's wording, extra questions and page sections. Moving a session's time warns about schedule clashes and notifies the people affected. Rooms stay locked (`SESSION_ROOMS_ENABLED` in `src/models/sessions.ts`), so the session page hides the room; lists still show it, as in the app.
+
+**Profile menu** (`src/pages/SettingsPage.tsx`) has the app's items by role: Sessions I'm managing, Track volunteer hours (`/volunteer/hours`), Volunteer hub, Front desk check-in, Metrics (`/admin/metrics`), Expert approvals (`/admin/experts`), Manage rooms (`/admin/rooms`), Change role, and after the summit, Summit feedback or Volunteer for EAF again (`/follow-up`).
+
+**Sign-up** (`src/pages/ProfileSetupPage.tsx`, `src/models/profileFields.ts`) asks each role the app's questions: participants pick a school from the Tri-Valley list and give a grade, experts give their expertise and a one-line bio, volunteers and admins give a mobile number. A volunteer or admin with no number, or a student volunteer or EAF ambassador with no grade, is asked for it before going on. Changing role asks the new role's questions.
 
 **Summit date.** `fetch_summit_status()` (`src/services/summitStatus.ts`) gives the summit date, which stays null until the organizers set it. The Home hero shows "January 2027" until then, and the real day (for example "Sat, Jan 23") plus a countdown to the first session once it's set, the same way the app's Home does. The public landing page still says "January 2027" by hand.
 
@@ -169,14 +186,14 @@ Who may be a volunteer or an admin comes from two Google Sheets, synced every mi
 | Sheet | Effect |
 |---|---|
 | Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. |
-| Disciplines | Scopes the Volunteer Hub roster. |
+| Disciplines | The disciplines whose sessions they can edit (with `can_edit_sessions`). |
 | `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons (`scan_summit_checkin`, `mark_summit_checkin`). |
 | `can_edit_sessions` | Lets the person add, edit, and delete sessions in their disciplines (see **Editing sessions**). |
 | `can_post_announcements` | Shown as a badge in the hub. |
 
 Those flags only unlock the website's controls. The RPCs and row-level security check the same flags on the server.
 
-**Testing it.** Use a test account (see **Test accounts**) or **Continue with Google**. A new account that picks Volunteer or Admin keeps that role only if its email is on the matching sheet; otherwise it's signed out with "You aren't eligible to sign up as a volunteer/an admin." A completed profile keeps its role when someone signs in from another role's page: changing role is done in the app, which previews what happens to their sessions first. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs** on the shared project.
+**Testing it.** Use a test account (see **Test accounts**) or **Continue with Google**. A new account that picks Volunteer or Admin keeps that role only if its email is on the matching sheet; otherwise it's signed out with "You aren't eligible to sign up as a volunteer/an admin." A completed profile keeps its role when someone signs in from another role's page; Change role previews what happens to their sessions first, checks the allowlist for volunteer and admin, then asks the new role's sign-up questions. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs** on the shared project.
 
 Relevant files: `src/services/auth.ts` (`getCurrentProfile`), `src/models/roles.ts` (`roleLabelFor`), `src/pages/LoginPage.tsx`, `src/pages/VolunteerDashboard.tsx`.
 
@@ -200,7 +217,7 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a post, edit, pin, or delete reaches every connected profile without a refresh.
 
-**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read, and the News page has "Mark all as read". Read state is the app's `announcement_reads` table (a post counts as read once `opened_at` is set, the same as the app's dots), so reading a post on the website clears it on the phone and the reverse.
+**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
 
 **Remove from my feed.** Each post has a "Remove from my feed" button, as in the app: it hides the post for this account only (`announcement_dismissals`), with an Undo toast. Admins still delete posts for everyone with Delete.
 
@@ -212,7 +229,7 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 ## People, check-in, and resources
 
-**Volunteer Hub** (`src/services/people.ts`). `profiles` is own-row-only, so there's no public directory. Front-desk volunteers and admins see everyone through `fetch_attendee_directory`. Other volunteers see the rosters of the sessions an admin assigned them (`session_volunteers`, `fetch_session_roster`). The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
+**Volunteer Hub** (`/volunteer`, `src/services/people.ts`). `profiles` is own-row-only, so there's no public directory. Admins and front-desk volunteers see everyone, every role, through `fetch_attendee_directory`, as the app's front desk does. Other volunteers see the sessions an admin assigned them, each linking to its session page for the roster and attendance. The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
 
 **Check-in.** The hub's Check In / Undo buttons call `mark_summit_checkin`, and the QR scanner calls `scan_summit_checkin`. The QR pass is the bare account id, the same as the app, so a pass on a laptop scans at the app's front desk and the reverse. Only front-desk volunteers and admins may check people in; the RPCs enforce it.
 
