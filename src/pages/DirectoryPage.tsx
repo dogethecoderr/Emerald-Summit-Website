@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Phone, Search, UserRound } from 'lucide-react';
+import { Phone, Search, UserRound } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import { useRequireRole } from '../hooks/useRequireProfile';

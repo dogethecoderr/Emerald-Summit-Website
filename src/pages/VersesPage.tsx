@@ -1,6 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import VerseMotif from '../components/verse/VerseMotif';

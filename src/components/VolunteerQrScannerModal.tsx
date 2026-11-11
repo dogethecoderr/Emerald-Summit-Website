@@ -17,7 +17,7 @@ import {
   RefreshCw,
   Keyboard,
   ArrowRight,
-} from 'lucide-react';
+} from '@/components/icons';
 import { checkInParticipant, type CheckInResult } from '../services/checkIn';
 import { roleByName, USER_ROLES } from '../models/roles';
 import { cn } from '@/lib/utils';

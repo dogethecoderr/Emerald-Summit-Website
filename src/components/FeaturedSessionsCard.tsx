@@ -1,4 +1,4 @@
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin } from '@/components/icons';
 import type { Session } from '../models/sessions';
 import CapacityBar from './CapacityBar';
 import TrackPill from './TrackPill';

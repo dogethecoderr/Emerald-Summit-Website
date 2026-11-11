@@ -38,10 +38,9 @@ const COUNT_FOR: Record<ReservationKind, keyof SessionCount> = {
  * The viewer's schedule: competing, judging (experts), volunteering
  * (volunteers), and spectating session ids, plus every session's seat counts.
  *
- * Signed in with Google, registrations and admin-assigned session_volunteers
- * come from the shared backend. Demo and expert sessions have no
- * database credentials, so their schedule lives in this tab and the counts
- * move locally.
+ * Signed in, registrations and admin-assigned session_volunteers come from
+ * the shared backend. With no backend configured, the schedule lives in this
+ * tab and the counts move locally.
  */
 interface ScheduleContextValue {
   mySchedule: string[];

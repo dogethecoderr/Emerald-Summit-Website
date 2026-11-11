@@ -24,7 +24,6 @@ const MOCK_ID_REGEX = /^p\d+$/i;
 export function validateParticipantId(id: string): boolean {
   if (!id || typeof id !== 'string') return false;
   const trimmed = id.trim();
-  if (trimmed === 'bypass_user_id') return true;
   if (UUID_REGEX.test(trimmed) || GENERIC_UUID_REGEX.test(trimmed)) return true;
   if (MOCK_ID_REGEX.test(trimmed)) return true;
   return false;

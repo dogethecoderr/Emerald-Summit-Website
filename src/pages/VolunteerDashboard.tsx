@@ -12,7 +12,7 @@ import {
   ScanLine,
   CalendarCog,
   Megaphone,
-} from 'lucide-react';
+} from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';

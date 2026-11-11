@@ -6,7 +6,7 @@ import {
   Link2,
   Plus,
   AlertTriangle,
-} from 'lucide-react';
+} from '@/components/icons';
 import { toast } from 'sonner';
 import {
   ANNOUNCEMENT_AUDIENCES,

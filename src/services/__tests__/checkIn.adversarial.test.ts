@@ -80,14 +80,14 @@ describe('Adversarial Test: checkIn Service Edge Cases & Attack Injections', () 
       expect(validateParticipantId([] as any)).toBe(false);
     });
 
-    test('accepts valid UUID v4, generic UUID, mock IDs, and bypass user ID', () => {
+    test('accepts valid UUID v4, generic UUID and mock IDs, and no longer the old demo id', () => {
       expect(validateParticipantId('c8d9e234-5b6a-4f11-9a2c-7b8901234567')).toBe(true);
       expect(validateParticipantId('00000000-0000-0000-0000-000000000000')).toBe(true);
       expect(validateParticipantId('FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF')).toBe(true);
       expect(validateParticipantId('p1')).toBe(true);
       expect(validateParticipantId('P10')).toBe(true);
       expect(validateParticipantId('p999')).toBe(true);
-      expect(validateParticipantId('bypass_user_id')).toBe(true);
+      expect(validateParticipantId('bypass_user_id')).toBe(false);
       // Handles leading/trailing whitespace
       expect(validateParticipantId('  c8d9e234-5b6a-4f11-9a2c-7b8901234567  ')).toBe(true);
     });

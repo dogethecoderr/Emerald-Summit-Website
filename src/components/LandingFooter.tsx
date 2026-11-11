@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Mail } from 'lucide-react';
+import { Mail } from '@/components/icons';
 import BrandMark from './BrandMark';
 
 const SITE_LINKS = [

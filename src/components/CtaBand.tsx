@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Mail } from 'lucide-react';
+import { ArrowRight, Mail } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 /** Full-width closing CTA — the "one last push" band before the footer. */

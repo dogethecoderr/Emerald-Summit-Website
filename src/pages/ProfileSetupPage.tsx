@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { User, Phone, Check, School, Plus, X, Users, Mail } from 'lucide-react';
+import { User, Phone, Check, School, Plus, X, Users, Mail } from '@/components/icons';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { USER_DISCIPLINES } from '../models/disciplines';
 import { tracksForUniverse } from '../models/tracks';
 import {
-  completeDemoProfile,
   DEFAULT_PROFILE_SETTINGS,
   getRegistration,
-  isDemoSession,
   needsProfileSetup,
   saveProfile,
   signOut,
@@ -132,9 +130,6 @@ export default function ProfileSetupPage() {
     }
   }, [profile, loadingProfile, prefilled, session]);
 
-  // Demo mode: the pages work as normal, but saving or skipping only changes
-  // the profile in this browser.
-  const demo = session != null && isDemoSession();
   const isStudent = profile?.role === 'participant';
   const requiresPhone = ['volunteer', 'ambassador', 'admin'].includes(profile?.role ?? '');
   const steps: readonly Step[] = isStudent ? STUDENT_STEPS : ['about'];
@@ -196,12 +191,6 @@ export default function ProfileSetupPage() {
   const handleFinish = async () => {
     if (!stepValid || name.trim().length === 0) return;
     const input = buildInput();
-    if (demo) {
-      completeDemoProfile(input);
-      navigate('/home');
-      return;
-    }
-
     setIsSaving(true);
     try {
       await saveProfile(input);
@@ -218,17 +207,6 @@ export default function ProfileSetupPage() {
     if (!canContinue) return;
     if (isLastStep) {
       void handleFinish();
-    } else {
-      setStepIndex((i) => i + 1);
-    }
-  };
-
-  // Demo only: move on without filling in this step. Skipping the last step
-  // finishes setup in this browser.
-  const handleSkip = () => {
-    if (isLastStep) {
-      completeDemoProfile();
-      navigate('/home');
     } else {
       setStepIndex((i) => i + 1);
     }
@@ -258,11 +236,6 @@ export default function ProfileSetupPage() {
             {copy.title}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">{step === 'about' && requiresPhone ? 'Your name, email, and phone number are required for team coordination.' : copy.intro}</p>
-          {demo && (
-            <p className="mt-4 rounded-lg border border-dashed border-border px-3 py-2 text-[13px] text-muted-foreground">
-              Demo mode: nothing on this page is saved to the Summit database.
-            </p>
-          )}
         </div>
 
         <div key={`${step}-fields`} className="animate-fade-up mt-8 space-y-6" style={{ animationDelay: '90ms' }}>
@@ -518,15 +491,6 @@ export default function ProfileSetupPage() {
                 'Continue'
               )}
             </Button>
-            {demo && (
-              <Button
-                variant="outline"
-                className="h-12 w-full rounded-xl border-dashed border-border/80 bg-transparent text-[15px] font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
-                onClick={handleSkip}
-              >
-                Skip
-              </Button>
-            )}
           </div>
         </div>
     </AuthLayout>

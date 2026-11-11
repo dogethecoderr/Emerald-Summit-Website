@@ -7,7 +7,7 @@ import {
   Music,
   File as FileIcon,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/icons';
 import type {
   AnnouncementAttachment,
   AttachmentType,

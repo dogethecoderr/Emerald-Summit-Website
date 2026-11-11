@@ -7,7 +7,7 @@ import {
   Clock3,
   MapPin,
   Sparkles,
-} from 'lucide-react';
+} from '@/components/icons';
 import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
 import SkyVideo from '../components/SkyVideo';

@@ -11,6 +11,7 @@ A React web app used to **test, visualize, and integrate features** for the Emer
 | **Where** | Emerald High, Dublin CA |
 | **This repo** | Web prototype — testing, visualization, and feature integration |
 | **Production app** | Separate Flutter mobile app (iOS + Android), in its own repo |
+| **Backend** | Shared with the app: Supabase project `dgrskmykbkvphnaasfzl`, owned by the app repo |
 | **Owner** | EHS Academic Foundation · EAF Tech Team |
 
 ---
@@ -34,6 +35,7 @@ Feature work and data models are prototyped here and then carried over into the 
 
 - **React 18** + **TypeScript** + **Vite**
 - **Tailwind CSS** + **shadcn/ui** (Radix primitives) — the "Emerald Mist" design system
+- **Phosphor icons** (`@phosphor-icons/react`), duotone everywhere like the app's `duotone_icon.dart`. Every icon comes from `src/components/icons.tsx`; import from there, not from the package.
 - **framer-motion** for the animated landing/intro
 - **React Router** for routing
 - **@hello-pangea/dnd** for the drag-and-drop schedule builder
@@ -44,18 +46,19 @@ Feature work and data models are prototyped here and then carried over into the 
 
 ## Roles
 
-Users sign in and pick a role, which is stored on their record and enforced with Supabase row-level security. The prototype currently models these roles (see `src/models/roles.ts`):
+Roles are the app's roles, stored in `profiles.role` on the shared backend. The website shows some of them under older names (`src/models/roles.ts`, `storedRole` and `profileFromRow` in `src/services/auth.ts` translate):
 
-| Role | What they do |
-|---|---|
-| **Participant** | Build a schedule, register for tracks, follow their day |
-| **Attendee** | Explore the summit and browse updates (no competitor schedule) |
-| **Volunteer** | Manage an assigned track, check participants in, support attendees |
-| **Expert** | View judging assignments and navigate between rooms |
-| **Ambassador** | Edit activity pages, post announcements, log volunteer hours |
-| **Admin** | Post and edit announcements, share files, broadcast Summit news |
+| Stored role | Website label | Who |
+|---|---|---|
+| `participant` | Participant | Students who compete or present. Anyone can pick it. |
+| `parentSpectator` | Attendee | Parents and spectators. Adding a session always spectates. |
+| `expert` | Expert | Judges and speakers. Picking it sets `expert_status = pending` until an admin approves (`review_expert`, done in the app). |
+| `volunteer` | Volunteer | Only if the email is on the Allowed Volunteers sheet. `volunteer_subtype` (`eaf_ambassador`, `student_volunteer`, `parent_volunteer`) and the `can_*` flags come from the sheet. |
+| `admin` | Admin | Only if the email is on the Allowed Admins sheet. |
 
-Every role except **Ambassador** can sign in; ambassadors are still coordinated offline and exist only so directory listings label them correctly. **Experts** also need an admin's approval before their email works; see [Expert sign-up and approval](#expert-sign-up-and-approval).
+**Ambassador isn't a role.** An EAF ambassador is a volunteer whose subtype is `eaf_ambassador`. The website still lists Ambassador in `USER_ROLES` so labels read right, but nobody signs in as one.
+
+The server owns `role`, `volunteer_subtype`, `managed_disciplines`, the `can_*` flags and `expert_status`. A trigger puts `role` back to `participant` unless the allowlist allows it, so after writing a role the website re-reads the profile to see what was kept.
 
 ---
 
@@ -64,10 +67,9 @@ Every role except **Ambassador** can sign in; ambassadors are still coordinated 
 ### Prerequisites
 
 - **Node.js 18+**
-- A **Supabase** project (copy `.env.example` to `.env.local` and fill in your keys). Without one, only demo mode (below) can sign in.
-- For expert sign-in by email, the approvals Apps Script deployed and its URL in `VITE_APPROVALS_URL` (see `apps-script/README.md`).
+- The shared backend's URL and **publishable** key: copy `.env.example` to `.env.local` and ask Arjun for the key (it's the same one the app's `env.json` uses). Never put the secret or `service_role` key in `.env*` or in Vercel: every `VITE_*` value ships to every visitor. Without the keys, nobody can sign in; the public pages still work.
 
-**Demo mode** (`src/lib/demoMode.ts`) is for development and testing only. It is on under `npm run dev` and off in production builds (Vercel runs `vite build`), so the "Use demo mode" option isn't shipped to real users. Set `VITE_ENABLE_DEMO_MODE=true` on a deploy to turn it on there, for example on Vercel's Preview environment only. A demo session lives in this browser's localStorage (`bypass_session` with `demo: true`, `bypass_profile`) and never reaches the database. It starts at profile setup like a first Google sign-in, so every registration page can be viewed. A **Skip** button there moves on, and Continue changes only the local profile. `saveProfile` and `updateProfileSettings` refuse to write while any local session is active. A demo session left in a browser is dropped when it loads in a build with demo mode off. The expert email sign-in also uses a local session but isn't demo mode, so it works in every build.
+**There is no demo mode.** It used to make a fake local session that never reached the database; on the shared backend that only showed screens whose data never loads, so it was removed. Use a test account (below) instead. Any `bypass_*` keys an older build left in a browser are cleared when the site loads.
 
 ### Run the app
 
@@ -78,11 +80,40 @@ npm run dev
 
 Then open the printed local URL (Vite defaults to `http://localhost:5173`).
 
+### Test accounts
+
+With `VITE_DEV_LOGIN=true`, test accounts sign in with a shared password instead of an emailed code, like the app's dev builds. It's on for the live site (Vercel **Production**), because the deploy has only that environment and every test account still needs the password. Turn it off (remove the variable and redeploy) once the site is marketed widely. A real email never sees a password box: the function only says `test: true` for emails on its test list.
+
+1. Type the test account's email in the normal email box and press **Send sign-in code**. The page first asks the shared `dev-login` Edge Function whether it's a test account (`check: true`). If not, or if the call fails, a normal code is sent.
+2. For a test account, a password box appears instead. The function checks the password and returns a one-time code, which the page verifies, so it's a real Supabase session.
+3. The account skips role picking, like `_autoOnboardTestAccount` in the app: admin if on the admin list, else volunteer if on the volunteer list, else from the email (`expert`, `spectator` or `parent`, otherwise participant). A toast says which role it got.
+
+The password is never stored (not in `localStorage`, the URL, the repo or Vercel). People type it. The test accounts and the password are set up in the app repo (SUPABASE.md §3b). Code: `isTestAccount`, `signInWithTestAccount` and `autoOnboardTestAccount` in `src/services/auth.ts`, the password step in `src/pages/LoginPage.tsx`, the flag in `src/lib/devLogin.ts`.
+
 The dev server honours a `PORT` environment variable, so a second instance — another checkout, or a teammate's session on the same machine — can run alongside the first instead of colliding on 5173:
 
 ```bash
 PORT=5174 npm run dev
 ```
+
+### Google sign-in
+
+The website uses Supabase's redirect flow (`signInWithOAuth({ provider: 'google', options: { redirectTo: <site>/home } })`), while the app uses Google's native ID-token flow. Both land on the same Supabase project, and Supabase links identities by verified email, so **Google and the emailed code reach the same account and the same data** on the website and in the app.
+
+**Why it fails on Vercel today (checked 2026-11-10).** Nothing in the website code is wrong; two dashboard settings are:
+
+1. **Google refuses the request with `redirect_uri_mismatch`.** Supabase's Google provider sends Google the OAuth client `665674617320-igtl…`, and that client doesn't list Supabase's callback. It is also not the app's web client (`665674617320-97u…`, the app's `GOOGLE_WEB_CLIENT_ID`).
+2. **Supabase doesn't allow the Vercel address.** A sign-in started from `https://emerald-summit.vercel.app` is sent back to the Site URL, `http://localhost:3000`, instead. (`http://localhost:5173/**` is allowed.)
+
+**The fix (no code change; someone with access to each dashboard does it):**
+
+- **Google Cloud console**, project `665674617320` (the app's project) → APIs & Services → Credentials → the **Web application** client the app uses (`GOOGLE_WEB_CLIENT_ID`, starts `665674617320-97u`) → **Authorized redirect URIs** → add `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/callback`. Copy that client's **Client secret**. If the OAuth consent screen is still in **Testing**, only listed test users can sign in: publish it, or add the testers.
+- **Supabase dashboard**, project `dgrskmykbkvphnaasfzl` → Authentication → Sign In / Providers → **Google**: put the app's web client ID **first** in *Client IDs* (comma-separated; keep the other IDs after it so the app's native sign-in keeps working), paste that client's secret into *Client Secret*, and save. The first ID is the one the web redirect uses.
+- **Supabase dashboard** → Authentication → URL Configuration: set **Site URL** to `https://emerald-summit.vercel.app`, and add `https://emerald-summit.vercel.app/**` and `http://localhost:5173/**` to **Redirect URLs**.
+
+Nothing changes on Vercel. To check afterwards, open `https://dgrskmykbkvphnaasfzl.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://emerald-summit.vercel.app/home` in a private window: Google's account picker should appear (not "Access blocked"), and after picking an account you should land on the website's `/home`, not `localhost:3000`.
+
+If Google sends someone back with an error, the roles page now says so ("Google sign-in didn't finish (…)") instead of failing silently (`takeOAuthError` in `src/services/auth.ts`).
 
 ### Scripts
 
@@ -111,10 +142,7 @@ src/
 ├── services/             # Backend integration (auth, announcements, approvals)
 └── index.css             # Tailwind + design-system globals
 
-supabase/
-└── migrations/           # Postgres schema + row-level security migrations
-
-apps-script/              # Google Apps Script backend for the expert sign-up sheet
+apps-script/              # Old Google Apps Script for the expert sign-up sheet (no longer called)
 ```
 
 > The `.agents/` folder is a collaborator's Google Antigravity agent workspace and is unrelated to the web app — see `.agents/README.md`.
@@ -123,77 +151,46 @@ apps-script/              # Google Apps Script backend for the expert sign-up sh
 
 ## Backend
 
-Supabase provides hosted Postgres, authentication, file storage, realtime, and row-level security. Schema and policies live in `supabase/migrations/`. Row-level security keys off `users.role` so each role only reads and writes what it should. These same tables and policies are the shared source of truth that the production Flutter app integrates against.
+The website uses the **app's** Supabase project (`dgrskmykbkvphnaasfzl`), so an account, a registration, an announcement or a check-in made on one shows up on the other. The app repo owns the schema, the policies, the RPCs and the Edge Functions. Its [app README (genzarjun/Emerald-Summit-App-MOBILE)](https://github.com/genzarjun/Emerald-Summit-App-MOBILE#website-sync-one-backend-for-the-app-and-the-website) section is the source of truth for this work. Read it before changing anything that talks to the database.
 
-Apply pending migrations to the linked project with:
+**Rules:**
 
-```bash
-npx supabase db push
-```
+- **No schema from this repo.** There is no `supabase/` folder here any more (it held the website's old project, `spsxfbvamwxsmtjkwxko`). Never run `supabase db push`, `db reset` or `link` against the shared project from this repo. A schema change is a new `.sql` file in the app repo's `supabase/`, run by Arjun.
+- **Additive only.** The app on people's phones reads these columns. Never rename or drop a column or change what an RPC returns.
+- **Write through the app's RPCs.** `register_for_session` (with `p_intent`), `set_session_manage`, `mark_summit_checkin`, `scan_summit_checkin` and the rest. Several tables have no direct write grant on purpose.
+- **RLS and the RPCs are the security.** If a call is refused, the website is doing something the app doesn't allow either. Match the app; don't ask for a looser policy.
 
-Features that depend on a migration degrade to local/mock data until it is pushed, and say so in the UI rather than failing silently.
+**What the website reads and writes today:** `profiles` (own row), `disciplines` and `sessions_with_counts` (catalog), `sessions` (editors), `registrations` and `session_volunteers` (schedule), `announcements` plus the `announcement_attachments` bucket, `role_allowlist` (test accounts only), and the RPCs `register_for_session`, `my_summit_checkin`, `fetch_attendee_directory`, `fetch_session_roster`, `fetch_volunteer_hub`, `mark_summit_checkin`, `scan_summit_checkin` and `fetch_summit_status`.
+
+**Summit date.** `fetch_summit_status()` (`src/services/summitStatus.ts`) gives the summit date, which stays null until the organizers set it. The Home hero shows "January 2027" until then, and the real day (for example "Sat, Jan 23") plus a countdown to the first session once it's set, the same way the app's Home does. The public landing page still says "January 2027" by hand.
 
 ---
 
 ## Volunteer and admin allowlist
 
-Who may hold the **volunteer**, **ambassador**, or **admin** role comes from two private Google Sheets, copied from the mobile app's sheets:
-
-| Sheet | Columns |
-|---|---|
-| Emerald Summit Website - Allowed Volunteers | `email`, `subtype` (`eaf_ambassador` / `parent_volunteer` / `student_volunteer`), `disciplines` (ids, or `all`), `can_edit_sessions`, `can_post_announcements`, `can_check_in_front_desk` |
-| Emerald Summit Website - Allowed Admins | `email` |
-
-A blank capability cell uses the subtype default: EAF ambassadors can edit sessions; everything else is off until set `TRUE`. Session editing and announcement rights only apply to the listed disciplines, so set them only on rows that have one.
-
-**How it's enforced.** The `sync-allowlist` Edge Function reads both sheets through a Google service account and copies them into `role_allowlist` every minute. A trigger on `users` (`users_role_allowlist`) then:
-
-- turns any volunteer, ambassador, or admin who isn't listed into a participant;
-- allows ambassador only for volunteer rows with subtype `eaf_ambassador`;
-- copies each volunteer's subtype, disciplines, and flags onto their row;
-- pins the row's email to the sign-in email, so nobody can borrow an admin's address.
-
-Editing a sheet takes effect within a minute. Removing someone demotes them. If a sheet suddenly reads back empty, or loses more than half its rows (and at least 5), the sync refuses to remove anyone and reports why. This port, from the mobile repo's `sync-allowlist`, drops the app's in-app admin notice.
+Who may be a volunteer or an admin comes from two Google Sheets, synced every minute into `role_allowlist` by the app repo's `sync-allowlist` Edge Function. A trigger on `profiles` then turns anyone who isn't listed back into a participant and copies each volunteer's subtype, disciplines and flags onto their row. The sheets, their columns and the sync are described in the app's README; nothing about them is set up from this repo.
 
 **What each column does on the website.**
 
 | Sheet | Effect |
 |---|---|
-| Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. Ambassadors sign in as Volunteer; Ambassador isn't a sign-in choice. |
-| Disciplines | Scopes the Volunteer Hub roster to participants in those disciplines (`all` shows everyone). With no disciplines and no front desk, the hub asks them to get disciplines added to the sheet. |
-| `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons. Everyone else sees their roster read-only. The database enforces it (`20261028140000_front_desk_check_in.sql`): front-desk volunteers may change another person's `checked_in_at` and nothing else, and nobody checks themselves in. |
-| `can_edit_sessions` | Lets the person add, edit, and delete tracks and sessions in the verses on their row (see **Editing tracks and sessions**). Blank means yes for EAF ambassadors and no for everyone else. |
-| `can_post_announcements` | Shown as a badge in the hub. Nothing uses it yet: only admins post announcements. |
+| Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. |
+| Disciplines | Scopes the Volunteer Hub roster. |
+| `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons (`scan_summit_checkin`, `mark_summit_checkin`). |
+| `can_edit_sessions` | Lets the person add, edit, and delete sessions in their disciplines (see **Editing sessions**). |
+| `can_post_announcements` | Shown as a badge in the hub. |
 
-Demo mode's volunteer gets every permission, so the whole hub can be previewed without the sheets. These flags only drive the page in that browser: with no Supabase session, row-level security refuses every write.
+Those flags only unlock the website's controls. The RPCs and row-level security check the same flags on the server.
 
-**One-time setup** (project `spsxfbvamwxsmtjkwxko`):
+**Testing it.** Use a test account (see **Test accounts**) or **Continue with Google**. A new account that picks Volunteer or Admin keeps that role only if its email is on the matching sheet; otherwise it's signed out with "You aren't eligible to sign up as a volunteer/an admin." A completed profile keeps its role when someone signs in from another role's page: changing role is done in the app, which previews what happens to their sessions first. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs** on the shared project.
 
-1. In Google Cloud, enable the **Google Sheets API**, create a service account, and download a JSON key. Share both sheets with the service account's `client_email` as **Viewer**.
-2. Log in and link: `npx supabase login`, then `npx supabase link --project-ref spsxfbvamwxsmtjkwxko`.
-3. Apply `supabase/migrations/20261028120000_role_allowlist.sql` on its own: paste it into the SQL editor, or run `npx supabase db query --linked -f <file>`. It creates the table, the trigger, and the once-a-minute cron job. Don't use `db push` here. This project's earlier migrations were applied by hand, so it has no migration history and `db push` would try to replay all of them.
-4. Set the function's secrets (the private key stays on your machine; never commit it):
-   ```bash
-   npx supabase secrets set \
-     VOLUNTEERS_SHEET_ID=1NMQ1C3hCARPW6TBcQMHfhDD4K3EupNqNJqjkfG56LLQ \
-     ADMINS_SHEET_ID=1ZjCvL_COOEq94JMtwDywOj1vn08mIYzuBbZ3kYgTkSw \
-     GOOGLE_SERVICE_ACCOUNT_EMAIL="<client_email>" \
-     GOOGLE_PRIVATE_KEY="<private_key, keeping the \n escapes>" \
-     ALLOWLIST_SYNC_SECRET="<output of: select secret from private.allowlist_sync;>"
-   ```
-5. Deploy: `npx supabase functions deploy sync-allowlist --no-verify-jwt`.
-6. Check it once with `select private.flush_allowlist_sync();` and then `select * from role_allowlist;`.
-7. Re-check existing accounts, so anyone who already holds a gated role without being on a sheet is demoted: `update public.users set updated_at = now() where role in ('volunteer', 'ambassador', 'admin');`. Do this only after step 6 shows both lists filled.
-
-**Testing it.** Sign in with **Continue with Google**. Demo mode is a local session that never reaches the database, so it skips the sheets. A new Google account that picks Volunteer or Admin is created only if its email is on the matching sheet. Otherwise no account is created, and it is signed out with "You aren't eligible to sign up as a volunteer/an admin." The role picked on the login page applies to existing accounts too: anyone can switch to Participant or Attendee, but Volunteer, Ambassador, and Admin need the email on that sheet (`20261028160000_switch_role_at_sign_in.sql`). If the switch is refused, the person is signed out and lands on the roles page with that message. Google sign-in returns to the address it started from, so that address (for example `http://localhost:5173/**`) must be in **Authentication → URL Configuration → Redirect URLs**. Expert sign-in uses the approvals sheet's email flow instead of Google.
-
-Relevant files: `supabase/migrations/20261028120000_role_allowlist.sql`, `supabase/migrations/20261028140000_front_desk_check_in.sql`, `supabase/migrations/20261028160000_switch_role_at_sign_in.sql`, `supabase/functions/sync-allowlist/index.ts`, `src/services/auth.ts` (`getCurrentProfile`, `takeDeniedRole`), `src/models/roles.ts` (`roleLabelFor`), `src/pages/LoginPage.tsx`, `src/pages/VolunteerDashboard.tsx`.
+Relevant files: `src/services/auth.ts` (`getCurrentProfile`), `src/models/roles.ts` (`roleLabelFor`), `src/pages/LoginPage.tsx`, `src/pages/VolunteerDashboard.tsx`.
 
 ---
 
 ## Announcements
 
-Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); the sample posts in `MOCK_ANNOUNCEMENTS` only illustrate the `/app` showcase. The table, its policies, and the `announcement-media` bucket come from `supabase/migrations/20260911120000_create_announcements.sql`, applied to the live project on 2026-11-01 (it now also revokes Supabase's default grants, TRUNCATE included). The browser's offline copy moved to the key `local_announcements_v2`, leaving behind old copies that held the sample posts.
+Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); the sample posts in `MOCK_ANNOUNCEMENTS` only illustrate the `/app` showcase. Posts are the app's `announcements` rows (`audience`, `pinned`, `discipline_id`, `target_user_id`, `created_by`, `attachments`), so a post from either side shows on both. The browser's offline copy uses the key `local_announcements_v2`.
 
 **Authoring (admins only).** The composer creates and edits posts with a category, an audience, and an optional pin-to-top. Attachments come in by drag-and-drop or a file picker:
 
@@ -205,13 +202,15 @@ Admins author the announcements every other role reads. The feed is one live lis
 | PDF / document | Download row with type and size |
 | Link / form | Row that opens in a new tab |
 
-Files upload to the public `announcement-media` Supabase Storage bucket (100 MB per file); only admins can write to it.
+Files upload to the shared `announcement_attachments` bucket under the poster's user id (10 MB per file). Only admins and volunteers with `can_post_announcements` can write to it.
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a post, edit, pin, or delete reaches every connected profile without a refresh.
 
-**Unread.** Each account's unread announcements show a red count on the sidebar's Announcements link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read, and the Announcements tab has "Mark all as read". Read state is kept in the browser per account (`AnnouncementsContext`), so it doesn't follow someone to another device.
+**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read, and the News page has "Mark all as read". Read state is the app's `announcement_reads` table (a post counts as read once `opened_at` is set, the same as the app's dots), so reading a post on the website clears it on the phone and the reverse.
 
-**Local fallback.** Writes need a real Supabase session, because row-level security has no credentials to check under bypass sign-in. With bypass — or with no backend configured at all — posts are kept in the browser's own storage and broadcast across that browser's tabs, and the composer says so rather than failing against an invisible policy. Admins also see a banner when the backend is configured but unreachable, quoting the error instead of silently showing stale content.
+**Remove from my feed.** Each post has a "Remove from my feed" button, as in the app: it hides the post for this account only (`announcement_dismissals`), with an Undo toast. Admins still delete posts for everyone with Delete.
+
+**No backend.** With no Supabase keys at all (tests, offline work), posts and read state are kept in the browser's own storage and the page says so. Admins see a banner when the backend is configured but unreachable, quoting the error instead of silently showing stale content.
 
 Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsContext.tsx`, `src/components/AnnouncementComposer.tsx`, `src/components/AnnouncementsPanel.tsx`, `src/components/AttachmentPreview.tsx`.
 
@@ -219,9 +218,9 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 ## People, check-in, and resources
 
-**Directory and Volunteer Hub** (`src/services/people.ts`). Both list real accounts from `public.users`: the Directory shows everyone, and the hub's roster shows participants and attendees, scoped as the Allowed Volunteers sheet says. Signed-out and demo sessions can't read `users`, so their lists are empty. The database has no per-field visibility yet, so everyone's email, phone, and bio show as private on cards. The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
+**Volunteer Hub** (`src/services/people.ts`). `profiles` is own-row-only, so there's no public directory. Front-desk volunteers and admins see everyone through `fetch_attendee_directory`. Other volunteers see the rosters of the sessions an admin assigned them (`session_volunteers`, `fetch_session_roster`). The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
 
-**Check-in.** The hub's Check In / Undo buttons write `users.checked_in_at` (`setCheckedIn`), as the QR scanner does. Only front-desk volunteers and admins may (`20261028140000_front_desk_check_in.sql`). A refused write matches no row; it's reported as an error, and the button reverts. It used to look like a success. With a backend, a scan or typed ID that isn't a real account is "Participant not found"; it no longer falls back to the sample people.
+**Check-in.** The hub's Check In / Undo buttons call `mark_summit_checkin`, and the QR scanner calls `scan_summit_checkin`. The QR pass is the bare account id, the same as the app, so a pass on a laptop scans at the app's front desk and the reverse. Only front-desk volunteers and admins may check people in; the RPCs enforce it.
 
 **Resources** (`src/models/resources.ts`, `RESOURCES`). Empty until there are real files: the page says "No resources posted yet." Add an entry with a `url` (a public file or Drive link) for each, and its card opens it in a new tab.
 
@@ -252,7 +251,7 @@ On the sign-in page:
 - **Continue with Google** is the one primary action, with the volunteer/admin list note right under it.
 - **Expert** keeps the approval sheet's email form.
 - **LinkedIn** is a "Coming soon" row.
-- **Demo mode** is a quiet "Use demo mode" option, shown only where demo mode is on.
+- **Test accounts** get a password box instead of a code (see **Test accounts**).
 
 Small screens drop the aside and show the logo above the form.
 
@@ -264,26 +263,17 @@ Small screens drop the aside and show the logo above the form.
 
 The planned verse goes in the existing `users.discipline` column, and it's the only one of these shown anywhere in the app. Picking a track doesn't reserve any sessions; students build their schedule themselves afterwards. Other roles see only the first step (name, email, phone, discipline, bio). The answers are saved together on Finish.
 
-Grade, school, team, teammates, track, and project go in their own table, **`student_registrations`** (`supabase/migrations/20261101120000_student_registrations.sql`, one row per participant keyed by `user_id`). They aren't stored on `users`, because any signed-in person can read every `users` row (that's how the directory works). Row-level security on the new table:
-
-| Who | Access |
-|---|---|
-| The student | Create, read, and update their own row (`user_id = auth.uid()`) |
-| Admins (`public.is_admin()`, role from the Allowed Admins sheet) | Read every row |
-| Everyone else signed in, signed out, or in demo mode | Nothing |
-| Service role / Supabase dashboard | Everything; read or export it in **Table Editor → student_registrations** |
-
-Signed-in users are granted only select, insert, and update. The migration revokes Supabase's default grants first, because those include TRUNCATE, which RLS doesn't cover. The table also checks the grade range, team size, and overview length. There's no in-app admin view yet. The migration was applied to the live project on 2026-11-01. On a project where it hasn't run, `saveProfile` skips these details with a console warning (PostgREST answers `PGRST205`), and registration still finishes. In demo mode they're kept in this browser (`bypass_registration`), and Skip moves to the next step, or on the last step finishes registration in that browser.
+Every answer is saved in `profiles.details` (jsonb), merged with whatever the app already stored there, the way the app saves its role questions. Nothing is written to a separate table.
 
 ## Portal layout
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Dashboard, Verses, Schedule for participants, experts, and volunteers, and the Volunteer Hub for volunteers), *Event*, and *Account* (filtered by role). Participants and ambassadors get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too. One click signs out of a demo session too: `signOut()` ends the local session first and tells `AuthContext` at once. It used to wait for Supabase's sign-out event, which is ignored while a local session exists.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, News: the app's tab names and order, with the Volunteer Hub for volunteers), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
 - **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
 
-**Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row, deliberately unlike the tinted session cards. **One role at a time:** signed in, only your current role continues straight to the dashboard ("Continue as …"). Every other role goes to its sign-in page, which notes that signing in ends your current role. Signing in again replaces the session: a Google sign-in clears a demo session, and a demo or expert sign-in ends the Google session. The account then moves to the new role if the sheets allow it. If they don't, you're signed out and the roles page shows "You aren't eligible to sign up as …", so you never fall back into the old role or into participant. `getCurrentProfile` (`src/services/auth.ts`) does the checking. It throws `SignInRefusedError` whenever the role the server kept isn't the one picked. `AuthContext` then signs out and exposes the message as `signInError`. A new account asking for Volunteer or Admin is checked against its own `role_allowlist` rows first, so a refused sign-up creates no `users` row. A role that never signs in with Google (Expert) is refused without touching the database. The two profile loads on page load (`getSession` and `onAuthStateChange`) share one request, so only one of them reads the picked role. If the account can't be loaded at all, you're signed out with "We couldn't load your account." Visiting the sign-in page for the role you already hold goes straight to the dashboard. Volunteer, Admin, and Expert are marked "Approval needed". The rule is enforced in the app; the database still accepts a direct role change by API, as long as the sheets allow the new role.
+**Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row. Signed in, your current role continues straight to the dashboard ("Continue as …"). Any other role opens its sign-in page, which offers **Change role to …** (`src/components/ChangeRolePanel.tsx`): it first calls `preview_role_change` and lists what happens to each of your sessions, in the app's words, then saves the role and re-reads what the server kept. A gated role that isn't on the allowlist is refused with "You aren't eligible to sign up as …". A first sign-in with a picked role goes through `getCurrentProfile` (`src/services/auth.ts`), which throws `SignInRefusedError` when the server keeps a different role; `AuthContext` then signs out and shows the message as `signInError`. A failed Google sign-in is shown the same way (see **Google sign-in**). If the account can't be loaded at all, you're signed out with "We couldn't load your account."
 
 The dashboard (`/home`, `src/pages/HomePage.tsx`) opens with a time-of-day greeting on a slowly drifting emerald gradient (paused for reduced-motion users) and an "Up next" card. Below that is a large **Your day** card: the reserved sessions in time order, then **Tracks**: the app's tracks (areas within each verse, such as Genetics, Mock Trial, or CADathon, from `src/models/tracks.ts`), as cards in each verse's colors that open that verse's page. They're labeled as Summit '26's list until the '27 tracks are set. A Build your schedule button appears once you have sessions. Beside it, a right rail holds the Next up and Check-in tiles (Check-in has its own QR pass button) and announcements. On wide screens (1280px+), Your day sets the row's height and announcements scroll inside the rail; narrower screens stack the rail underneath. Horizontal dividers within the content column then separate the top section, **Explore the verses**, and a row of four quick links.
 
@@ -302,29 +292,13 @@ Clicking a card opens the verse's page the way the app does: a circle of its col
 
 **Track pages.** Each track has its own page inside its verse's world (same colors, motif, and border). It shows what the track covers, its formats (workshop, exhibit, or presentation, as described in the app's knowledge base), ideas for what to bring or do, the sessions in that track, and chips for the verse's other tracks. Open one from the Tracks row on the dashboard, from a session's track tag on the Schedule page, or from the chips and session tags on a verse page. The verse badge at the top goes back to the whole verse. For participants and experts, each session card on a verse page or a track page has a **+** in its top right, including when the page is opened from the Schedule page (`VersePortalProvider`'s `canAdd`). Every add-to-schedule + in the app, on these cards and on the Schedule page, is dark green (`emerald-deep`) with a white +. Hovering a card's + shows "Add to schedule" (or "Session full", disabled). Clicking it closes the verse page and goes to `/schedule` with `{ add: sessionId }` in router state. The Schedule page adds the session under its usual rules: a session that's full, or at the same time as one already on your day, isn't added, and a toast says why. Otherwise it's added, the entry in My Schedule is scrolled to, ringed, and tagged "Added" for a few seconds, and a toast confirms it. A session already on your day shows "On your day" instead of the +. Track details live in `src/models/tracks.ts` (`TRACKS`), and each mock session names its track in `trackName` (`src/models/sessions.ts`). Every track has at least one mock session, with its own seats, so each verse page lists a session per track. Like the list itself, they're Summit '26's tracks until the '27 tracks are set.
 
-**Verses tab** (`/verses`, `src/pages/VersesPage.tsx`). Its own entry in the sidebar under *My Summit* and in the phone tab bar. The six verses fill the page as tall panels in a row, each in its verse's colors with its motif playing behind it. One panel is open at a time: the one under the pointer, or focused by keyboard (arrow keys, Home, and End walk the row). The rest narrow to a badge, a number, and the verse's name running up the panel. Opening animates the panels' widths. The open panel shows the verse's number (01 / 06), name, description, track and session counts with seats open, what's on your day, a chip per track (opens that track's page), and an Enter button (opens the verse page). On a touch screen the first tap opens a panel. Phones get the six as stacked, always-open cards. The dashboard's **Explore the verses** row stays as a shortcut.
+**Discover** (`/disciplines`, `src/pages/VersesPage.tsx`). The app's Discover tab, in the sidebar under *My Summit* and in the phone tab bar. The six disciplines fill the page as tall panels in a row, each in its colors with its motif playing behind it. One panel is open at a time: the one under the pointer, or focused by keyboard (arrow keys, Home, and End walk the row). The rest narrow to a badge, a number, and the name running up the panel. The open panel shows the number (01 / 06), name, description, track and session counts with seats open, what's on your day, a chip per track, and an Enter button. On a touch screen the first tap opens a panel. Phones get the six as stacked, always-open cards. The dashboard's **Explore the verses** row stays as a shortcut.
 
-**Editing tracks and sessions** (`src/services/summitContent.ts`, `src/components/verse/ContentEditors.tsx`, `supabase/migrations/20261101140000_summit_tracks_sessions.sql`). Tracks and sessions live in two tables, `summit_tracks` (keyed by verse and name) and `summit_sessions` (applied to the live project on 2026-11-01), seeded once from `src/models/tracks.ts` and `sessions.ts`. Who can change them is decided by `public.can_edit_verse(verse)`, and the app hides the controls to match (`canEditVerse`):
+**Editing sessions** (`src/services/summitContent.ts`, `src/components/verse/ContentEditors.tsx`). The catalog is the app's: `disciplines` and the `sessions_with_counts` view for reads, `sessions` for writes. There is no tracks table; a session's `track` is a text column. Times are 24-hour text with two-digit hours (`09:45`), shown in 12-hour form. Admins can edit every discipline; volunteers with `can_edit_sessions` can edit the disciplines on their sheet row. Rooms are locked: the editor can't change a session's room. Row-level security on `sessions` makes the final call.
 
-| Who | Can edit |
-|---|---|
-| Admins | Every verse, keynotes included |
-| Volunteers (EAF ambassadors and others) with `can_edit_sessions` on the Allowed Volunteers sheet | The verses in their row's `disciplines` (`all` = every verse); never keynotes |
-| Everyone else, signed in or not | Nothing; they can read |
+On start, `loadSummitContent()` (called from `src/main.tsx`) replaces `TRACKS`, `UNIVERSE_TRACKS`, and `MOCK_SESSIONS` in place with the shared rows, and every save does the same. A failed read shows nothing rather than sample sessions. Without a backend the bundled lists show.
 
-On a verse page, editors get **Add track** after the track chips, **Add session** beside the Sessions heading, and a pencil on each session card. A track page adds **Edit track**. The session editor sets title, track, time slot, length, who leads it, room name and room code (for walking-time warnings), description, and seats, expert spots, and spectator seats. Seat counts taken stay sample numbers. The track editor sets name, what it covers, ideas (one per line), and formats. Renaming a track moves its sessions with it (the foreign key cascades). A track that still has sessions can't be deleted. Deletes take two clicks. Escape closes an editor without closing the verse page.
-
-The bundled lists are the live store. On start, `loadSummitContent()` (called from `src/main.tsx`) replaces `TRACKS`, `UNIVERSE_TRACKS`, and `MOCK_SESSIONS` in place with the tables' rows, and every save does the same. So everything that reads those lists picks up edits; pages that need to redraw call `useSummitContent()`. Without a backend, or before the migration runs, the bundled lists show. In demo mode, edits change only that browser's copy, and a toast says so.
-
-**Saved schedules** (`src/services/reservations.ts`, `src/context/ScheduleContext.tsx`, `supabase/migrations/20261101160000_session_reservations.sql`). A Google-signed-in person's schedule is saved in `session_reservations`, one row per session they're competing in, spectating, judging, or volunteering at, and it comes back on every device and reload. The database enforces the rules, even if two people click the last seat at once:
-
-- **Seats.** A full session is refused.
-- **Time slots.** A second session in the same time slot is refused.
-- **Who can take what.** Only participants compete, participants and attendees spectate, experts judge, and volunteers (and ambassadors) volunteer.
-
-Each session's seat counts (`enrolled`, `spectators`, `experts_enrolled`, `volunteers_enrolled`) are kept equal to its reservations by trigger, so every page shows live numbers. The migration resets the sample counts to zero; it was applied to the live project on 2026-11-01. A refused add or remove reverts on screen with the reason in a toast; switching between competing and spectating gives the old seat back if the new one is refused. Demo and expert (approvals-sheet) sessions have no database credentials, so their schedule stays in the tab and the counts move locally.
-
-**Volunteers' schedule** (`supabase/migrations/20261101180000_volunteer_spots.sql`, applied to the live project on 2026-11-01). Every session has volunteer spots (`volunteer_capacity`, 2 by default, set in the session editor). Volunteers get the Schedule tab, titled "Pick Sessions to Volunteer At". Each card shows competitor seats, expert spots, spectator seats, and volunteer spots, and its + signs them up to help (no spectate button). Their picks are listed under "My Volunteer Shifts", with the same full-session and time-slot rules. On the dashboard their hero offers "Pick sessions to volunteer at", and "Your day" lists their shifts. Which list is a role's own comes from `ownScheduleKind` in `ScheduleContext`: participants compete, experts judge, volunteers and ambassadors volunteer, and other roles have none. For attendees, who have no schedule of their own, "Your day" shows a plain list of sessions with their times. It used to tag them all "Reserved". Admins don't get Your day, Next up, or Check-in: their dashboard goes from the greeting to Tracks, with announcements beside it.
+**Saved schedules** (`src/services/reservations.ts`, `src/context/ScheduleContext.tsx`). A signed-in person's schedule is their rows in the app's `registrations` table (`participation_type` participant, spectator or expert), written only through `register_for_session` with `p_intent` `add` or `remove`. The RPC enforces seats, time clashes and closed participation, and the website shows the same refusal messages. Volunteers don't pick sessions: an admin assigns them in the app (`session_volunteers`), and those sessions show on their schedule with no remove button. The Schedule page header reads **My Day**, as in the app.
 
 **Schedule page.** Each session card in Build Your Schedule is tinted in its verse's color with a colored left edge, and shows its track as a tag. Clicking the card, its title, or the tag opens the track's page; the add, spectate, and drag controls keep their own jobs. My Schedule tints each item in its verse's color, with a colored edge and time, and keynotes in emerald. On wide screens the session list and My Schedule split the width 3:2 (`minmax(0,3fr)` and `minmax(0,2fr)`), so the split doesn't shift as sessions are added.
 
@@ -344,23 +318,9 @@ The design source is the Figma file [Emerald Summit — Portal Redesign](https:/
 
 ## Expert sign-up and approval
 
-Experts sign in with their email, and an admin approves each one in a Google Sheet before that email works. The sheet is "Emerald Summit App - Experts": one row per applicant, with an **Approval Status** column of Awaiting Approval, Approved, or Rejected ("Yes"/"No" also work).
+Experts sign in like everyone else (Google or an emailed code). Picking Expert sets `expert_status = pending` on the shared profile. Until an admin approves them in the app (`review_expert`), the dashboard shows the app's waiting screen (`src/components/ExpertStatus.tsx`): "Your expert account is awaiting approval", the contact email, **Check again**, **Sign up as something else** and **Sign out**. If the admin declines, the server makes the account a participant, and the next visit shows the app's one-time "Your expert request wasn't approved" note. OK calls `acknowledge_expert_decline` so it isn't shown again.
 
-| Step | What happens |
-|---|---|
-| Expert enters their email on `/login/expert` | The app looks it up in the sheet |
-| Email not in the sheet | They fill in the survey at `/apply/expert` (name, phone, universe, track, organization, bio, …), which adds an Awaiting Approval row. They return to the login page with a note that they will be emailed once approved |
-| Email awaiting or rejected | The login page says so and does not sign them in |
-| Admin sets the row to Approved | The applicant gets an email with a sign-in link |
-| Email approved | They are signed in as an expert |
-
-The app talks to the sheet through a small Apps Script web app (`apps-script/approvals.gs`) whose URL goes in `VITE_APPROVALS_URL`. Setup steps, including the trigger that sends approval emails, are in `apps-script/README.md`. Without that variable, the email step says the backend isn't configured, and demo mode still works where it's on.
-
-The survey questions live in `src/models/approvalSurveys.ts`, and the script finds sheet columns by header name. Gating volunteers the same way means adding a `volunteer` entry there and a `Volunteers` tab to the sheet.
-
-This is a prototype: the typed email is trusted without verification, and approved users get the same kind of local session as demo mode. Once Google sign-in is turned back on, the same check should run against the verified Google email.
-
-Relevant files: `apps-script/approvals.gs`, `src/services/approvals.ts`, `src/models/approvalSurveys.ts`, `src/pages/LoginPage.tsx`, `src/pages/ApplyPage.tsx`.
+The old Google Sheet flow (`apps-script/approvals.gs`, the `/apply/expert` survey) is no longer used: `/apply/:role` redirects, and the script is kept only for reference.
 
 ---
 

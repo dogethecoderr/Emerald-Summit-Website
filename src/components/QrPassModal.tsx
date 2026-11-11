@@ -15,7 +15,7 @@ import {
   Sparkles,
   QrCode,
   RefreshCw,
-} from 'lucide-react';
+} from '@/components/icons';
 import { useAuth } from '../context/AuthContext';
 import { roleByName, USER_ROLES } from '../models/roles';
 import type { Profile } from '../services/auth';

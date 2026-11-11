@@ -1,4 +1,4 @@
-import { Check, Moon, Sun } from 'lucide-react';
+import { Check, Moon, Sun } from '@/components/icons';
 import { useTheme, type ThemeSetting } from '../context/ThemeContext';
 import {
   DropdownMenu,

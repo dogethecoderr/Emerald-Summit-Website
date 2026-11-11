@@ -9,7 +9,7 @@ import {
   slugify,
   type TrackInfo,
 } from '../models/tracks';
-import { getBypassSession, type Profile } from './auth';
+import type { Profile } from './auth';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -187,15 +187,12 @@ export function canEditVerse(profile: Profile | null | undefined, verse: string)
 // Edits
 // ---------------------------------------------------------------------------
 
-/** Where an edit went: the database, or only this browser (demo mode). */
+/** Where an edit went: the database, or only this browser (no backend configured). */
 export type SaveResult = 'saved' | 'local';
 
-/**
- * Demo and other local sessions have no credentials RLS can check, so their
- * edits change this browser's copy only and never reach the database.
- */
+/** With no backend configured (tests, offline work) edits stay in this browser. */
 function isLocalOnly(): boolean {
-  return getBypassSession() != null || !supabase;
+  return !supabase;
 }
 
 function check<T extends { error: { message: string; code?: string } | null }>(res: T): T {

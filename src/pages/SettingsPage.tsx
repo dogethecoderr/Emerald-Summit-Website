@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Bell, ChevronLeft, ChevronRight, Info, LogOut, Palette, QrCode, UserRound, Users,
-} from 'lucide-react';
+} from '@/components/icons';
 import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';

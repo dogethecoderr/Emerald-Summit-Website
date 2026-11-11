@@ -1,6 +1,5 @@
 // The website uses the same registrations and assignment RPCs as the mobile app.
 import { supabase } from '../lib/supabase';
-import { getBypassSession } from './auth';
 
 export type ReservationKind = 'competing' | 'spectating' | 'judging' | 'volunteering';
 
@@ -16,7 +15,7 @@ const kinds: Record<ParticipationType, ReservationKind> = {
 
 /** True when this browser has a real session for the shared database. */
 export async function canSaveSchedule(): Promise<boolean> {
-  if (!supabase || getBypassSession()) return false;
+  if (!supabase) return false;
   const { data } = await supabase.auth.getSession();
   return data.session != null;
 }

@@ -1,8 +1,8 @@
-// The people behind the Directory and the Volunteer Hub roster: every account
-// in public.users. Any signed-in person can read that table
-// (users_select_directory); signed-out and demo sessions read nothing, so
-// their lists are empty. The sample MOCK_PEOPLE only stand in when no backend
-// is configured at all (tests, offline prototyping).
+// The people behind the Volunteer Hub roster. profiles is own-row-only, so
+// front-desk volunteers and admins read fetch_attendee_directory, and other
+// volunteers read the rosters of their assigned sessions. Signed-out visitors
+// read nothing. The sample MOCK_PEOPLE only stand in when no backend is
+// configured at all (tests, offline prototyping).
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_PROFILE_SETTINGS } from './auth';

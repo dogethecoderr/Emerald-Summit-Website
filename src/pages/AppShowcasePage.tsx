@@ -11,7 +11,7 @@ import {
   Route,
   Sparkles,
   UserCheck,
-} from 'lucide-react';
+} from '@/components/icons';
 import LandingNav from '../components/LandingNav';
 import LandingFooter from '../components/LandingFooter';
 import TrackPill from '../components/TrackPill';

@@ -2,8 +2,8 @@ import { supabase } from '../lib/supabase';
 import type { Person, Visibility } from '../models/people';
 import type { PersonStatus } from '../models/personStatus';
 import type { User } from '@supabase/supabase-js';
-import { isDemoModeEnabled } from '../lib/demoMode';
-import { SIGN_IN_ROLES, notEligibleMessage } from '../models/roles';
+import { isDevLoginEnabled } from '../lib/devLogin';
+import { SIGN_IN_ROLES, VOLUNTEER_SUBTYPE_LABELS, notEligibleMessage, roleByName } from '../models/roles';
 
 export type Profile = {
   id: string;
@@ -58,8 +58,6 @@ interface RegistrationRow {
   project_overview: string | null;
 }
 
-const DEMO_REGISTRATION_KEY = 'bypass_registration';
-
 function registrationFromRow(row: RegistrationRow): RegistrationDetails {
   return {
     grade: row.grade == null ? null : Number(row.grade),
@@ -104,7 +102,7 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
 
 const PENDING_ROLE_KEY = 'pending_user_role';
 
-/** Every real-auth path needs a configured client; bypass never does. */
+/** Every auth path needs a configured client. */
 function requireSupabase() {
   if (!supabase) {
     throw new Error(
@@ -167,7 +165,7 @@ export function profileFromRow(row: Record<string, any>): Profile {
   };
 }
 
-function storedRole(role: string): string {
+export function storedRole(role: string): string {
   return role === 'attendee' ? 'parentSpectator' : role === 'ambassador' ? 'volunteer' : role;
 }
 
@@ -186,12 +184,18 @@ export function getCurrentProfile(user: User): Promise<Profile> {
 }
 
 async function loadProfile(user: User): Promise<Profile> {
-  const requested = takePendingRole();
+  const testAccount = takeTestAccountSignIn();
+  // A test account gets its role from the allowlist or its email, not the page.
+  const requested = testAccount ? null : takePendingRole();
   if (requested && !GOOGLE_SIGN_IN_ROLES.includes(requested)) throw refused(requested);
   const client = requireSupabase();
   const { data, error } = await client.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (error || !data) throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
   let row = data;
+
+  if (testAccount && !row.onboarded) {
+    row = await autoOnboardTestAccount(row);
+  }
 
   // A completed mobile profile must survive signing in from another role's page.
   // A role change needs the app's explicit preview/confirmation flow.
@@ -208,158 +212,27 @@ async function loadProfile(user: User): Promise<Profile> {
   return profile;
 }
 
-const DEMO_EMAIL = 'bypass@example.com';
-
-/** The user id every local (demo or expert email) session uses. */
-export const BYPASS_USER_ID = 'bypass_user_id';
-
-export function getBypassSession(): any | null {
-  const raw = localStorage.getItem('bypass_session');
-  if (!raw) return null;
-  try {
-    const session = JSON.parse(raw);
-    // A demo session left over from a dev build doesn't carry into a build
-    // where demo mode is off.
-    if (!isDemoModeEnabled) {
-      clearBypass();
-      return null;
-    }
-    return session;
-  } catch {
-    clearBypass();
-    return null;
+/**
+ * Demo mode and the local expert sign-in are gone (the shared backend has
+ * real test accounts instead). This drops what they left in a browser.
+ */
+function clearLegacyLocalSession(): void {
+  for (const key of ['bypass_session', 'bypass_profile', 'bypass_registration']) {
+    localStorage.removeItem(key);
   }
 }
+clearLegacyLocalSession();
 
-export function getBypassProfile(): Profile | null {
-  if (!getBypassSession()) return null;
-  const raw = localStorage.getItem('bypass_profile');
-  return raw ? JSON.parse(raw) as Profile : null;
-}
-
-/** True for a demo-mode session (not the expert email sign-in). */
-export function isDemoSession(): boolean {
-  return getBypassSession()?.demo === true;
-}
-
-/**
- * Demo sign-in: a local session that never reaches the database. It starts
- * at profile setup like a real first sign-in, where Skip moves on.
- */
-export function signInWithBypass(roleName: string): void {
-  if (!isDemoModeEnabled) {
-    throw new Error('Demo mode is off in this build.');
-  }
-  startLocalSession(
-    roleName,
-    DEMO_EMAIL,
-    `Bypass ${roleName.charAt(0).toUpperCase() + roleName.slice(1)}`,
-    true,
-  );
-}
-
-/**
- * Prototype sign-in for roles gated by the approvals sheet (expert,
- * volunteer): the caller has just confirmed this email is Approved there.
- * Reuses the local bypass session, so nothing else needs to know about it.
- */
-export function signInWithApprovedEmail(
-  roleName: string,
-  email: string,
-  name: string,
-): void {
-  if (!isDemoModeEnabled) throw new Error('Sign in with Google or an email code.');
-  startLocalSession(roleName, email, name || email, false);
-}
-
-function startLocalSession(
-  roleName: string,
-  email: string,
-  name: string,
-  demo: boolean,
-): void {
-  // One role at a time: a local session replaces any Google session.
-  void supabase?.auth.signOut();
-  localStorage.removeItem(PENDING_ROLE_KEY);
-  const session = {
-    demo,
-    user: {
-      id: BYPASS_USER_ID,
-      email,
-      user_metadata: { full_name: name },
-    },
-  };
-  const profile: Profile = {
-    id: BYPASS_USER_ID,
-    email,
-    name,
-    role: roleName,
-    profile_setup_complete: !demo,
-    // The local demo never reaches the sheets, so a demo volunteer gets every
-    // sheet permission to show all of the Volunteer Hub. These only drive this
-    // browser's UI: with no Supabase session, RLS refuses every write.
-    ...(roleName === 'volunteer'
-      ? {
-          volunteer_subtype: 'student_volunteer' as const,
-          managed_disciplines: ['*'],
-          can_edit_sessions: true,
-          can_post_announcements: true,
-          can_check_in_front_desk: true,
-        }
-      : {}),
-  };
-  localStorage.setItem('bypass_session', JSON.stringify(session));
-  localStorage.setItem('bypass_profile', JSON.stringify(profile));
-  
-  // Emit storage event to trigger AuthContext refresh
-  window.dispatchEvent(new Event('storage'));
-}
-
-/**
- * Finishes (or skips) profile setup for a demo session. Only the profile in
- * this browser changes; nothing is registered.
- */
-export function completeDemoProfile(input?: SaveProfileInput): void {
-  const profile = getBypassProfile();
-  if (!profile || !isDemoSession()) return;
-  const next: Profile = {
-    ...profile,
-    ...(input?.name ? { name: input.name } : {}),
-    ...(input?.phone ? { phone: input.phone } : {}),
-    ...(input?.discipline ? { discipline: input.discipline } : {}),
-    ...(input?.bio ? { bio: input.bio } : {}),
-    profile_setup_complete: true,
-  };
-  localStorage.setItem('bypass_profile', JSON.stringify(next));
-  if (input?.registration) {
-    localStorage.setItem(
-      DEMO_REGISTRATION_KEY,
-      JSON.stringify(registrationColumns(input.registration)),
-    );
-  }
-  window.dispatchEvent(new Event('storage'));
-}
-
-export function clearBypass(): void {
-  localStorage.removeItem('bypass_session');
-  localStorage.removeItem('bypass_profile');
-  localStorage.removeItem(DEMO_REGISTRATION_KEY);
-}
-
-/** Profile writes go to the database only for a real Google session. */
+/** Profile writes need a real Supabase session. */
 async function requireRealSession() {
-  if (getBypassSession()) {
-    throw new Error('Local sign-in: nothing is saved to the Summit database.');
-  }
   const { data: { session } } = await requireSupabase().auth.getSession();
   if (!session) throw new Error('Not signed in.');
   return session;
 }
 
 export async function signInWithGoogle(roleName: string): Promise<void> {
-  // One role at a time: the Google sign-in replaces any demo/local session,
-  // and on return the account moves to this role (see getCurrentProfile).
-  clearBypass();
+  // On return the account moves to this role if it is new
+  // (see getCurrentProfile).
   savePendingRole(roleName);
   const { error } = await requireSupabase().auth.signInWithOAuth({
     provider: 'google',
@@ -370,8 +243,28 @@ export async function signInWithGoogle(roleName: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * A failed Google sign-in comes back with `error_description` in the query or
+ * hash (for example a provider misconfiguration). Returns a message for the
+ * roles page and removes the error from the address bar, so it isn't silently
+ * dropped. Null when the URL has no error.
+ */
+export function takeOAuthError(): string | null {
+  if (typeof window === 'undefined') return null;
+  const { search, hash, pathname } = window.location;
+  const query = new URLSearchParams(search);
+  const fragment = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+  const raw = query.get('error_description') ?? fragment.get('error_description')
+    ?? query.get('error') ?? fragment.get('error');
+  if (!raw) return null;
+  for (const key of ['error', 'error_code', 'error_description', 'sb']) query.delete(key);
+  const rest = query.toString();
+  window.history.replaceState(window.history.state, '', pathname + (rest ? `?${rest}` : ''));
+  localStorage.removeItem(PENDING_ROLE_KEY);
+  return `Google sign-in didn't finish (${raw.replace(/\+/g, ' ')}). Try again, or use your email.`;
+}
+
 export async function sendSignInCode(email: string, roleName: string): Promise<void> {
-  clearBypass();
   savePendingRole(roleName);
   const { error } = await requireSupabase().auth.signInWithOtp({
     email, options: { shouldCreateUser: true },
@@ -382,6 +275,137 @@ export async function sendSignInCode(email: string, roleName: string): Promise<v
 export async function verifySignInCode(email: string, token: string): Promise<void> {
   const { error } = await requireSupabase().auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Test accounts (the shared dev-login function, same flow as the app)
+// ---------------------------------------------------------------------------
+
+const TEST_ACCOUNT_KEY = 'test_account_sign_in';
+const TEST_SIGN_IN_UNREACHABLE = 'Could not reach the test sign-in. Try again.';
+let testAccountNotice: string | null = null;
+
+function markTestAccountSignIn(on: boolean): void {
+  try {
+    if (on) sessionStorage.setItem(TEST_ACCOUNT_KEY, '1');
+    else sessionStorage.removeItem(TEST_ACCOUNT_KEY);
+  } catch {
+    // Storage blocked: the account still signs in, it just gets the role picker.
+  }
+}
+
+function takeTestAccountSignIn(): boolean {
+  try {
+    const on = sessionStorage.getItem(TEST_ACCOUNT_KEY) === '1';
+    sessionStorage.removeItem(TEST_ACCOUNT_KEY);
+    return on;
+  } catch {
+    return false;
+  }
+}
+
+/** The one-time "you were given the X role" note, read once after sign-in. */
+export function takeTestAccountNotice(): string | null {
+  const notice = testAccountNotice;
+  testAccountNotice = null;
+  return notice;
+}
+
+/**
+ * True when this email is a test account, so the page asks for the shared
+ * password instead of sending a code. Always false unless VITE_DEV_LOGIN is
+ * on; any failure means a normal code.
+ */
+export async function isTestAccount(email: string): Promise<boolean> {
+  if (!isDevLoginEnabled || !supabase) return false;
+  try {
+    const { data, error } = await supabase.functions.invoke('dev-login', {
+      body: { email: email.trim().toLowerCase(), check: true },
+    });
+    return !error && data?.test === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Signs a test account in with the shared password. The password is never stored. */
+export async function signInWithTestAccount(email: string, password: string): Promise<void> {
+  if (!isDevLoginEnabled) throw new Error('Test accounts are off in this build.');
+  const client = requireSupabase();
+  const e = email.trim().toLowerCase();
+  let data: { otp?: string; type?: string } | null = null;
+  try {
+    const res = await client.functions.invoke('dev-login', { body: { email: e, password } });
+    if (res.error) {
+      const status = (res.error as { context?: { status?: number } }).context?.status;
+      throw new Error(
+        status === 401 ? 'Wrong email or password.'
+          : status === 403 || status === 404 ? 'Test accounts are turned off on this server.'
+            : TEST_SIGN_IN_UNREACHABLE,
+      );
+    }
+    data = res.data;
+  } catch (err) {
+    throw err instanceof Error && err.message !== '' ? err : new Error(TEST_SIGN_IN_UNREACHABLE);
+  }
+  const otp = data?.otp;
+  if (!otp) throw new Error(TEST_SIGN_IN_UNREACHABLE);
+
+  localStorage.removeItem(PENDING_ROLE_KEY);
+  // Set before the session lands: the profile load reads it to skip the picker.
+  markTestAccountSignIn(true);
+  const { error } = await client.auth.verifyOtp({
+    email: e, token: otp, type: data?.type === 'magiclink' ? 'magiclink' : 'email',
+  });
+  if (error) {
+    markTestAccountSignIn(false);
+    throw error;
+  }
+}
+
+async function isAllowlisted(email: string, role: 'admin' | 'volunteer'): Promise<boolean> {
+  const { data, error } = await requireSupabase().from('role_allowlist').select('email')
+    .eq('email', email.toLowerCase()).eq('role', role).maybeSingle();
+  if (error) throw error;
+  return data != null;
+}
+
+/** Open roles aren't on any sheet, so test accounts are named by role. */
+function inferOpenTestRole(email: string): string {
+  const local = email.split('@')[0].toLowerCase();
+  if (local.includes('expert')) return 'expert';
+  if (local.includes('spectator') || local.includes('parent')) return 'parentSpectator';
+  return 'participant';
+}
+
+/**
+ * Port of the app's _autoOnboardTestAccount: admin if allowlisted, else
+ * volunteer if allowlisted, else inferred from the email. The server trigger
+ * still decides; the re-read shows what it kept.
+ */
+async function autoOnboardTestAccount(row: Record<string, any>): Promise<Record<string, any>> {
+  const email: string = row.email ?? '';
+  let role: string;
+  try {
+    role = (await isAllowlisted(email, 'admin')) ? 'admin'
+      : (await isAllowlisted(email, 'volunteer')) ? 'volunteer'
+        : inferOpenTestRole(email);
+  } catch {
+    role = inferOpenTestRole(email);
+  }
+  const { data: updated, error } = await requireSupabase().from('profiles').update({
+    full_name: row.full_name || email.split('@')[0],
+    role,
+    onboarded: true,
+    updated_at: new Date().toISOString(),
+  }).eq('id', row.id).select('*').single();
+  if (error || !updated) throw new SignInRefusedError(LOAD_FAILED_MESSAGE);
+
+  const shown = profileFromRow(updated);
+  const roleLabel = roleByName(shown.role)?.label ?? shown.role;
+  const subtype = shown.volunteer_subtype ? VOLUNTEER_SUBTYPE_LABELS[shown.volunteer_subtype] : undefined;
+  testAccountNotice = `Testing account: you were given the ${subtype ? `${roleLabel} · ${subtype}` : roleLabel} role automatically, so there is no role picker.`;
+  return updated;
 }
 
 export interface SaveProfileInput {
@@ -427,16 +451,27 @@ export async function saveProfile(input: SaveProfileInput): Promise<void> {
 
 /** Prefill existing answers without maintaining a second registration database. */
 export async function getRegistration(): Promise<RegistrationDetails | null> {
-  if (getBypassSession()) {
-    const raw = localStorage.getItem(DEMO_REGISTRATION_KEY);
-    return raw ? registrationFromRow(JSON.parse(raw) as RegistrationRow) : null;
-  }
   if (!supabase) return null;
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
   const { data, error } = await supabase.from('profiles').select('details').eq('id', session.user.id).single();
   if (error) throw error;
   return data?.details ? registrationFromRow(data.details as RegistrationRow) : null;
+}
+
+/** The signed-in account's expert_status, read fresh ("Check again"). */
+export async function fetchExpertStatus(): Promise<string | null> {
+  const session = await requireRealSession();
+  const { data, error } = await requireSupabase().from('profiles').select('expert_status')
+    .eq('id', session.user.id).single();
+  if (error) throw error;
+  return (data?.expert_status as string | null) ?? null;
+}
+
+/** Clears the one-time "expert request wasn't approved" note, as the app does. */
+export async function acknowledgeExpertDecline(): Promise<void> {
+  const { error } = await requireSupabase().rpc('acknowledge_expert_decline');
+  if (error) throw error;
 }
 
 export function needsProfileSetup(profile: Profile | null): boolean {
@@ -449,14 +484,8 @@ export async function updateProfileSettings(input: Partial<SaveProfileInput>): P
 }
 
 export async function signOut(): Promise<void> {
-  // A local (demo or expert) session ends first, and AuthContext is told at
-  // once: Supabase's own SIGNED_OUT is ignored while a local session exists,
-  // which used to leave a demo signed in until a second click.
-  const hadLocal = getBypassSession() != null;
-  clearBypass();
   localStorage.removeItem(PENDING_ROLE_KEY);
-  if (hadLocal) window.dispatchEvent(new Event('storage'));
-  // Optional: with no client configured there is nothing else to clear.
+  // With no client configured there is nothing else to clear.
   await supabase?.auth.signOut();
 }
 

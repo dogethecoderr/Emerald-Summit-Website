@@ -6,7 +6,7 @@
 // with a CSS stroke animation instead of per-frame JavaScript.
 import ThemeToggle from './ThemeToggle';
 import type { CSSProperties, ReactNode } from 'react';
-import { ChevronLeft, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, type LucideIcon } from '@/components/icons';
 import BrandMark from './BrandMark';
 import { cn } from '@/lib/utils';
 

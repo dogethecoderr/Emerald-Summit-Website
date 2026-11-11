@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
@@ -32,6 +32,9 @@ export default function AnnouncementsPage() {
     isUnread,
     markRead,
     markAllRead,
+    hide,
+    unhide,
+    configured,
   } = useAnnouncements();
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -47,6 +50,18 @@ export default function AnnouncementsPage() {
       </div>
     );
   }
+
+  // Same wording as the app's "Remove from my feed" and its Undo snackbar.
+  const removeFromFeed = async (announcement: Announcement) => {
+    try {
+      await hide(announcement.id);
+      toast('Removed from your feed', {
+        action: { label: 'Undo', onClick: () => void unhide(announcement.id) },
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Could not remove it from your feed');
+    }
+  };
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
@@ -64,22 +79,20 @@ export default function AnnouncementsPage() {
     <AppShell>
       <PageHeader
         label="Live Updates"
-        title="Announcements"
+        title="News"
       />
       {canManage && error && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Announcements could not be loaded:{' '}
-            <code>{error}</code>. Run the pending Supabase migration to publish
-            to every profile.
+            <code>{error}</code>. Try again in a moment.
           </span>
         </div>
       )}
       {canManage && !error && !live && (
         <div className="mb-4 rounded-xl border border-border/70 bg-secondary/40 p-3 text-xs text-muted-foreground">
-          You're signed in with local bypass, so posts stay in this browser.
-          Sign in with a real admin account to publish to everyone.
+          No Summit database is connected, so posts stay in this browser.
         </div>
       )}
       <AnnouncementsPanel
@@ -87,6 +100,7 @@ export default function AnnouncementsPage() {
         isUnread={isUnread}
         onMarkRead={markRead}
         onMarkAllRead={markAllRead}
+        onHide={configured ? removeFromFeed : undefined}
         variant="full"
         canManage={canManage}
         onCompose={() => {

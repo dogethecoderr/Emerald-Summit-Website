@@ -1,7 +1,7 @@
 // Edit dialogs for tracks and sessions, shown on verse and track pages to
 // admins and to ambassadors for their verses (services/summitContent.ts).
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2 } from '@/components/icons';
 import { toast } from 'sonner';
 import { TIME_SLOTS, type Session } from '../../models/sessions';
 import { tracksForUniverse, type TrackFormat, type TrackInfo } from '../../models/tracks';
@@ -42,7 +42,7 @@ const NO_TRACK = '__none__';
 
 function announce(result: SaveResult, what: string) {
   if (result === 'local') {
-    toast(`${what} in this browser only: demo mode doesn't save to the Summit database.`);
+    toast(`${what} in this browser only: no Summit database is connected.`);
   } else {
     toast.success(what);
   }

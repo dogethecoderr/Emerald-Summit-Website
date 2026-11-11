@@ -356,6 +356,68 @@ export async function setAnnouncementPinned(
 }
 
 // ---------------------------------------------------------------------------
+// Read state and "Remove from my feed" (the app's announcement_reads and
+// announcement_dismissals, so both follow the account across devices)
+// ---------------------------------------------------------------------------
+
+async function signedInUserId(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+/** Ids this account has opened (opened_at set), like the app's dots. Null when signed out. */
+export async function fetchOpenedIds(): Promise<Set<string> | null> {
+  if (!(await signedInUserId())) return null;
+  const { data, error } = await client().from('announcement_reads').select('announcement_id, opened_at');
+  if (error) return new Set();
+  return new Set(
+    (data as { announcement_id: string; opened_at: string | null }[])
+      .filter((r) => r.opened_at != null)
+      .map((r) => String(r.announcement_id)),
+  );
+}
+
+/** Marks posts opened. Best-effort, like the app: a failure leaves them unread. */
+export async function markOpened(ids: string[]): Promise<void> {
+  const userId = await signedInUserId();
+  if (!userId || ids.length === 0) return;
+  const openedAt = new Date().toISOString();
+  await client().from('announcement_reads').upsert(
+    ids.map((id) => ({ user_id: userId, announcement_id: id, opened_at: openedAt })),
+    { onConflict: 'user_id,announcement_id' },
+  );
+}
+
+/** Ids this account removed from its own feed. Null when signed out. */
+export async function fetchDismissedIds(): Promise<Set<string> | null> {
+  if (!(await signedInUserId())) return null;
+  const { data, error } = await client().from('announcement_dismissals').select('announcement_id');
+  if (error) return new Set();
+  return new Set((data as { announcement_id: string }[]).map((r) => String(r.announcement_id)));
+}
+
+/** "Remove from my feed": hidden only for this account. */
+export async function hideForMe(id: string): Promise<void> {
+  const userId = await signedInUserId();
+  if (!userId) throw new Error('Sign in to remove posts from your feed.');
+  const { error } = await client().from('announcement_dismissals').upsert(
+    { user_id: userId, announcement_id: id },
+    { onConflict: 'user_id,announcement_id', ignoreDuplicates: true },
+  );
+  if (error) throw new Error(error.message);
+}
+
+/** Undo of hideForMe. */
+export async function unhideForMe(id: string): Promise<void> {
+  const userId = await signedInUserId();
+  if (!userId) return;
+  const { error } = await client().from('announcement_dismissals').delete()
+    .eq('user_id', userId).eq('announcement_id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
 // Attachments
 // ---------------------------------------------------------------------------
 

@@ -8,7 +8,7 @@ import {
   Eye,
   Users,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/icons';
 
 export interface RoleInfo {
   name: string;
@@ -30,7 +30,7 @@ export const USER_ROLES: RoleInfo[] = [
   },
   {
     name: 'attendee',
-    label: 'Attendee',
+    label: 'Parent / Spectator',
     description: 'Explore the Summit, browse event updates, and see what is happening.',
     icon: Eye,
     color: '#2563EB',
@@ -61,7 +61,7 @@ export const USER_ROLES: RoleInfo[] = [
   },
   {
     name: 'expert',
-    label: 'Expert',
+    label: 'Expert / Speaker',
     description: 'View your judging assignments and navigate between rooms.',
     icon: Award, // workspace_premium_outlined
     color: '#7C3AED',

@@ -9,7 +9,6 @@ const { db, backend } = vi.hoisted(() => {
     tables: [] as string[],
     updates: [] as Record<string, any>[],
     reads: 0,
-    demoEnabled: true,
     session: null as null | { user: { id: string } },
     forcedRole: null as string | null,
     readError: false,
@@ -59,7 +58,6 @@ const { db, backend } = vi.hoisted(() => {
   return { db, backend };
 });
 vi.mock('../../lib/supabase', () => ({ supabase: backend, isSupabaseConfigured: true }));
-vi.mock('../../lib/demoMode', () => ({ get isDemoModeEnabled() { return db.demoEnabled; } }));
 
 const auth = await import('../auth');
 const user = { id: 'user-1', email: 'student@example.com', user_metadata: { full_name: 'Sam Student' } } as unknown as User;
@@ -76,7 +74,6 @@ beforeEach(() => {
   db.tables = [];
   db.updates = [];
   db.reads = 0;
-  db.demoEnabled = true;
   db.session = null;
   db.forcedRole = null;
   db.readError = false;
@@ -194,52 +191,27 @@ describe('verified email sign-in', () => {
     await auth.sendSignInCode('expert@example.com', 'expert');
     expect(backend.auth.signInWithOtp).toHaveBeenCalledWith({ email: 'expert@example.com', options: { shouldCreateUser: true } });
     expect(localStorage.getItem('pending_user_role')).toBe('expert');
-    expect(auth.getBypassSession()).toBeNull();
     await auth.verifySignInCode('expert@example.com', '12345678');
     expect(backend.auth.verifyOtp).toHaveBeenCalledWith({ email: 'expert@example.com', token: '12345678', type: 'email' });
-    expect(auth.getBypassSession()).toBeNull();
   });
 });
 
-describe('development demo sessions', () => {
-  test('starts at profile setup and cannot write shared data', async () => {
-    auth.signInWithBypass('participant');
-    expect(auth.isDemoSession()).toBe(true);
-    expect(auth.needsProfileSetup(auth.getBypassProfile())).toBe(true);
-    await expect(auth.saveProfile({ name: 'Demo' })).rejects.toThrow(/nothing is saved/);
-    await expect(auth.updateProfileSettings({ name: 'Demo' })).rejects.toThrow(/nothing is saved/);
-    expect(db.updates).toEqual([]);
-    expect(db.tables).toEqual([]);
+describe('removed demo mode', () => {
+  test('sessions left by older builds are cleared when the site loads', async () => {
+    localStorage.setItem('bypass_session', JSON.stringify({ demo: true, user: { id: 'bypass_user_id' } }));
+    localStorage.setItem('bypass_profile', JSON.stringify({ role: 'expert' }));
+    localStorage.setItem('bypass_registration', '{}');
+    vi.resetModules();
+    await import('../auth');
+    expect(localStorage.getItem('bypass_session')).toBeNull();
+    expect(localStorage.getItem('bypass_profile')).toBeNull();
+    expect(localStorage.getItem('bypass_registration')).toBeNull();
   });
 
-  test('completes registration in this browser only', async () => {
-    auth.signInWithBypass('participant');
-    auth.completeDemoProfile({ name: 'Demo Student', registration: { teamName: 'Demo Team', teammates: ['Kai'], track: 'Engineering' } });
-    expect(auth.getBypassProfile()).toMatchObject({ name: 'Demo Student', profile_setup_complete: true });
-    expect(await auth.getRegistration()).toMatchObject({ teamName: 'Demo Team', teammates: ['Kai'], track: 'Engineering' });
-    expect(db.updates).toEqual([]);
-  });
-
-  test('sign-out ends the local session immediately and notifies the app', async () => {
-    auth.signInWithBypass('participant');
-    const heard = vi.fn();
-    window.addEventListener('storage', heard);
+  test('sign-out clears the picked role and ends the Supabase session', async () => {
+    localStorage.setItem('pending_user_role', 'expert');
     await auth.signOut();
-    window.removeEventListener('storage', heard);
-    expect(auth.getBypassSession()).toBeNull();
-    expect(heard).toHaveBeenCalled();
-  });
-
-  test('production rejects new local approvals and removes both demo and legacy expert sessions', () => {
-    db.demoEnabled = false;
-    expect(() => auth.signInWithBypass('participant')).toThrow(/off/);
-    expect(() => auth.signInWithApprovedEmail('expert', 'judge@example.com', 'Jo Judge')).toThrow(/Google or an email code/);
-    for (const demo of [true, false]) {
-      localStorage.setItem('bypass_session', JSON.stringify({ demo, user: { id: 'bypass_user_id' } }));
-      localStorage.setItem('bypass_profile', JSON.stringify({ role: 'expert' }));
-      expect(auth.getBypassSession()).toBeNull();
-      expect(auth.getBypassProfile()).toBeNull();
-      expect(localStorage.getItem('bypass_profile')).toBeNull();
-    }
+    expect(localStorage.getItem('pending_user_role')).toBeNull();
+    expect(backend.auth.signOut).toHaveBeenCalled();
   });
 });

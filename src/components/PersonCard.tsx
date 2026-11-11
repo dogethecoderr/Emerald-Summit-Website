@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Mail, Phone, Lock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, Lock, CheckCircle2, ShieldCheck } from '@/components/icons';
 import { USER_ROLES, roleByName } from '../models/roles';
 import type { Person, Visibility } from '../models/people';
 import { personStatusLabel } from '../models/personStatus';

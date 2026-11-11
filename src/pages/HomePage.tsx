@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -12,16 +12,25 @@ import {
   QrCode,
   Settings,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/icons';
 import { useAuth } from '../context/AuthContext';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
 import { toMinutes, useSummitContent } from '../services/summitContent';
+import {
+  EVENT_DATE_FALLBACK,
+  EVENT_VENUE,
+  countdownParts,
+  formatDay,
+  summitStart,
+  useSummitStatus,
+} from '../services/summitStatus';
 import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
 import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
+import { ExpertDeclinedDialog, ExpertPending, needsExpertApproval } from '../components/ExpertStatus';
 import ExploreVerses, {
   trackCount,
   VersePortalProvider,
@@ -89,9 +98,45 @@ interface AgendaItem {
 
 const QUICK_LINKS: QuickAction[] = [
   { to: '/resources', label: 'Resources', sub: 'Rubrics, guides, files', icon: FolderOpen },
-  { to: '/announcements', label: 'Announcements', sub: 'News & schedule changes', icon: Megaphone },
+  { to: '/announcements', label: 'News', sub: 'Updates and schedule changes', icon: Megaphone },
   { to: '/account', label: 'Profile', sub: 'QR pass & preferences', icon: Settings },
 ];
+
+/**
+ * Counts down to summit day's first session, like the app's Home header.
+ * Only shown once the summit date is set, and gone once the summit starts.
+ */
+function SummitCountdown({ date }: { date: string }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const start = summitStart(date, MOCK_SESSIONS.map((s) => toMinutes(s.time)));
+  const left = countdownParts(start, now);
+  if (!left) return null;
+  const two = (n: number) => String(n).padStart(2, '0');
+  const units: [string, string][] = [
+    [String(left.days), left.days === 1 ? 'day' : 'days'],
+    [two(left.hours), 'hr'],
+    [two(left.minutes), 'min'],
+    [two(left.seconds), 'sec'],
+  ];
+  return (
+    <div
+      role="timer"
+      aria-label={`${left.days} days, ${left.hours} hours, ${left.minutes} minutes until the summit`}
+      className="mt-3 flex gap-6"
+    >
+      {units.map(([value, label]) => (
+        <div key={label} aria-hidden>
+          <div className="font-display text-[30px] font-bold leading-none tabular-nums">{value}</div>
+          <div className="mt-1 text-[12px] font-medium text-white/75">{label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function greetingFor(date: Date) {
   const hour = date.getHours();
@@ -185,6 +230,7 @@ function CountChip({ count }: { count: number }) {
 
 export default function HomePage() {
   useSummitContent();
+  const { date: summitDate } = useSummitStatus();
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { listFor, spectating } = useSchedule();
@@ -210,20 +256,10 @@ export default function HomePage() {
     return <RolesPage />;
   }
 
-  if (profile?.role === 'expert' && profile.expert_status !== 'approved') {
+  if (needsExpertApproval(profile)) {
     return (
       <AppShell>
-        <section className="glass mx-auto max-w-xl rounded-3xl p-8">
-          <h1 className="font-display text-2xl font-bold">
-            {profile.expert_status === 'declined' ? 'Expert application declined' : 'Awaiting approval'}
-          </h1>
-          <p className="mt-3 text-muted-foreground">
-            {profile.expert_status === 'declined'
-              ? 'Your expert application was declined. Contact the Summit team if you have questions.'
-              : 'An admin needs to approve your expert application before you can register as an expert.'}
-          </p>
-          <button type="button" onClick={() => navigate('/account')} className="mt-5 rounded-[10px] bg-emerald px-4 py-2 text-sm font-semibold text-white">View profile</button>
-        </section>
+        <ExpertPending />
       </AppShell>
     );
   }
@@ -286,9 +322,10 @@ export default function HomePage() {
 
   return (
     <AppShell>
+      <ExpertDeclinedDialog />
       <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd={['participant', 'expert', 'attendee'].includes(roleName)}>
       {/* hero */}
-      <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_3[...]
+      <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
         <div
           className="pointer-events-none absolute -right-16 -top-40 h-[420px] w-[420px] rounded-full bg-emerald-300/30 blur-[110px]"
           aria-hidden
@@ -296,8 +333,9 @@ export default function HomePage() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-emerald-300">
-              Emerald Summit 2027 · Dublin, CA
+              {summitDate ? formatDay(summitDate) : EVENT_DATE_FALLBACK} · {EVENT_VENUE}
             </div>
+            {summitDate && <SummitCountdown date={summitDate} />}
             <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-[40px] sm:leading-[1.12]">
               {greetingFor(new Date())}, {firstName}.
             </h1>
@@ -322,7 +360,7 @@ export default function HomePage() {
                 onClick={() => navigate('/announcements')}
                 className="inline-flex items-center gap-2 rounded-[10px] border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20"
               >
-                Latest announcements <ArrowRight className="h-4 w-4" />
+                Latest news <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>

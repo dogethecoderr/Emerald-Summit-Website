@@ -1,6 +1,6 @@
 import ThemeToggle from '../components/ThemeToggle';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Info, ShieldCheck, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, ShieldCheck, XCircle } from '@/components/icons';
 import { useAuth } from '../context/AuthContext';
 import { SIGN_IN_ROLES, roleByName, roleLabelFor } from '../models/roles';
 import BrandMark from '../components/BrandMark';

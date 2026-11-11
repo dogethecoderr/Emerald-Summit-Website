@@ -11,7 +11,8 @@ import {
   Trash2,
   Plus,
   CheckCheck,
-} from 'lucide-react';
+  EyeOff,
+} from '@/components/icons';
 import type {
   Announcement,
   AnnouncementAttachment,
@@ -47,6 +48,8 @@ export interface AnnouncementReadProps {
   isUnread?: (id: string) => boolean;
   onMarkRead?: (id: string) => void;
   onMarkAllRead?: () => void;
+  /** "Remove from my feed" (hidden only for this account). */
+  onHide?: (announcement: Announcement) => void;
 }
 
 function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
@@ -86,6 +89,7 @@ export function AnnouncementItem({
   announcement,
   unread = false,
   onMarkRead,
+  onHide,
   canManage = false,
   onEdit,
   onDelete,
@@ -94,6 +98,7 @@ export function AnnouncementItem({
   announcement: Announcement;
   unread?: boolean;
   onMarkRead?: (id: string) => void;
+  onHide?: (announcement: Announcement) => void;
 } & AnnouncementAdminProps) {
   const attachments = announcement.attachments ?? [];
   // Media plays in the body of the post; documents and links stay as rows.
@@ -122,7 +127,7 @@ export function AnnouncementItem({
         )}
         {announcement.pinned && (
           <span className="inline-flex items-center gap-1 font-semibold text-amber-400">
-            <Pin className="h-3 w-3" fill="currentColor" /> Pinned
+            <Pin className="h-3 w-3" weight="fill" /> Pinned
           </span>
         )}
         <span
@@ -169,6 +174,20 @@ export function AnnouncementItem({
             <AttachmentRow key={a.id} attachment={a} />
           ))}
         </div>
+      )}
+
+      {onHide && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onHide(announcement);
+          }}
+          title="Hidden only for you"
+          className="mt-3 mr-1.5 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <EyeOff className="h-3 w-3" /> Remove from my feed
+        </button>
       )}
 
       {unread && onMarkRead && (
@@ -233,6 +252,7 @@ export default function AnnouncementsPanel({
   isUnread,
   onMarkRead,
   onMarkAllRead,
+  onHide,
 }: {
   announcements: Announcement[];
   /** 'compact' = top-3 preview with a "View all" link (Dashboard use).
@@ -281,7 +301,7 @@ export default function AnnouncementsPanel({
           !isFull && 'border-b border-border pb-4',
         )}
       >
-        <h2 className="font-display text-base font-semibold">Announcements</h2>
+        <h2 className="font-display text-base font-semibold">News</h2>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-1 text-[11px] font-bold text-white">
@@ -348,6 +368,7 @@ export default function AnnouncementsPanel({
             announcement={a}
             unread={isUnread?.(a.id) ?? false}
             onMarkRead={onMarkRead}
+            onHide={onHide}
             canManage={canManage}
             onEdit={onEdit}
             onDelete={onDelete}

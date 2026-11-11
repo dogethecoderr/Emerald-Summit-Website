@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { Clock, MapPin, Footprints, ScrollText } from 'lucide-react';
+import { Clock, MapPin, Footprints, ScrollText } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';

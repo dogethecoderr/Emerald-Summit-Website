@@ -18,6 +18,11 @@ import {
   deleteAnnouncement,
   canPublishRemotely,
   fetchAnnouncements,
+  fetchDismissedIds,
+  fetchOpenedIds,
+  hideForMe,
+  markOpened,
+  unhideForMe,
   isBackendConfigured,
   setAnnouncementPinned,
   sortAnnouncements,
@@ -33,25 +38,27 @@ interface AnnouncementsContextValue {
   error: string | null;
   /** True for admins — gates every composer and edit control in the UI. */
   canManage: boolean;
-  /** False when posts can't leave this browser (bypass sign-in, or no backend). */
+  /** False when posts can't leave this browser (no backend, or no admin session). */
   live: boolean;
-  /** Whether a Supabase client exists at all — separates "no backend" from
-   *  "signed in locally", which need different advice. */
+  /** Whether a Supabase client exists at all. */
   configured: boolean;
   refresh: () => Promise<void>;
   create: (draft: AnnouncementDraft) => Promise<void>;
   update: (id: string, draft: AnnouncementDraft) => Promise<void>;
   remove: (id: string) => Promise<void>;
   togglePinned: (id: string, pinned: boolean) => Promise<void>;
-  /** Announcements this account hasn't opened yet (kept in this browser). */
+  /** Announcements this account hasn't opened yet (announcement_reads.opened_at). */
   unreadCount: number;
   isUnread: (id: string) => boolean;
   markRead: (id: string) => void;
   markAllRead: () => void;
+  /** "Remove from my feed": hidden only for this account (announcement_dismissals). */
+  hide: (id: string) => Promise<void>;
+  unhide: (id: string) => Promise<void>;
 }
 
-/** Read state lives in localStorage per account; the website's database has
- *  no read-receipts table. Everything starts unread on a new browser. */
+/** Without a backend (tests, offline work) read state lives in this browser.
+ *  Signed in, it's the shared announcement_reads table, as in the app. */
 function readKey(userId: string | undefined): string {
   return `announcement_reads:${userId ?? 'guest'}`;
 }
@@ -87,24 +94,41 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const userId = profile?.id;
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  // True once read state comes from the shared tables for this account.
+  const [sharedState, setSharedState] = useState(false);
   const [feedUserId, setFeedUserId] = useState(userId);
   const announcements = useMemo(() => {
     if (feedUserId !== userId) return [];
     const registered = new Set([...mySchedule, ...expertSchedule, ...spectating]);
     const disciplines = new Set(MOCK_SESSIONS.filter((s) => registered.has(s.id)).map((s) => s.track));
-    return announcementsForUser(storedAnnouncements, {
+    return announcementsForUser(storedAnnouncements.filter((a) => !hiddenIds.has(a.id)), {
       userId,
       registeredDisciplines: disciplines,
       canManageDiscipline: (id) => canEditVerse(profile, id),
     });
-  }, [storedAnnouncements, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion]);
+  }, [storedAnnouncements, hiddenIds, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion]);
   const activeUser = useRef(userId);
   activeUser.current = userId;
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));
 
-  // Switching accounts loads that account's read state.
+  // Switching accounts loads that account's read and hidden state.
   useEffect(() => {
+    let current = true;
     setReadIds(loadReadIds(userId));
+    setHiddenIds(new Set());
+    setSharedState(false);
+    void Promise.all([fetchOpenedIds(), fetchDismissedIds()])
+      .then(([opened, dismissed]) => {
+        if (!current || opened == null) return;
+        setReadIds(opened);
+        setHiddenIds(dismissed ?? new Set());
+        setSharedState(true);
+      })
+      .catch(() => {
+        // Unreachable: keep this browser's copy until the next load.
+      });
+    return () => { current = false; };
   }, [userId]);
 
   const markRead = useCallback(
@@ -112,21 +136,47 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       setReadIds((prev) => {
         if (prev.has(id)) return prev;
         const next = new Set(prev).add(id);
-        saveReadIds(userId, next);
+        if (!sharedState) saveReadIds(userId, next);
         return next;
       });
+      if (sharedState) void markOpened([id]).catch(() => {});
     },
-    [userId],
+    [userId, sharedState],
   );
 
   const markAllRead = useCallback(() => {
+    const ids = announcements.map((a) => a.id).filter((id) => !readIds.has(id));
     setReadIds((prev) => {
       const next = new Set(prev);
-      announcements.forEach((a) => next.add(a.id));
-      saveReadIds(userId, next);
+      ids.forEach((id) => next.add(id));
+      if (!sharedState) saveReadIds(userId, next);
       return next;
     });
-  }, [announcements, userId]);
+    if (sharedState) void markOpened(ids).catch(() => {});
+  }, [announcements, readIds, userId, sharedState]);
+
+  const hide = useCallback(async (id: string) => {
+    setHiddenIds((prev) => new Set(prev).add(id));
+    try {
+      await hideForMe(id);
+    } catch (err) {
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      throw err;
+    }
+  }, []);
+
+  const unhide = useCallback(async (id: string) => {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    await unhideForMe(id);
+  }, []);
 
   const isUnread = useCallback((id: string) => !readIds.has(id), [readIds]);
   const unreadCount = useMemo(
@@ -216,6 +266,8 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       isUnread,
       markRead,
       markAllRead,
+      hide,
+      unhide,
     }),
     [
       announcements,
@@ -232,6 +284,8 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       isUnread,
       markRead,
       markAllRead,
+      hide,
+      unhide,
     ],
   );
 

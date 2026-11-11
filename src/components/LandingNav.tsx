@@ -2,7 +2,7 @@ import ThemeToggle from './ThemeToggle';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X } from '@/components/icons';
 import BrandMark from './BrandMark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';

@@ -11,7 +11,7 @@ import {
   Scale,
   Sparkles,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/icons';
 import { USER_DISCIPLINES, type DisciplineInfo } from './disciplines';
 
 export type VerseMotif = 'circuit' | 'ticker' | 'cells' | 'stars' | 'ripples' | 'paint';

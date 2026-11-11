@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Plus } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Plus } from '@/components/icons';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, type Session } from '../../models/sessions';
 import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';

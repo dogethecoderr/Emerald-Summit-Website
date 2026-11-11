@@ -8,13 +8,13 @@ import {
 import { supabase } from '../lib/supabase';
 import {
   getCurrentProfile,
-  getBypassSession,
-  getBypassProfile,
-  BYPASS_USER_ID,
   signOut,
   SignInRefusedError,
+  takeTestAccountNotice,
+  takeOAuthError,
   type Profile,
 } from '../services/auth';
+import { toast } from 'sonner';
 import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextValue {
@@ -32,20 +32,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// A Google sign-in that failed comes back with the reason in the URL. Read it
+// once at load: StrictMode runs state initializers twice, and the first run
+// already removes it from the address bar.
+const oauthErrorAtLoad = takeOAuthError();
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signInError, setSignInError] = useState<string | null>(oauthErrorAtLoad);
 
   const refreshProfile = async (currentSession?: Session | null) => {
-    const bypassS = getBypassSession();
-    if (bypassS) {
-      setProfile(getBypassProfile());
-      setLoadingProfile(false);
-      return;
-    }
-
     const s = currentSession !== undefined ? currentSession : session;
     if (!s?.user) {
       setProfile(null);
@@ -57,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const next = await getCurrentProfile(s.user);
       setProfile(next);
+      const notice = takeTestAccountNotice();
+      if (notice) toast.info(notice);
     } catch (err) {
       // A refused role or an unreadable account ends the session outright:
       // no falling back to the account's old role or to participant.
@@ -77,60 +77,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
     
-    const sync = () => {
+    // With no configured client there is no session to restore, and the
+    // loading state must still resolve.
+    if (!supabase) {
+      setSession(null);
+      setProfile(null);
+      setLoadingProfile(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
-      const bypassS = getBypassSession();
-      if (bypassS) {
-        setSession(bypassS as any);
-        setProfile(getBypassProfile());
-        setLoadingProfile(false);
-        return;
-      }
+      setSession(session);
+      refreshProfile(session);
+    });
 
-      // A local session just ended: drop it now rather than after the
-      // Supabase round trip below, so nothing renders it as signed in.
-      setSession((current) => (current?.user?.id === BYPASS_USER_ID ? null : current));
-      setProfile((current) => (current?.id === BYPASS_USER_ID ? null : current));
-
-      // With no configured client there is no real session to restore — the
-      // app runs bypass-only, and the loading state must still resolve.
-      if (!supabase) {
-        setSession(null);
-        setProfile(null);
-        setLoadingProfile(false);
-        return;
-      }
-
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (mounted) {
-          if (getBypassSession()) return; // Avoid race condition if bypass was set
-          setSession(session);
-          refreshProfile(session);
-        }
-      });
-    };
-
-    sync();
-
-    const subscription = supabase?.auth.onAuthStateChange(
-      (_event, newSession) => {
-        if (mounted) {
-          if (getBypassSession()) return;
-          setSession(newSession);
-          refreshProfile(newSession);
-        }
-      }
-    ).data.subscription;
-
-    const handleStorage = () => {
-      sync();
-    };
-    window.addEventListener('storage', handleStorage);
+    const subscription = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession);
+      refreshProfile(newSession);
+    }).data.subscription;
 
     return () => {
       mounted = false;
-      subscription?.unsubscribe();
-      window.removeEventListener('storage', handleStorage);
+      subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
