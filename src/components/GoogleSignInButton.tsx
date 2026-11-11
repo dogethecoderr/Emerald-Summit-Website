@@ -131,10 +131,15 @@ export default function GoogleSignInButton({ roleName, disabled, onStart, onSign
       {mode === 'loading' && !busy && (
         <div aria-hidden className="h-12 w-full animate-pulse rounded-xl bg-muted" />
       )}
-      {/* Google draws its button in here (an iframe); kept mounted so it isn't redrawn. */}
+      {/* Google draws its button in here (an iframe); kept mounted so it isn't redrawn.
+          colorScheme 'light': in dark mode the page says color-scheme dark, and the
+          browser then paints an opaque white backing behind Google's iframe (which
+          is light). Matching it keeps the iframe transparent; the button's own
+          colours come from the theme option below. */}
       <div
         ref={slot}
         data-testid="google-button-slot"
+        style={{ colorScheme: 'light' }}
         className={cn(
           'flex min-h-[44px] w-full items-center justify-center',
           (mode !== 'google' || busy) && 'hidden',
