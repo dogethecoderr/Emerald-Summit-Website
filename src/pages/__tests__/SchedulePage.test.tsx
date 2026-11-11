@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 const state = vi.hoisted(() => ({
@@ -63,8 +63,8 @@ vi.mock('../../models/sessions', () => {
 
 import SchedulePage from '../SchedulePage';
 
-function page(add?: string) {
-  return <MemoryRouter initialEntries={[{ pathname: '/schedule', state: add ? { add } : null }]}><SchedulePage /></MemoryRouter>;
+function page() {
+  return <MemoryRouter initialEntries={['/schedule']}><SchedulePage /></MemoryRouter>;
 }
 
 beforeEach(() => {
@@ -90,22 +90,31 @@ describe('personal schedule', () => {
     expect(screen.getByRole('link', { name: /Browse sessions/ })).toHaveAttribute('href', '/disciplines');
   });
 
-  test('admin-assigned volunteer sessions have no remove action and cannot be added through router state', async () => {
+  test('admin-assigned volunteer sessions have no remove action', () => {
     state.role = 'volunteer';
     state.schedule.volunteerSchedule = ['morning'];
-    render(page('unregistered'));
+    render(page());
     expect(screen.getByText('Managing')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Remove .* from schedule/ })).not.toBeInTheDocument();
-    expect(state.schedule.reserveSession).not.toHaveBeenCalled();
   });
 
-  test('adding from a verse waits for the saved schedule to finish loading', async () => {
-    state.schedule.loading = true;
-    const view = render(page('unregistered'));
-    expect(state.schedule.reserveSession).not.toHaveBeenCalled();
-    state.schedule.loading = false;
-    view.rerender(page('unregistered'));
-    await waitFor(() => expect(state.schedule.reserveSession).toHaveBeenCalledWith('unregistered', 'competing'));
+  test('session titles open the session page', () => {
+    state.schedule.mySchedule = ['morning'];
+    render(page());
+    expect(screen.getByRole('link', { name: 'Morning registered session' })).toHaveAttribute('href', '/sessions/morning');
+  });
+
+  test('a team owner removing a session is sent to the session page to pick a new owner', async () => {
+    state.schedule.mySchedule = ['morning'];
+    state.schedule.releaseSession.mockRejectedValueOnce(
+      new Error('You own this team. Choose a teammate to take over before you leave.'),
+    );
+    render(<MemoryRouter initialEntries={['/schedule']}><Routes>
+      <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/sessions/:id" element={<p>Session page</p>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Morning registered session from schedule' }));
+    expect(await screen.findByText('Session page')).toBeInTheDocument();
   });
 
   test('attendees can open their personal spectator schedule', () => {
@@ -116,9 +125,4 @@ describe('personal schedule', () => {
     expect(screen.getByText('Spectating')).toBeInTheDocument();
   });
 
-  test('an attendee adding from a verse reserves a spectator seat', async () => {
-    state.role = 'attendee';
-    render(page('unregistered'));
-    await waitFor(() => expect(state.schedule.reserveSession).toHaveBeenCalledWith('unregistered', 'spectating'));
-  });
 });

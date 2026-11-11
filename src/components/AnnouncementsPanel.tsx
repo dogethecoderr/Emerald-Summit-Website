@@ -57,9 +57,10 @@ function AttachmentRow({ attachment }: { attachment: AnnouncementAttachment }) {
   const isOpen = attachment.type === 'Link' || attachment.type === 'Form';
   const size = formatBytes(attachment.bytes) ?? attachment.size;
 
+  if (!attachment.url) return null;
   return (
     <a
-      href={attachment.url ?? '#'}
+      href={attachment.url}
       target="_blank"
       rel="noreferrer"
       {...(isOpen ? {} : { download: attachment.title })}

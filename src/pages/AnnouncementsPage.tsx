@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle } from '@/components/icons';
@@ -36,6 +36,14 @@ export default function AnnouncementsPage() {
     unhide,
     configured,
   } = useAnnouncements();
+
+  // Opening News marks every post seen (clears the badge), as in the app.
+  // Each post's dot stays until that post is opened.
+  // markAllRead changes once read state loads or new posts arrive; once
+  // everything is seen it does nothing, so this settles.
+  useEffect(() => {
+    if (ready) markAllRead();
+  }, [ready, markAllRead]);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
@@ -99,7 +107,6 @@ export default function AnnouncementsPage() {
         announcements={announcements}
         isUnread={isUnread}
         onMarkRead={markRead}
-        onMarkAllRead={markAllRead}
         onHide={configured ? removeFromFeed : undefined}
         variant="full"
         canManage={canManage}

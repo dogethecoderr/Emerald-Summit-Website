@@ -25,16 +25,20 @@ export default function FeaturedSessionsCard({
                 <div className="text-[14px] font-semibold leading-snug">
                   {s.title}
                 </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {s.speaker}
-                </div>
+                {s.speaker && (
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {s.speaker}
+                  </div>
+                )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" /> {s.time}
                   </span>
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {s.location}
-                  </span>
+                  {s.location && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> {s.location}
+                    </span>
+                  )}
                 </div>
                 <CapacityBar enrolled={s.enrolled} capacity={s.capacity} />
               </div>

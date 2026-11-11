@@ -1,3 +1,5 @@
+import type { SessionPageBlock, SessionQuestion } from './registration';
+
 // Ported from the Annual Summit App prototype's Session type + SESSIONS data
 // (src/app/App.tsx). `duration`, `description`, `room`, `spectatorCap`, and
 // `spectators` are only needed by the Schedule builder — Featured Sessions
@@ -26,6 +28,35 @@ export interface Session {
   volunteersEnrolled: number;
   /** Letter used to look up walking time between rooms; see WALKING_TIME. */
   room: string;
+  // The rest come from the shared database (sessions_with_counts) and are
+  // missing on the bundled sample sessions.
+  /** The discipline's display name. */
+  disciplineName?: string;
+  /** Start and end as the database stores them: 24-hour "HH:mm". */
+  start?: string;
+  end?: string;
+  /** Questions a participant answers when joining. */
+  questions?: SessionQuestion[];
+  /** The largest team allowed; 1 means solo only. */
+  maxTeamSize?: number;
+  /** The editors' wording of the project question, or null for the default. */
+  customProjectPrompt?: string | null;
+  /** When registering to participate closes (ISO), or null for no deadline. */
+  participantDeadline?: string | null;
+  pageBlocks?: SessionPageBlock[];
+  heroImageUrl?: string | null;
+  sponsor?: string | null;
+}
+
+/**
+ * Session rooms are locked while this is false, as in the app: the session
+ * page doesn't show a room and editors can't change it. Lists still show it.
+ */
+export const SESSION_ROOMS_ENABLED = false;
+
+/** The parts of a line that have text, joined with " · ". */
+export function joinParts(...parts: (string | null | undefined)[]): string {
+  return parts.filter((p) => p && p.trim()).join(' · ');
 }
 
 export const TIME_SLOTS = [

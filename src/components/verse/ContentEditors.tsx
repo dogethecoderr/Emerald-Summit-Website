@@ -1,5 +1,6 @@
 // Edit dialogs for tracks and sessions, shown on verse and track pages to
 // admins and to ambassadors for their verses (services/summitContent.ts).
+import SharedSessionForm from './SharedSessionForm';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Loader2, Trash2 } from '@/components/icons';
 import { toast } from 'sonner';
@@ -116,7 +117,9 @@ export function SessionEditorDialog({
 }) {
   return (
     <Dialog open={target != null} onOpenChange={(open) => !open && onClose()}>
-      {target && <SessionForm key={target.session?.id ?? 'new'} target={target} onClose={onClose} />}
+      {target && (usesSharedBackend()
+        ? <SharedSessionForm key={target.session?.id ?? 'new'} verse={target.verse} session={target.session} onClose={onClose} />
+        : <SessionForm key={target.session?.id ?? 'new'} target={target} onClose={onClose} />)}
     </Dialog>
   );
 }

@@ -14,8 +14,9 @@ import {
   type LucideIcon,
 } from '@/components/icons';
 import { useAuth } from '../context/AuthContext';
-import { MOCK_SESSIONS, type Session } from '../models/sessions';
+import { MOCK_SESSIONS, joinParts, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
+import { missingGateField } from '../models/profileFields';
 import { toMinutes, useSummitContent } from '../services/summitContent';
 import {
   EVENT_DATE_FALLBACK,
@@ -203,7 +204,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-[16px] font-semibold">{s.title}</div>
         <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {s.location} · {kind === 'Session' ? s.duration : kind}
+          {joinParts(s.location, kind === 'Session' ? s.duration : kind)}
         </div>
       </div>
       <span
@@ -248,7 +249,8 @@ export default function HomePage() {
     );
   }
 
-  if (isSignedIn && needsProfileSetup(profile)) {
+  // Like the app's auth gate: finish sign-up, then add a missing number or grade.
+  if (isSignedIn && (needsProfileSetup(profile) || missingGateField(profile as Parameters<typeof missingGateField>[0]))) {
     return <Navigate to="/profile" replace />;
   }
 
@@ -305,7 +307,7 @@ export default function HomePage() {
     {
       label: 'Next up',
       value: next ? next.session.time : 'None yet',
-      sub: next ? next.session.location : 'Nothing scheduled yet',
+      sub: next ? joinParts(next.session.location, next.session.duration) : 'Nothing scheduled yet',
       icon: Clock,
     },
     {
@@ -323,7 +325,7 @@ export default function HomePage() {
   return (
     <AppShell>
       <ExpertDeclinedDialog />
-      <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd={['participant', 'expert', 'attendee'].includes(roleName)}>
+      <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd>
       {/* hero */}
       <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
         <div
@@ -381,7 +383,7 @@ export default function HomePage() {
                     {next.session.title}
                   </div>
                   <div className="mt-1 text-[13px] text-white/75">
-                    {next.session.location} · {next.session.duration}
+                    {joinParts(next.session.location, next.session.duration)}
                   </div>
                   <div className="mt-4 flex gap-1" aria-hidden>
                     {daySlots.map((t, i) => (

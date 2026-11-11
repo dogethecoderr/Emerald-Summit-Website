@@ -20,6 +20,12 @@ const DirectoryPage = lazy(() => import('./pages/DirectoryPage'));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
 const VersesPage = lazy(() => import('./pages/VersesPage'));
 const VolunteerDashboard = lazy(() => import('./pages/VolunteerDashboard'));
+const SessionPage = lazy(() => import('./pages/SessionPage'));
+const VolunteerHoursPage = lazy(() => import('./pages/VolunteerHoursPage'));
+const ExpertApprovalsPage = lazy(() => import('./pages/ExpertApprovalsPage'));
+const RoomsPage = lazy(() => import('./pages/RoomsPage'));
+const MetricsPage = lazy(() => import('./pages/MetricsPage'));
+const SummitFollowupPage = lazy(() => import('./pages/SummitFollowupPage'));
 
 function LegacyApplicationRedirect() {
   const { role } = useParams();
@@ -40,6 +46,7 @@ export default function App() {
           <Route path="/apply/:role" element={<LegacyApplicationRedirect />} />
           <Route path="/profile" element={<ProfileSetupPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
+          <Route path="/sessions/:id" element={<SessionPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/profiles" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<SettingsPage />} />
@@ -53,6 +60,11 @@ export default function App() {
           <Route path="/disciplines" element={<VersesPage />} />
           <Route path="/judging" element={<Navigate to="/schedule" replace />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
+          <Route path="/volunteer/hours" element={<VolunteerHoursPage />} />
+          <Route path="/admin/experts" element={<ExpertApprovalsPage />} />
+          <Route path="/admin/rooms" element={<RoomsPage />} />
+          <Route path="/admin/metrics" element={<MetricsPage />} />
+          <Route path="/follow-up" element={<SummitFollowupPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

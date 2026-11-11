@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
-  Bell, ChevronLeft, ChevronRight, Info, LogOut, Palette, QrCode, UserRound, Users,
+  ArrowLeftRight, Award, Bell, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, Info, LogOut, MapPin,
+  Palette, QrCode, ScanLine, ShieldCheck, UserRound, Users,
 } from '@/components/icons';
+import { Switch } from '@/components/ui/switch';
+import { useSummitStatus } from '../services/summitStatus';
 import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
@@ -11,11 +14,12 @@ import ThemeToggle from '../components/ThemeToggle';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
-import { signOut, updateProfileSettings, type Profile } from '../services/auth';
+import { saveProfileDetails, setNotificationsEnabled, signOut, type Profile } from '../services/auth';
+import { formFields } from '../models/profileFields';
+import ProfileFieldInput from '../components/ProfileFieldInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -42,19 +46,22 @@ function SettingsRow({ icon: Icon, title, subtitle, onClick, destructive }: {
 
 function ProfileSettings({ profile, onSaved }: { profile: Profile; onSaved: () => Promise<void> }) {
   const navigate = useNavigate();
+  // The same questions the account answered at sign-up, like the app's Edit profile.
+  const fields = formFields(profile.role, profile.volunteer_subtype);
+  const detailsOf = (p: Profile) => Object.fromEntries(
+    Object.entries((p.details ?? {}) as Record<string, unknown>).map(([k, v]) => [k, v == null ? '' : String(v)]),
+  );
   const [name, setName] = useState(profile.name ?? '');
-  const [phone, setPhone] = useState(profile.phone ?? '');
-  const [bio, setBio] = useState(profile.bio ?? '');
+  const [answers, setAnswers] = useState<Record<string, string>>(() => detailsOf(profile));
   const [isSaving, setIsSaving] = useState(false);
-  const requiresPhone = ['volunteer', 'ambassador', 'admin'].includes(profile.role ?? '');
 
   useEffect(() => {
     setName(profile.name ?? '');
-    setPhone(profile.phone ?? '');
-    setBio(profile.bio ?? '');
+    setAnswers(detailsOf(profile));
   }, [profile]);
 
-  const isDirty = name !== (profile.name ?? '') || phone !== (profile.phone ?? '') || bio !== (profile.bio ?? '');
+  const saved = detailsOf(profile);
+  const isDirty = name !== (profile.name ?? '') || fields.some((f) => (answers[f.key] ?? '') !== (saved[f.key] ?? ''));
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
 
@@ -74,18 +81,19 @@ function ProfileSettings({ profile, onSaved }: { profile: Profile; onSaved: () =
       toast.error('Name is required.');
       return;
     }
-    if (requiresPhone && !phone.trim()) {
-      toast.error('Phone is required for volunteers and admins.');
+    const missing = fields.find((f) => f.required && !(answers[f.key] ?? '').trim());
+    if (missing) {
+      toast.error(missing.key === 'phone' ? 'Mobile number is required.' : `Please answer "${missing.label}".`);
       return;
     }
     setIsSaving(true);
     try {
-      await updateProfileSettings({ name: name.trim(), phone: phone.trim(), bio: bio.trim() });
+      await saveProfileDetails(name, Object.fromEntries(fields.map((f) => [f.key, answers[f.key] ?? ''])), false);
       await onSaved();
       isDirtyRef.current = false;
       toast.success('Profile updated');
-    } catch (error) {
-      toast.error(`Could not save profile: ${error}`);
+    } catch {
+      toast.error('Could not save your profile. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -102,20 +110,14 @@ function ProfileSettings({ profile, onSaved }: { profile: Profile; onSaved: () =
           <Label htmlFor="profile-name">Full name</Label>
           <Input id="profile-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="profile-phone">Phone</Label>
-          <Input id="profile-phone" type="tel" autoComplete="tel" required={requiresPhone} aria-describedby={requiresPhone ? 'profile-phone-sharing-note' : undefined} value={phone} onChange={(e) => setPhone(e.target.value)} />
-          {requiresPhone && <p id="profile-phone-sharing-note" className="text-xs text-muted-foreground">Your phone number is shared with other volunteers and admins for Summit-day coordination.</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="profile-bio">Bio</Label>
-          <Textarea id="profile-bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
-        </div>
+        {fields.map((f) => (
+          <ProfileFieldInput key={f.key} field={f} value={answers[f.key] ?? ''} onChange={(v) => setAnswers((a) => ({ ...a, [f.key]: v }))} />
+        ))}
         <div className="space-y-2">
           <Label htmlFor="profile-email">Email</Label>
           <Input id="profile-email" type="email" value={profile.email} readOnly />
         </div>
-        <Button onClick={handleSave} disabled={isSaving || (requiresPhone && !phone.trim())}>{isSaving ? 'Saving…' : 'Save profile'}</Button>
+        <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving…' : 'Save profile'}</Button>
       </div>
     </div>
   );
@@ -129,6 +131,22 @@ function ProfileHub({ profile }: { profile: Profile }) {
   const [signingOut, setSigningOut] = useState(false);
   const [qrPassOpen, setQrPassOpen] = useState(false);
   const canOpenVolunteerHub = ['volunteer', 'ambassador', 'admin'].includes(roleName);
+  const isAdmin = roleName === 'admin';
+  const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
+  const canCheckIn = isAdmin || profile.can_check_in_front_desk === true;
+  const status = useSummitStatus();
+  const { refreshProfile } = useAuth();
+  const [notifications, setNotifications] = useState(profile.notifications_enabled !== false);
+  const toggleNotifications = async (on: boolean) => {
+    setNotifications(on);
+    try {
+      await setNotificationsEnabled(on);
+      await refreshProfile();
+    } catch {
+      setNotifications(!on);
+      toast.error("Couldn't save that. Try again.");
+    }
+  };
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -166,8 +184,21 @@ function ProfileHub({ profile }: { profile: Profile }) {
             <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Appearance</span><span className="mt-0.5 block text-[12px] text-muted-foreground">System is dark from 7 PM to 7 AM</span></span>
             <ThemeToggle labels />
           </div>
-          <SettingsRow icon={Bell} title="Notifications" subtitle="Push and email preferences coming soon" onClick={() => toast.message('Notifications settings coming soon')} />
-          {canOpenVolunteerHub && <SettingsRow icon={Users} title="Volunteer hub" subtitle="Reach other volunteers and admins" onClick={() => navigate('/volunteer/contacts')} />}
+          <div className="flex items-center gap-3 px-4 py-3.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Bell className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Push notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Next-session reminders and announcements in the app</span></span>
+            <Switch checked={notifications} aria-label="Push notifications" onCheckedChange={(v) => void toggleNotifications(v)} />
+          </div>
+          {isVolunteer && <SettingsRow icon={CalendarDays} title="Sessions I'm managing" subtitle="Take attendance for sessions you run" onClick={() => navigate('/volunteer')} />}
+          {status.feedbackOpen && roleName === 'expert' && <SettingsRow icon={Award} title="Summit feedback" subtitle="Rate your sessions, the summit and the app" onClick={() => navigate('/follow-up')} />}
+          {status.feedbackOpen && (isVolunteer || isAdmin) && <SettingsRow icon={HeartHandshake} title="Volunteer for EAF again?" subtitle="Let us know" onClick={() => navigate('/follow-up')} />}
+          {(isVolunteer || isAdmin) && <SettingsRow icon={Clock} title="Track volunteer hours" subtitle="Your logged hours and summit-day hours" onClick={() => navigate('/volunteer/hours')} />}
+          {canOpenVolunteerHub && <SettingsRow icon={Users} title="Volunteer hub" subtitle="Volunteers, admins, and how to reach them" onClick={() => navigate('/volunteer/contacts')} />}
+          {canCheckIn && <SettingsRow icon={ScanLine} title="Front desk check-in" subtitle="Mark attendees arrived at the summit" onClick={() => navigate('/volunteer')} />}
+          {isAdmin && <SettingsRow icon={ChartLine} title="Metrics" subtitle="Who signed up, from which schools, for what" onClick={() => navigate('/admin/metrics')} />}
+          {isAdmin && <SettingsRow icon={ShieldCheck} title="Expert approvals" subtitle="Approve or decline expert sign-ups" onClick={() => navigate('/admin/experts')} />}
+          {isAdmin && <SettingsRow icon={MapPin} title="Manage rooms" subtitle="The rooms sessions can be held in" onClick={() => navigate('/admin/rooms')} />}
+          <SettingsRow icon={ArrowLeftRight} title="Change role" subtitle={`Currently ${roleLabel}`} onClick={() => navigate('/roles')} />
           <SettingsRow icon={Info} title="About" subtitle="Emerald Summit ’27 · EHS Academic Foundation" onClick={() => toast.message('Emerald Summit companion app')} />
         </div>
       </section>

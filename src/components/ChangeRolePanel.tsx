@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { roleLabelFor, type RoleInfo } from '../models/roles';
 import {
   changeRole,
+  checkRoleEligible,
   describeRoleChange,
   previewRoleChange,
   roleChangeLeadIn,
@@ -27,6 +28,13 @@ export default function ChangeRolePanel({ role }: { role: RoleInfo }) {
     setBusy(true);
     setError(null);
     try {
+      await checkRoleEligible(role.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+      return;
+    }
+    try {
       setChanges(await previewRoleChange(role.name));
     } catch {
       // The app goes ahead with no list when the preview can't load.
@@ -43,7 +51,8 @@ export default function ChangeRolePanel({ role }: { role: RoleInfo }) {
       const kept = await changeRole(role.name);
       await refreshProfile();
       toast.success(`You’re now a ${roleLabelFor(kept.role, kept.volunteer_subtype)}.`);
-      navigate('/home', { replace: true });
+      // Like the app, the new role's sign-up questions come next.
+      navigate('/profile', { replace: true, state: { roleChanged: true } });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

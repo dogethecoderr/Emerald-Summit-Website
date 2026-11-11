@@ -45,7 +45,8 @@ export default function VersesPage() {
   const { profile } = useAuth();
   const { listFor, spectating } = useSchedule();
   const kind = ownScheduleKind(profile?.role);
-  const canAdd = profile?.role === 'participant' || profile?.role === 'expert' || profile?.role === 'attendee';
+  // Every role can add sessions in the app; the session page offers the role's choices.
+  const canAdd = profile != null;
   const canSchedule = kind != null || profile?.role === 'attendee';
   const mine = new Set([...(kind ? listFor(kind) : []), ...spectating]);
   return (

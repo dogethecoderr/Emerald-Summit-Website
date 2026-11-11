@@ -8,7 +8,7 @@ import SettingsPage from '../SettingsPage';
 
 const state = vi.hoisted(() => ({
   guard: { ready: true, redirect: null as string | null, roleName: 'volunteer' },
-  profile: { id: 'vol-1', name: 'Arjun Mahajan', email: 'arjun@example.com', role: 'volunteer', phone: '5551234567', bio: '', profile_setup_complete: true },
+  profile: { id: 'vol-1', name: 'Arjun Mahajan', email: 'arjun@example.com', role: 'volunteer', phone: '5551234567', bio: '', profile_setup_complete: true, details: { phone: '5551234567' } } as Record<string, unknown>,
   contacts: vi.fn(),
   save: vi.fn(),
   refresh: vi.fn(),
@@ -19,7 +19,12 @@ vi.mock('../../components/QrPassModal', () => ({ default: ({ open }: { open: boo
 vi.mock('../../hooks/useRequireProfile', () => ({ useRequireRole: () => state.guard, useRequireProfile: () => state.guard }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ profile: state.profile, refreshProfile: state.refresh }) }));
 vi.mock('../../services/volunteerContacts', () => ({ fetchVolunteerContacts: () => state.contacts() }));
-vi.mock('../../services/auth', () => ({ updateProfileSettings: (input: unknown) => state.save(input), signOut: vi.fn() }));
+vi.mock('../../services/auth', () => ({
+  saveProfileDetails: (...args: unknown[]) => state.save(...args),
+  setNotificationsEnabled: vi.fn(),
+  signOut: vi.fn(),
+}));
+vi.mock('../../services/summitStatus', () => ({ useSummitStatus: () => ({ date: null, feedbackOpen: false }) }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -59,25 +64,34 @@ describe('unified profile', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Digital pass');
   });
 
-  test('editing saves supported personal fields without directory visibility settings', async () => {
+  test('editing saves the name and the role\'s sign-up answers, like the app', async () => {
     const user = userEvent.setup();
     render(<MemoryRouter initialEntries={['/account/edit']}><Routes><Route path="/account/:section" element={<SettingsPage />} /></Routes></MemoryRouter>);
     await user.clear(screen.getByLabelText('Full name'));
     await user.type(screen.getByLabelText('Full name'), 'Arjun Updated');
     await user.click(screen.getByRole('button', { name: 'Save profile' }));
-    expect(state.save).toHaveBeenCalledWith({ name: 'Arjun Updated', phone: '5551234567', bio: '' });
+    expect(state.save).toHaveBeenCalledWith('Arjun Updated', { phone: '5551234567', student_id: '' }, false);
     expect(screen.getByLabelText('Email')).toHaveAttribute('readonly');
-    expect(screen.queryByText('Organization')).not.toBeInTheDocument();
   });
 
-  test('volunteer editing discloses team phone sharing and prevents removing the required number', async () => {
+  test('a volunteer can\'t save without a mobile number, and is told who sees it', async () => {
     const user = userEvent.setup();
     render(<MemoryRouter initialEntries={['/account/edit']}><Routes><Route path="/account/:section" element={<SettingsPage />} /></Routes></MemoryRouter>);
-    const phone = screen.getByLabelText('Phone');
+    const phone = screen.getByLabelText('Mobile number');
     expect(phone).toBeRequired();
-    expect(phone).toHaveAccessibleDescription('Your phone number is shared with other volunteers and admins for Summit-day coordination.');
+    expect(phone).toHaveAccessibleDescription('Your phone number will be visible to other volunteers the day of for communication with them.');
     await user.clear(phone);
-    expect(screen.getByRole('button', { name: 'Save profile' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Save profile' }));
     expect(state.save).not.toHaveBeenCalled();
+  });
+
+  test('admins see the admin tools, like the app\'s Profile', () => {
+    state.profile = { ...state.profile, role: 'admin' };
+    state.guard = { ready: true, redirect: null, roleName: 'admin' };
+    render(<MemoryRouter initialEntries={['/account']}><Routes><Route path="/account" element={<SettingsPage />} /></Routes></MemoryRouter>);
+    for (const name of [/Metrics/, /Expert approvals/, /Manage rooms/, /Front desk check-in/, /Track volunteer hours/]) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+    state.profile = { ...state.profile, role: 'volunteer' };
   });
 });

@@ -68,6 +68,8 @@ interface ScheduleContextValue {
   scheduleError: string | null;
   /** The session ids held as this kind of seat. */
   listFor: (kind: ReservationKind) => string[];
+  /** Re-reads the account's registrations and assignments. */
+  reload: () => Promise<void>;
 }
 
 /**
@@ -100,6 +102,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   // Local seat-count changes, on top of the loaded counts (local mode only).
   const [deltas, setDeltas] = useState<SessionCounts>({});
+  const reloadRef = useRef<() => Promise<void>>(async () => {});
   const lists = useRef({ mySchedule, expertSchedule, volunteerSchedule, spectating });
   lists.current = { mySchedule, expertSchedule, volunteerSchedule, spectating };
 
@@ -115,8 +118,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     setScheduleError(null);
     setLoading(Boolean(userId));
     if (!userId) return;
-    const refresh = () => {
-      void Promise.all([fetchMyReservations(), fetchMyVolunteerAssignments()]).then(([list, assignments]) => {
+    const refresh = () =>
+      Promise.all([fetchMyReservations(), fetchMyVolunteerAssignments()]).then(([list, assignments]) => {
         if (!live) return;
         if (list != null) {
           setSaved(true);
@@ -132,12 +135,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         setScheduleError(error.message || 'We could not load your schedule.');
         setLoading(false);
       });
-    };
-    refresh();
-    window.addEventListener('focus', refresh);
+    reloadRef.current = refresh;
+    const onFocus = () => void refresh();
+    void refresh();
+    window.addEventListener('focus', onFocus);
     return () => {
       live = false;
-      window.removeEventListener('focus', refresh);
+      reloadRef.current = async () => {};
+      window.removeEventListener('focus', onFocus);
     };
   }, [userId]);
 
@@ -275,6 +280,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
               : kind === 'volunteering'
                 ? volunteerSchedule
                 : spectating,
+        reload: () => reloadRef.current(),
       }}
     >
       {children}

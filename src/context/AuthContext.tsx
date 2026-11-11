@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -42,22 +43,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [signInError, setSignInError] = useState<string | null>(oauthErrorAtLoad);
+  // Every load gets a number; only the newest may set the profile, so a slow
+  // load can't bring back the previous account after a sign-out or switch
+  // (the app's _epoch guard).
+  const epoch = useRef(0);
+  const profileRef = useRef<Profile | null>(null);
+  profileRef.current = profile;
 
   const refreshProfile = async (currentSession?: Session | null) => {
     const s = currentSession !== undefined ? currentSession : session;
+    const mine = ++epoch.current;
     if (!s?.user) {
       setProfile(null);
       setLoadingProfile(false);
       return;
     }
-    
-    setLoadingProfile(true);
+
+    // Re-reading the same account keeps the page up instead of a skeleton.
+    if (profileRef.current?.id !== s.user.id) setLoadingProfile(true);
     try {
       const next = await getCurrentProfile(s.user);
+      if (mine !== epoch.current) return;
       setProfile(next);
       const notice = takeTestAccountNotice();
       if (notice) toast.info(notice);
     } catch (err) {
+      if (mine !== epoch.current) return;
+      // A brief failure re-reading an account that's already loaded keeps it.
+      if (!(err instanceof SignInRefusedError) && profileRef.current?.id === s.user.id) {
+        console.warn(err);
+        return;
+      }
       // A refused role or an unreadable account ends the session outright:
       // no falling back to the account's old role or to participant.
       console.error(err);
@@ -70,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       await signOut().catch(() => {});
     } finally {
-      setLoadingProfile(false);
+      if (mine === epoch.current) setLoadingProfile(false);
     }
   };
 
@@ -92,9 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshProfile(session);
     });
 
-    const subscription = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const subscription = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
       setSession(newSession);
+      // A refreshed token is the same account: nothing to re-read.
+      if (event === 'TOKEN_REFRESHED') return;
       refreshProfile(newSession);
     }).data.subscription;
 

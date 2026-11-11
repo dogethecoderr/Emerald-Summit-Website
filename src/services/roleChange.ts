@@ -4,7 +4,7 @@
 // sessions down to spectating and refuses gated roles off the allowlist.
 import { supabase } from '../lib/supabase';
 import { notEligibleMessage } from '../models/roles';
-import { profileFromRow, storedRole, type Profile } from './auth';
+import { isAllowlisted, profileFromRow, storedRole, type Profile } from './auth';
 
 export interface RoleChangeTeam {
   action: string;
@@ -85,12 +85,31 @@ export function roleChangeLeadIn(role: string, label: string): string {
     : `Some of your sessions change, because ${PLURAL[role] ?? `${label.toLowerCase()}s`} can't take part in them the way you do now:`;
 }
 
+/**
+ * Volunteer and admin need the email on the allowlist. Checked before
+ * anything is saved, like the app: the server would otherwise turn the
+ * account into a participant and drop an approved expert's approval.
+ */
+export async function checkRoleEligible(role: string): Promise<void> {
+  if (role !== 'volunteer' && role !== 'admin') return;
+  const { data: auth } = await client().auth.getSession();
+  const email = auth.session?.user.email;
+  let eligible = false;
+  try {
+    eligible = email != null && await isAllowlisted(email, role);
+  } catch {
+    eligible = false;
+  }
+  if (!eligible) throw new Error(notEligibleMessage(role));
+}
+
 /** Saves the new role and returns the profile the server kept. */
 export async function changeRole(role: string): Promise<Profile> {
   const c = client();
   const { data: auth } = await c.auth.getSession();
   const userId = auth.session?.user.id;
   if (!userId) throw new Error('Not signed in.');
+  await checkRoleEligible(role);
   const { data, error } = await c.from('profiles')
     .update({ role: storedRole(role), updated_at: new Date().toISOString() })
     .eq('id', userId).select('*').single();

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useSchedule } from '../context/ScheduleContext';
+import { MOCK_SESSIONS } from '../models/sessions';
+import { toMinutes, useSummitContent } from '../services/summitContent';
 import {
   CheckCircle2,
   Clock,
@@ -38,13 +41,16 @@ export default function VolunteerDashboard({
   assignedTrack,
   participants: customParticipants,
 }: VolunteerDashboardProps) {
-  const { ready, redirect } = useRequireRole(['volunteer']);
+  // The app opens front desk to admins and to volunteers with the flag.
+  const { ready, redirect } = useRequireRole(['volunteer', 'admin']);
   const { profile } = useAuth();
+  const { volunteerSchedule = [] } = useSchedule();
+  useSummitContent();
 
   // What the Allowed Volunteers sheet gives this person. Front-desk check-in
   // covers the whole summit; otherwise the roster is their disciplines only,
   // read-only.
-  const canCheckIn = profile?.can_check_in_front_desk === true;
+  const canCheckIn = profile?.role === 'admin' || profile?.can_check_in_front_desk === true;
   const scope: string[] =
     assignedTrack !== undefined
       ? assignedTrack
@@ -65,6 +71,9 @@ export default function VolunteerDashboard({
   // database. Only with no backend at all (tests, offline prototyping) does
   // it fall back to the sample people.
   const fromDatabase = customParticipants === undefined && supabase != null;
+  // Without front desk, a volunteer works from the sessions an admin assigned
+  // them: each session page has its roster and attendance, like the app.
+  const managingMode = fromDatabase && !canCheckIn;
   const initialRoster = customParticipants !== undefined
     ? customParticipants
     : fromDatabase
@@ -75,15 +84,16 @@ export default function VolunteerDashboard({
 
   const [roster, setRoster] = useState<Person[]>(initialRoster ?? []);
   useEffect(() => {
-    if (!fromDatabase || !ready) return;
+    if (!fromDatabase || !ready || managingMode) return;
     let live = true;
-    fetchPeople(['participant', 'attendee'], canCheckIn)
+    // The front desk checks in everyone who comes: every role, as in the app.
+    fetchPeople(undefined, canCheckIn)
       .then((people) => live && setRoster(people))
       .catch((e: Error) => live && toast.error(`Couldn't load the roster: ${e.message}`));
     return () => {
       live = false;
     };
-  }, [fromDatabase, ready, canCheckIn, profile?.id]);
+  }, [fromDatabase, ready, canCheckIn, managingMode, profile?.id]);
   const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -138,7 +148,7 @@ export default function VolunteerDashboard({
     fromDatabase || canCheckIn || allDisciplines
       ? (roster ?? [])
       : (roster ?? []).filter((p) => p.discipline && knownScope.includes(p.discipline));
-  const hasRoster = fromDatabase || canCheckIn || knownScope.length > 0;
+  const hasRoster = (fromDatabase && !managingMode) || canCheckIn || knownScope.length > 0;
 
   const filteredRoster = visibleRoster.filter((p) => {
     const matchesSearch =
@@ -151,6 +161,9 @@ export default function VolunteerDashboard({
     return true;
   });
 
+  const managed = MOCK_SESSIONS
+    .filter((m) => volunteerSchedule.includes(m.id))
+    .sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
   const checkedInCount = visibleRoster.filter((p) => p.status === 'checkedIn').length;
   const totalCount = visibleRoster.length;
 
@@ -190,7 +203,7 @@ export default function VolunteerDashboard({
               ) : null}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold">
-                  {roleLabelFor('volunteer', profile?.volunteer_subtype)}
+                  {roleLabelFor(profile?.role === 'admin' ? 'admin' : 'volunteer', profile?.volunteer_subtype)}
                 </span>
                 {capabilities.map(({ label, icon: Icon }) => (
                   <span
@@ -215,7 +228,33 @@ export default function VolunteerDashboard({
           </div>
         </section>
 
-        {/* Participant Management Tools */}
+        {managingMode ? (
+          <section className="glass space-y-4 rounded-2xl p-6">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Sessions I'm managing</h2>
+              <p className="text-sm text-muted-foreground">Take attendance for sessions you run. Check-in happens at the front desk.</p>
+            </div>
+            {managed.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No sessions yet. An admin assigns the sessions you manage, and you'll be notified when they do.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {managed.map((m) => (
+                  <li key={m.id}>
+                    <Link to={`/sessions/${m.id}`} className="flex items-center gap-3 py-3 hover:bg-accent/30">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{m.title}</p>
+                        <p className="text-xs text-muted-foreground">{[m.time, m.room || 'Unassigned room'].join(' · ')}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald">Attendance</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : (
         <section className="glass rounded-2xl p-6 space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
@@ -402,6 +441,7 @@ export default function VolunteerDashboard({
             </div>
           )}
         </section>
+        )}
       </div>
 
       {canCheckIn && (

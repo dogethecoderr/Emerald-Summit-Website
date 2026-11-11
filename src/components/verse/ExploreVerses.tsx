@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Plus } from '@/components/icons';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
-import { MOCK_SESSIONS, type Session } from '../../models/sessions';
+import { MOCK_SESSIONS, joinParts, type Session } from '../../models/sessions';
 import { FORMAT_NOTES, TRACKS, tracksForUniverse, type TrackInfo } from '../../models/tracks';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -185,10 +185,14 @@ function VerseSessionCard({
           )}
         </span>
       </div>
-      <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">{s.title}</h3>
-      <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
-        {s.speaker} · {s.location}
-      </div>
+      <h3 className="mt-1.5 font-display text-[17px] font-bold leading-snug">
+        <Link to={`/sessions/${s.id}`} className="hover:underline">{s.title}</Link>
+      </h3>
+      {joinParts(s.speaker, s.location) && (
+        <div className="mt-0.5 text-[13px]" style={{ color: vibe.textDim }}>
+          {joinParts(s.speaker, s.location)}
+        </div>
+      )}
       {s.trackName && onTrack && (
         <button
           type="button"
@@ -776,13 +780,13 @@ export function VersePortalProvider({
           track={opened.track}
           mine={mine}
           canSchedule={canSchedule}
-          // The Schedule page does the adding, so its conflict and capacity
-          // rules apply, then points at the session in My Schedule.
+          // The session page does the adding, with the same choices and
+          // checks as the app's "Add to my day".
           onAdd={
             canAdd
               ? (id) => {
                   setOpened(null);
-                  navigate('/schedule', { state: { add: id } });
+                  navigate(`/sessions/${id}`, { state: { add: true } });
                 }
               : undefined
           }

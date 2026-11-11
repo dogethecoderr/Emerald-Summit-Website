@@ -10,6 +10,7 @@ import {
   type TrackInfo,
 } from '../models/tracks';
 import type { Profile } from './auth';
+import { DEFAULT_MAX_TEAM_SIZE, parsePageBlocks, parseQuestions } from '../models/registration';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -72,6 +73,14 @@ interface SessionRow {
   description: string;
   capacity: number;
   enrolled: number;
+  discipline_name?: string | null;
+  participant_questions?: unknown;
+  max_team_size?: number | null;
+  project_prompt?: string | null;
+  participant_deadline?: string | null;
+  page_blocks?: unknown;
+  hero_image_url?: string | null;
+  sponsor?: string | null;
 }
 
 export function usesSharedBackend(): boolean {
@@ -103,11 +112,14 @@ const sessionFromRow = (r: SessionRow): Session => ({
   track: r.discipline_id,
   trackName: r.track || r.title,
   title: r.title,
-  speaker: r.expert_name,
+  // The app dropped the free-text expert line; the page lists approved
+  // experts who registered (session_experts) instead.
+  speaker: '',
   time: displayTime(r.start_time),
   duration: `${Math.max(0, toMinutes(r.end_time) - toMinutes(r.start_time))} min`,
-  location: r.room,
-  room: r.room,
+  // Lists show the room; the session page hides it while rooms are locked.
+  location: r.room ?? '',
+  room: r.room ?? '',
   description: r.description,
   capacity: r.capacity,
   enrolled: r.enrolled,
@@ -119,6 +131,16 @@ const sessionFromRow = (r: SessionRow): Session => ({
   spectators: r.enrolled,
   volunteerCapacity: 0,
   volunteersEnrolled: 0,
+  disciplineName: r.discipline_name ?? undefined,
+  start: clockTime(toMinutes(r.start_time)),
+  end: clockTime(toMinutes(r.end_time)),
+  questions: parseQuestions(r.participant_questions),
+  maxTeamSize: typeof r.max_team_size === 'number' ? r.max_team_size : DEFAULT_MAX_TEAM_SIZE,
+  customProjectPrompt: r.project_prompt?.trim() || null,
+  participantDeadline: r.participant_deadline ?? null,
+  pageBlocks: parsePageBlocks(r.page_blocks),
+  heroImageUrl: r.hero_image_url?.trim() || null,
+  sponsor: r.sponsor?.trim() || null,
 });
 
 /** Read the same disciplines and session view as the mobile app. */
@@ -334,4 +356,50 @@ export async function deleteTrack(verse: string, name: string): Promise<SaveResu
     return 'local';
   }
   throw new Error('Tracks are sessions in the Summit database. Delete the session instead.');
+}
+
+// ---------------------------------------------------------------------------
+// The app's session editor fields (session_editor_screen.dart)
+// ---------------------------------------------------------------------------
+
+/** The columns the app's editor writes. Room and expert are left alone. */
+export interface SessionColumns {
+  discipline_id: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  max_team_size: number;
+  participant_deadline: string | null;
+  project_prompt: string | null;
+  description: string;
+  page_blocks: { title: string; body: string }[];
+  participant_questions: { id: string; prompt: string }[];
+}
+
+/** How many registrants would clash if the session ran at start–end. 0 on any error. */
+export async function previewTimeConflicts(sessionId: string, start: string, end: string): Promise<number> {
+  if (!supabase) return 0;
+  const { data, error } = await supabase.rpc('session_time_conflicts', {
+    p_session_id: sessionId, p_start: start, p_end: end,
+  });
+  return error || !Array.isArray(data) ? 0 : data.length;
+}
+
+/** Tells the people whose schedule a time change broke. Best-effort. */
+export async function notifyTimeConflicts(sessionId: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.rpc('notify_session_time_conflicts', { p_session_id: sessionId });
+}
+
+/** Creates or updates a session with the app's columns, then reloads the catalog. */
+export async function saveSessionColumns(columns: SessionColumns, id?: string): Promise<void> {
+  if (!supabase) throw new Error('This needs the Summit database.');
+  const table = supabase.from('sessions');
+  check(
+    id
+      ? await table.update(columns).eq('id', id).select('id').single()
+      : await table.insert({ id: newSessionId(), ...columns }).select('id').single(),
+  );
+  await loadSummitContent();
 }

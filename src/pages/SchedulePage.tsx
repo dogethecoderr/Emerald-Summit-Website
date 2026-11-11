@@ -1,41 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, Check, Clock, MapPin, Minus, ArrowRight } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
-import { TrackTag, VersePortalProvider, useOpenVerse } from '../components/verse/ExploreVerses';
+import { TrackTag, VersePortalProvider } from '../components/verse/ExploreVerses';
 import { useTheme } from '../context/ThemeContext';
 import { rgba, vibeFor } from '../models/verseVibes';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
-import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
+import { useSchedule } from '../context/ScheduleContext';
+import { projectProblemMessage } from '../models/registration';
 import { toMinutes, useSummitContent } from '../services/summitContent';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-/** Router state from a track page's + button: the session to add. */
-export interface ScheduleLocationState {
-  add?: string;
-}
-
 function startMinutes(session: Session): number {
   return toMinutes(session.time);
-}
-
-function overlaps(a: Session, b: Session): boolean {
-  const startA = startMinutes(a);
-  const startB = startMinutes(b);
-  return startA < startB + (parseFloat(b.duration) || 0)
-    && startB < startA + (parseFloat(a.duration) || 0);
 }
 
 export default function SchedulePage() {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, volunteerSchedule, spectating } = useSchedule();
-  const canAdd = profile?.role === 'participant' || profile?.role === 'expert' || profile?.role === 'attendee';
+  // Every role can add sessions in the app; the session page offers the role's choices.
+  const canAdd = profile != null;
   return (
     <VersePortalProvider
       mine={new Set([...mySchedule, ...expertSchedule, ...volunteerSchedule, ...spectating])}
@@ -49,60 +39,15 @@ export default function SchedulePage() {
 
 function ScheduleBody() {
   useSummitContent();
-  const { ready, redirect } = useRequireRole(['participant', 'expert', 'volunteer', 'ambassador', 'attendee']);
-  const openVerse = useOpenVerse();
+  const { ready, redirect } = useRequireRole(['participant', 'expert', 'volunteer', 'ambassador', 'attendee', 'admin']);
   const { profile } = useAuth();
   const roleName = profile?.role ?? 'participant';
   const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
-  const { mySchedule, expertSchedule, volunteerSchedule, spectating, sessionCounts, reserveSession, releaseSession, loading, scheduleError } = useSchedule();
-  const ownKind = ownScheduleKind(roleName) ?? 'spectating';
+  const { mySchedule, expertSchedule, volunteerSchedule, spectating, releaseSession, loading, scheduleError } = useSchedule();
   const committed = new Set([...mySchedule, ...expertSchedule, ...volunteerSchedule, ...spectating]);
   const { theme } = useTheme();
-  const location = useLocation();
   const navigate = useNavigate();
   const [justAdded, setJustAdded] = useState<string | null>(null);
-  const handledAdd = useRef<string | null>(null);
-
-  const requestedAdd = (location.state as ScheduleLocationState | null)?.add ?? null;
-  useEffect(() => {
-    if (!ready || loading || !requestedAdd || handledAdd.current === requestedAdd) return;
-    handledAdd.current = requestedAdd;
-    navigate(location.pathname, { replace: true, state: null });
-    if (scheduleError) {
-      toast.error('We could not load your saved schedule. Refresh the page before making changes.');
-      return;
-    }
-    if (isVolunteer) {
-      toast.error('Volunteer sessions are assigned by an admin.');
-      return;
-    }
-    const session = MOCK_SESSIONS.find((s) => s.id === requestedAdd);
-    if (!session) return;
-    if (committed.has(session.id)) {
-      setJustAdded(session.id);
-      toast(`${session.title} is already on your schedule.`);
-      return;
-    }
-    const counts = sessionCounts[session.id] ?? session;
-    const full = ownKind === 'judging'
-      ? counts.expertsEnrolled >= session.expertCapacity
-      : ownKind === 'spectating'
-        ? counts.spectators >= session.spectatorCap
-        : counts.enrolled >= session.capacity;
-    const conflict = MOCK_SESSIONS.find((s) => committed.has(s.id) && overlaps(s, session));
-    if (full) {
-      toast.error(`${session.title} is full.`);
-      return;
-    }
-    if (conflict) {
-      toast.error(`${session.title} conflicts with ${conflict.title} at ${session.time}.`);
-      return;
-    }
-    void reserveSession(session.id, ownKind).then(() => {
-      setJustAdded(session.id);
-      toast.success(`Added ${session.title} to your schedule.`);
-    }).catch((e: Error) => toast.error(e.message));
-  }, [ready, requestedAdd, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!justAdded) return;
@@ -159,17 +104,24 @@ function ScheduleBody() {
                       {keynote ? <TrackPill track={s.track} /> : <TrackTag verse={s.track} track={s.trackName} />}
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {s.duration}</span>
                     </div>
-                    <h2 className="text-base font-semibold">{keynote ? s.title : <button type="button" className="text-left hover:underline" onClick={(e) => openVerse(s.track, { x: e.clientX, y: e.clientY }, s.trackName)}>{s.title}</button>}</h2>
+                    <h2 className="text-base font-semibold"><Link to={`/sessions/${s.id}`} className="text-left hover:underline">{s.title}</Link></h2>
                     {s.speaker && <p className="mt-1 text-xs text-muted-foreground">{s.speaker}</p>}
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.description}</p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium" style={{ color: accent }}><MapPin className="h-3 w-3" /> {s.location}</p>
+                    {s.location && <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium" style={{ color: accent }}><MapPin className="h-3 w-3" /> {s.location}</p>}
                   </div>
                   {!managing && <button
                     type="button"
                     aria-label={`Remove ${s.title} from schedule`}
                     title="Remove from schedule"
                     className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-red-400"
-                    onClick={() => void releaseSession(s.id).catch((e: Error) => toast.error(e.message))}
+                    onClick={() => void releaseSession(s.id).catch((e: Error) => {
+                      // A team owner with teammates picks a new owner first,
+                      // which the session page does, like the app.
+                      if (e.message === projectProblemMessage('choose_new_owner')) {
+                        toast(e.message);
+                        navigate(`/sessions/${s.id}`);
+                      } else toast.error(e.message);
+                    })}
                   ><Minus className="h-4 w-4" /></button>}
                 </div>
               </article>

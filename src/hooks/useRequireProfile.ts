@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { needsProfileSetup } from '../services/auth';
+import { missingGateField } from '../models/profileFields';
 
 /**
  * Shared guard for the authenticated tabs. Returns a `redirect` path when the
@@ -23,7 +24,9 @@ export function useRequireProfile(options: { allowPendingExpert?: boolean } = {}
   if (loadingProfile) {
     return { ready: false, redirect: null, roleName };
   }
-  if (needsProfileSetup(profile)) {
+  // The app's auth gate: finish sign-up, then a volunteer or admin with no
+  // number, or a student volunteer or ambassador with no grade, adds it.
+  if (needsProfileSetup(profile) || missingGateField(profile as Parameters<typeof missingGateField>[0])) {
     return { ready: false, redirect: '/profile', roleName };
   }
   if (!options.allowPendingExpert && roleName === 'expert' && profile?.expert_status !== 'approved') {

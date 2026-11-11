@@ -24,7 +24,7 @@ import { useSchedule } from '../context/ScheduleContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { signOut } from '../services/auth';
-import { MOCK_SESSIONS } from '../models/sessions';
+import { MOCK_SESSIONS, joinParts } from '../models/sessions';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
 import { cn } from '@/lib/utils';
@@ -48,7 +48,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Schedule',
     icon: Notepad,
     group: 'My Summit',
-    roles: ['participant', 'attendee', 'expert', 'volunteer', 'ambassador'],
+    roles: ['participant', 'attendee', 'expert', 'volunteer', 'ambassador', 'admin'],
   },
   { to: '/disciplines', label: 'Discover', icon: Compass, group: 'My Summit' },
   { to: '/announcements', label: 'News', icon: Megaphone, group: 'My Summit' },
@@ -57,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Volunteer Hub',
     icon: Users,
     group: 'My Summit',
-    roles: ['volunteer'],
+    roles: ['volunteer', 'admin'],
   },
   { to: '/resources', label: 'Resources', icon: FolderOpen, group: 'Event' },
   { to: '/account', label: 'Profile', icon: UserRound, group: 'Account' },
@@ -168,14 +168,13 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
         to: n.to,
         icon: n.icon,
       }));
-    const canSchedule = items.some((n) => n.to === '/schedule');
     const sessions = MOCK_SESSIONS.filter((s) =>
       [s.title, s.speaker, s.location].some((f) => f.toLowerCase().includes(q)),
     ).map((s) => ({
       key: s.id,
       label: s.title,
-      sub: `${s.time} · ${s.location}`,
-      to: canSchedule ? '/schedule' : '/home',
+      sub: joinParts(s.time, s.location),
+      to: `/sessions/${s.id}`,
       icon: CalendarDays,
     }));
     return [...pages, ...sessions].slice(0, 7);

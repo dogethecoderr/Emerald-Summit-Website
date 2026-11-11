@@ -32,6 +32,8 @@ export type Profile = {
   can_edit_sessions?: boolean;
   can_post_announcements?: boolean;
   can_check_in_front_desk?: boolean;
+  notifications_enabled?: boolean;
+  expert_queue_seen_at?: string | null;
 };
 
 /** What a student adds at registration, beyond the basic profile. */
@@ -392,7 +394,7 @@ export async function signInWithTestAccount(email: string, password: string): Pr
   }
 }
 
-async function isAllowlisted(email: string, role: 'admin' | 'volunteer'): Promise<boolean> {
+export async function isAllowlisted(email: string, role: 'admin' | 'volunteer'): Promise<boolean> {
   const { data, error } = await requireSupabase().from('role_allowlist').select('email')
     .eq('email', email.toLowerCase()).eq('role', role).maybeSingle();
   if (error) throw error;
@@ -472,6 +474,38 @@ async function writeProfile(input: Partial<SaveProfileInput>, complete: boolean)
   const { data: updated, error } = await client.from('profiles').update(payload)
     .eq('id', session.user.id).select('*').single();
   if (error || !updated) throw error ?? new Error(LOAD_FAILED_MESSAGE);
+}
+
+/**
+ * Saves the name and the role's sign-up answers into profiles.details the way
+ * the app does: other answers already there are kept. `complete` also marks
+ * the account onboarded.
+ */
+export async function saveProfileDetails(
+  name: string,
+  answers: Record<string, string>,
+  complete: boolean,
+): Promise<void> {
+  const session = await requireRealSession();
+  const client = requireSupabase();
+  const { data: current, error: readError } = await client.from('profiles').select('details')
+    .eq('id', session.user.id).single();
+  if (readError || !current) throw new Error(LOAD_FAILED_MESSAGE);
+  const details: Record<string, unknown> = { ...(current.details ?? {}) };
+  for (const [key, value] of Object.entries(answers)) details[key] = value.trim();
+  const payload: Record<string, unknown> = { full_name: name.trim(), details, updated_at: new Date().toISOString() };
+  if (complete) payload.onboarded = true;
+  const { data, error } = await client.from('profiles').update(payload)
+    .eq('id', session.user.id).select('id').single();
+  if (error || !data) throw error ?? new Error(LOAD_FAILED_MESSAGE);
+}
+
+/** The app's push-notification switch, stored on the profile so it follows the account. */
+export async function setNotificationsEnabled(on: boolean): Promise<void> {
+  const session = await requireRealSession();
+  const { error } = await requireSupabase().from('profiles')
+    .update({ notifications_enabled: on }).eq('id', session.user.id);
+  if (error) throw error;
 }
 
 export async function saveProfile(input: SaveProfileInput): Promise<void> {

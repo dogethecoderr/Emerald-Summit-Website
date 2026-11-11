@@ -103,7 +103,7 @@ function rowToAnnouncement(row: AnnouncementRow): Announcement {
       id: a.path || `${row.id}-${index}`,
       title: a.name,
       type: attachmentTypeForFile({ name: a.name, type: a.type }),
-      url: a.url,
+      url: safeAttachmentUrl(a.url, attachmentTypeForFile({ name: a.name, type: a.type })),
       path: a.path,
       mimeType: a.type,
       bytes: a.size,
@@ -112,6 +112,33 @@ function rowToAnnouncement(row: AnnouncementRow): Announcement {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Only https links open, and photos, video and audio only play from this
+ * project's own storage, so a post can't carry a javascript: link or make
+ * every reader's browser call some other server.
+ */
+export function safeAttachmentUrl(raw: string | undefined, type: string): string | undefined {
+  if (!raw) return undefined;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== 'https:') return undefined;
+  if (type === 'Image' || type === 'Video' || type === 'Audio') {
+    const own = import.meta.env.VITE_SUPABASE_URL;
+    if (own) {
+      try {
+        if (url.origin !== new URL(own).origin) return undefined;
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  return url.toString();
 }
 
 function draftToRow(draft: AnnouncementDraft, author?: AnnouncementAuthor) {
@@ -330,8 +357,16 @@ export async function deleteAnnouncement(id: string): Promise<void> {
     return;
   }
 
-  const { error } = await client().from('announcements').delete().eq('id', id);
+  // A delete RLS refuses matches no rows instead of erroring, so ask for the
+  // row back, then clean up its files (the app does both).
+  const { data, error } = await client().from('announcements').delete().eq('id', id).select('*');
   if (error) throw new Error(error.message);
+  if (!data || data.length === 0) throw new Error("This post wasn't deleted. Only admins can delete posts for everyone.");
+  const paths = (data as AnnouncementRow[])
+    .flatMap((row) => rowToAnnouncement(row).attachments ?? [])
+    .map((a) => a.path)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0);
+  if (paths.length) await client().storage.from(BUCKET).remove(paths).catch(() => {});
 }
 
 /** Pin/unpin without opening the composer. */
@@ -375,6 +410,27 @@ export async function fetchOpenedIds(): Promise<Set<string> | null> {
     (data as { announcement_id: string; opened_at: string | null }[])
       .filter((r) => r.opened_at != null)
       .map((r) => String(r.announcement_id)),
+  );
+}
+
+/** Ids this account has seen at all (any announcement_reads row): the app's badge. */
+export async function fetchSeenIds(): Promise<Set<string> | null> {
+  if (!(await signedInUserId())) return null;
+  const { data, error } = await client().from('announcement_reads').select('announcement_id');
+  if (error) return new Set();
+  return new Set((data as { announcement_id: string }[]).map((r) => String(r.announcement_id)));
+}
+
+/**
+ * Marks posts seen, the way the app does when the News tab opens. Keeps any
+ * opened_at already there, so the per-post dots aren't cleared.
+ */
+export async function markSeen(ids: string[]): Promise<void> {
+  const userId = await signedInUserId();
+  if (!userId || ids.length === 0) return;
+  await client().from('announcement_reads').upsert(
+    ids.map((id) => ({ user_id: userId, announcement_id: id })),
+    { onConflict: 'user_id,announcement_id', ignoreDuplicates: true },
   );
 }
 

@@ -20,8 +20,10 @@ import {
   fetchAnnouncements,
   fetchDismissedIds,
   fetchOpenedIds,
+  fetchSeenIds,
   hideForMe,
   markOpened,
+  markSeen,
   unhideForMe,
   isBackendConfigured,
   setAnnouncementPinned,
@@ -47,10 +49,11 @@ interface AnnouncementsContextValue {
   update: (id: string, draft: AnnouncementDraft) => Promise<void>;
   remove: (id: string) => Promise<void>;
   togglePinned: (id: string, pinned: boolean) => Promise<void>;
-  /** Announcements this account hasn't opened yet (announcement_reads.opened_at). */
+  /** Posts this account hasn't seen yet: the badge, like the app's News tab. */
   unreadCount: number;
   isUnread: (id: string) => boolean;
   markRead: (id: string) => void;
+  /** Marks every post seen (clears the badge), as opening News does in the app. */
   markAllRead: () => void;
   /** "Remove from my feed": hidden only for this account (announcement_dismissals). */
   hide: (id: string) => Promise<void>;
@@ -111,17 +114,21 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   const activeUser = useRef(userId);
   activeUser.current = userId;
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));
+  // Seen at all (any announcement_reads row); null until loaded from the database.
+  const [seenIds, setSeenIds] = useState<Set<string> | null>(null);
 
   // Switching accounts loads that account's read and hidden state.
   useEffect(() => {
     let current = true;
     setReadIds(loadReadIds(userId));
+    setSeenIds(null);
     setHiddenIds(new Set());
     setSharedState(false);
-    void Promise.all([fetchOpenedIds(), fetchDismissedIds()])
-      .then(([opened, dismissed]) => {
+    void Promise.all([fetchOpenedIds(), fetchDismissedIds(), fetchSeenIds()])
+      .then(([opened, dismissed, seen]) => {
         if (!current || opened == null) return;
         setReadIds(opened);
+        setSeenIds(seen ?? new Set());
         setHiddenIds(dismissed ?? new Set());
         setSharedState(true);
       })
@@ -139,21 +146,31 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         if (!sharedState) saveReadIds(userId, next);
         return next;
       });
-      if (sharedState) void markOpened([id]).catch(() => {});
+      if (sharedState) {
+        setSeenIds((prev) => (prev?.has(id) ? prev : new Set([...(prev ?? []), id])));
+        void markOpened([id]).catch(() => {});
+      }
     },
     [userId, sharedState],
   );
 
   const markAllRead = useCallback(() => {
+    if (sharedState) {
+      // Seen, not opened: the per-post dots stay until each post is opened.
+      const ids = announcements.map((a) => a.id).filter((id) => !seenIds?.has(id));
+      if (ids.length === 0) return;
+      setSeenIds((prev) => new Set([...(prev ?? []), ...ids]));
+      void markSeen(ids).catch(() => {});
+      return;
+    }
     const ids = announcements.map((a) => a.id).filter((id) => !readIds.has(id));
     setReadIds((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => next.add(id));
-      if (!sharedState) saveReadIds(userId, next);
+      saveReadIds(userId, next);
       return next;
     });
-    if (sharedState) void markOpened(ids).catch(() => {});
-  }, [announcements, readIds, userId, sharedState]);
+  }, [announcements, readIds, seenIds, userId, sharedState]);
 
   const hide = useCallback(async (id: string) => {
     setHiddenIds((prev) => new Set(prev).add(id));
@@ -180,8 +197,8 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
 
   const isUnread = useCallback((id: string) => !readIds.has(id), [readIds]);
   const unreadCount = useMemo(
-    () => announcements.filter((a) => !readIds.has(a.id)).length,
-    [announcements, readIds],
+    () => announcements.filter((a) => !(sharedState && seenIds ? seenIds.has(a.id) || readIds.has(a.id) : readIds.has(a.id))).length,
+    [announcements, readIds, seenIds, sharedState],
   );
 
   const refresh = useCallback(async () => {
