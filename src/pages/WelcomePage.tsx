@@ -94,6 +94,13 @@ const UNLOCK_MS = 1400;
 /** The headline's glide from the middle of the sky up to its place, clearing room for the details. */
 const GLIDE_MS = 900;
 const SKIP_GLIDE_MS = 450;
+/**
+ * The opening: the sky stands still, then the view starts a long, slow push in
+ * toward the upper sky (its length is on .lp-sky in landing.css), and the sun
+ * rises while it is still under way.
+ */
+const OPEN_HOLD_MS = 1000;
+const OPEN_SUN_DELAY_MS = 1500;
 /** The beat the name rests under the night sky after the sun has set, before it lifts. */
 const SETTLE_HOLD_MS = 900;
 /** The ground under the sky fading off (landing.css, .lp-hero__ground). */
@@ -113,6 +120,10 @@ export default function WelcomePage() {
   const [sunUp, setSunUp] = useState(playingIntro);
   /** The intro's ground and pinned headline, dropped once both have settled. */
   const [introGone, setIntroGone] = useState(!playingIntro);
+  /** The opening push-in: the view is zoomed toward the summit, and the sun may start once it has arrived. */
+  const [zoomed, setZoomed] = useState(false);
+  const [sunStarted, setSunStarted] = useState(false);
+  const openRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const titleRef = useRef<HTMLSpanElement>(null);
   const glidingRef = useRef(false);
   const holdRef = useRef<ReturnType<typeof setTimeout>>();
@@ -154,6 +165,8 @@ export default function WelcomePage() {
   const settle = (ms: number) => {
     if (glidingRef.current) return;
     glidingRef.current = true;
+    openRef.current.forEach(clearTimeout);
+    setZoomed(false);
     setSunUp(false);
     setRevealed(true);
     const el = titleRef.current;
@@ -173,6 +186,16 @@ export default function WelcomePage() {
     setTimeout(done, Math.max(ms, GROUND_FADE_MS) + 50);
     anim.onfinish = () => anim.cancel();
   };
+
+  // The opening beats, in order: hold on the sky, push in, then let the sun rise.
+  useEffect(() => {
+    if (!playingIntro) return;
+    openRef.current = [
+      setTimeout(() => setZoomed(true), OPEN_HOLD_MS),
+      setTimeout(() => setSunStarted(true), OPEN_HOLD_MS + OPEN_SUN_DELAY_MS),
+    ];
+    return () => openRef.current.forEach(clearTimeout);
+  }, [playingIntro]);
 
   /** The sun is down: let the sky stand a moment, then bring the page in. */
   const onSunSet = () => {
@@ -255,10 +278,11 @@ export default function WelcomePage() {
             the middle; then the name lifts and the details come in under it. */}
         <section
           className={`lp-hero lp-night${introGone ? '' : ' lp-hero--intro'}`}
+          data-zoom={zoomed || undefined}
           aria-labelledby="hero-title"
         >
           <SkyVideo
-            behindRidges={sunUp && !skipped ? <SunArc onFrame={onSunFrame} onDone={onSunSet} /> : null}
+            behindRidges={sunUp && sunStarted && !skipped ? <SunArc onFrame={onSunFrame} onDone={onSunSet} /> : null}
           />
           <div className="lp-hero__scrim" aria-hidden />
           {!introGone && <div className="lp-hero__ground" data-done={revealed || undefined} aria-hidden />}

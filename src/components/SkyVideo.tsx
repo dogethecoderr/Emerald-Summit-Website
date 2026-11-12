@@ -229,7 +229,7 @@ export default function SkyVideo({
       */}
       {showLiveSky && (
         <div
-          className="absolute inset-0"
+          className="lp-sky absolute inset-0"
           style={{
             opacity: ended ? 0 : 1,
             animation: ended ? 'sky-handover 700ms ease-out forwards' : undefined,

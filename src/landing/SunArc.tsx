@@ -14,9 +14,11 @@ import { useEffect, useRef } from 'react';
 const SKY_CORE = [12, 74, 53];
 
 /** One full rise and set. */
-export const SUN_ARC_MS = 6400;
+export const SUN_ARC_MS = 6900;
 /** Above 1 the rise takes longer than the set: at 1.3 the crest comes about 59% of the way through. */
 const RISE_EASE = 1.3;
+/** How much the sun slows as it crosses the crest (0 = not at all; 0.4 = 40% slower there, made up near the horizons). */
+const CREST_LINGER = 0.4;
 
 /** How far either side of centre the sun rises and sets, as a share of the width. */
 const ARC_HALF_SPAN = 0.21;
@@ -173,7 +175,9 @@ export default function SunArc({
     const frame = (now: number) => {
       if (!start) start = now;
       // Position along the arc, eased so the climb is unhurried and the set a little quicker.
-      const t = Math.pow(Math.min(1, (now - start) / SUN_ARC_MS), RISE_EASE);
+      const eased = Math.pow(Math.min(1, (now - start) / SUN_ARC_MS), RISE_EASE);
+      // Then lingered: slowest across the crest, quicker near the two horizons.
+      const t = eased + (CREST_LINGER * Math.sin(TAU * eased)) / TAU;
       paint(t);
       onFrameRef.current?.(t);
       if (t < 1) {
