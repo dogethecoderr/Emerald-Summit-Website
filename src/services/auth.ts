@@ -359,9 +359,56 @@ export async function isTestAccount(email: string): Promise<boolean> {
   }
 }
 
+// After this many wrong test-account passwords in a row, this browser stops
+// asking for a while. It slows down someone guessing at the password box; it
+// can't stop a script calling dev-login directly, which only the function can.
+export const TEST_SIGN_IN_MAX_FAILURES = 5;
+export const TEST_SIGN_IN_LOCK_MS = 15 * 60 * 1000;
+const TEST_SIGN_IN_FAILURES_KEY = 'test_sign_in_failures';
+// Used when the browser blocks storage, so the lockout still holds for this tab.
+let failuresInMemory: { count: number; until?: number } = { count: 0 };
+
+function readFailures(): { count: number; until?: number } {
+  try {
+    const raw = localStorage.getItem(TEST_SIGN_IN_FAILURES_KEY);
+    if (raw == null) return { count: 0 };
+    const parsed = JSON.parse(raw) as { count?: unknown; until?: unknown };
+    return {
+      count: typeof parsed.count === 'number' ? parsed.count : 0,
+      until: typeof parsed.until === 'number' ? parsed.until : undefined,
+    };
+  } catch {
+    return failuresInMemory;
+  }
+}
+
+function writeFailures(value: { count: number; until?: number } | null): void {
+  failuresInMemory = value ?? { count: 0 };
+  try {
+    if (value == null) localStorage.removeItem(TEST_SIGN_IN_FAILURES_KEY);
+    else localStorage.setItem(TEST_SIGN_IN_FAILURES_KEY, JSON.stringify(value));
+  } catch {
+    // Storage blocked: the in-memory copy above still counts.
+  }
+}
+
+/** When this browser may try a test-account password again, or null if it may now. */
+export function testSignInLockedUntil(now: number = Date.now()): number | null {
+  const { until } = readFailures();
+  return until != null && until > now ? until : null;
+}
+
+function lockedMessage(until: number, now: number): string {
+  const minutes = Math.max(1, Math.ceil((until - now) / 60000));
+  return `Too many wrong passwords. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+}
+
 /** Signs a test account in with the shared password. The password is never stored. */
 export async function signInWithTestAccount(email: string, password: string): Promise<void> {
   if (!isDevLoginEnabled) throw new Error('Test accounts are off in this build.');
+  const now = Date.now();
+  const lockedUntil = testSignInLockedUntil(now);
+  if (lockedUntil != null) throw new Error(lockedMessage(lockedUntil, now));
   const client = requireSupabase();
   const e = email.trim().toLowerCase();
   let data: { otp?: string; type?: string } | null = null;
@@ -369,12 +416,22 @@ export async function signInWithTestAccount(email: string, password: string): Pr
     const res = await client.functions.invoke('dev-login', { body: { email: e, password } });
     if (res.error) {
       const status = (res.error as { context?: { status?: number } }).context?.status;
+      if (status === 401) {
+        const count = readFailures().count + 1;
+        if (count >= TEST_SIGN_IN_MAX_FAILURES) {
+          const until = Date.now() + TEST_SIGN_IN_LOCK_MS;
+          writeFailures({ count: 0, until });
+          throw new Error(lockedMessage(until, Date.now()));
+        }
+        writeFailures({ count });
+      }
       throw new Error(
         status === 401 ? 'Wrong email or password.'
           : status === 403 || status === 404 ? 'Test accounts are turned off on this server.'
             : TEST_SIGN_IN_UNREACHABLE,
       );
     }
+    writeFailures(null);
     data = res.data;
   } catch (err) {
     throw err instanceof Error && err.message !== '' ? err : new Error(TEST_SIGN_IN_UNREACHABLE);

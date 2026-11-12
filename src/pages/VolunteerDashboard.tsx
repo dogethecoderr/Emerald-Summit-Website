@@ -1,102 +1,23 @@
-import { useEffect, useState } from 'react';
+// "Sessions I'm managing", ported from the app's my_assignments_screen.dart:
+// the sessions an admin assigned this volunteer to, each opening its session
+// page for the roster and attendance. Front-desk check-in isn't on the
+// website: it scans QR passes with the phone's camera, so it's only in the
+// mobile app (Profile shows it as app-only).
 import { Link, Navigate } from 'react-router-dom';
 import { useSchedule } from '../context/ScheduleContext';
 import { MOCK_SESSIONS } from '../models/sessions';
 import { toMinutes, useSummitContent } from '../services/summitContent';
-import {
-  CheckCircle2,
-  Clock,
-  Search,
-  UserCheck,
-  UserX,
-  Users,
-  AlertCircle,
-  QrCode,
-  ScanLine,
-  CalendarCog,
-  Megaphone,
-} from '@/components/icons';
+import { CalendarDays, ChevronRight } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
-import TrackPill from '../components/TrackPill';
-import VolunteerQrScannerModal from '../components/VolunteerQrScannerModal';
 import { useRequireRole } from '../hooks/useRequireProfile';
-import { useAuth } from '../context/AuthContext';
-import { roleLabelFor } from '../models/roles';
-import { MOCK_PEOPLE, type Person } from '../models/people';
-import { supabase } from '../lib/supabase';
-import { fetchPeople, setCheckedIn } from '../services/people';
-import { toast } from 'sonner';
-import { disciplineByName } from '../models/disciplines';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
-export interface VolunteerDashboardProps {
-  /** Overrides the signed-in volunteer's sheet disciplines with one track. */
-  assignedTrack?: string | null;
-  participants?: Person[] | null;
-}
-
-export default function VolunteerDashboard({
-  assignedTrack,
-  participants: customParticipants,
-}: VolunteerDashboardProps) {
-  // The app opens front desk to admins and to volunteers with the flag.
-  const { ready, redirect } = useRequireRole(['volunteer', 'admin']);
-  const { profile } = useAuth();
+export default function VolunteerDashboard() {
+  // Like the app, this is a volunteer's own list; admins assign, they aren't assigned.
+  const { ready, redirect } = useRequireRole(['volunteer', 'ambassador']);
   const { volunteerSchedule = [] } = useSchedule();
   useSummitContent();
-
-  // What the Allowed Volunteers sheet gives this person. Front-desk check-in
-  // covers the whole summit; otherwise the roster is their disciplines only,
-  // read-only.
-  const canCheckIn = profile?.role === 'admin' || profile?.can_check_in_front_desk === true;
-  const scope: string[] =
-    assignedTrack !== undefined
-      ? assignedTrack
-        ? [assignedTrack]
-        : []
-      : (profile?.managed_disciplines ?? []);
-  const allDisciplines = scope.includes('*');
-  const knownScope = allDisciplines
-    ? ['*']
-    : scope.filter((d) => disciplineByName(d) !== undefined);
-  const capabilities = [
-    canCheckIn && { label: 'Front-desk check-in', icon: ScanLine },
-    profile?.can_edit_sessions && { label: 'Manage sessions', icon: CalendarCog },
-    profile?.can_post_announcements && { label: 'Post announcements', icon: Megaphone },
-  ].filter(Boolean) as { label: string; icon: typeof ScanLine }[];
-
-  // The roster is every participant and attendee account, loaded from the
-  // database. Only with no backend at all (tests, offline prototyping) does
-  // it fall back to the sample people.
-  const fromDatabase = customParticipants === undefined && supabase != null;
-  // Without front desk, a volunteer works from the sessions an admin assigned
-  // them: each session page has its roster and attendance, like the app.
-  const managingMode = fromDatabase && !canCheckIn;
-  const initialRoster = customParticipants !== undefined
-    ? customParticipants
-    : fromDatabase
-      ? []
-      : MOCK_PEOPLE.filter(
-          (p) => p.role === 'participant' || p.role === 'attendee',
-        );
-
-  const [roster, setRoster] = useState<Person[]>(initialRoster ?? []);
-  useEffect(() => {
-    if (!fromDatabase || !ready || managingMode) return;
-    let live = true;
-    // The front desk checks in everyone who comes: every role, as in the app.
-    fetchPeople(undefined, canCheckIn)
-      .then((people) => live && setRoster(people))
-      .catch((e: Error) => live && toast.error(`Couldn't load the roster: ${e.message}`));
-    return () => {
-      live = false;
-    };
-  }, [fromDatabase, ready, canCheckIn, managingMode, profile?.id]);
-  const [filter, setFilter] = useState<'all' | 'checkedIn' | 'pending'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -108,349 +29,35 @@ export default function VolunteerDashboard({
     );
   }
 
-  const trackInfo =
-    knownScope.length === 1 && !allDisciplines
-      ? disciplineByName(knownScope[0])
-      : undefined;
-
-  const handleCheckInSuccess = (user: { id: string; name: string; checked_in_at?: string | null }) => {
-    setRoster((prev) =>
-      prev.map((p) => {
-        if (p.id === user.id || p.name.toLowerCase() === user.name.toLowerCase()) {
-          return { ...p, status: 'checkedIn' };
-        }
-        return p;
-      }),
-    );
-  };
-
-  const toggleCheckIn = (personId: string) => {
-    const before = roster;
-    const person = roster.find((p) => p.id === personId);
-    if (fromDatabase && person) {
-      setCheckedIn(personId, person.status !== 'checkedIn').catch((e: Error) => {
-        setRoster(before);
-        toast.error(e.message);
-      });
-    }
-    setRoster((prev) =>
-      prev.map((p) => {
-        if (p.id === personId) {
-          const nextStatus = p.status === 'checkedIn' ? 'validated' : 'checkedIn';
-          return { ...p, status: nextStatus };
-        }
-        return p;
-      }),
-    );
-  };
-
-  const visibleRoster =
-    fromDatabase || canCheckIn || allDisciplines
-      ? (roster ?? [])
-      : (roster ?? []).filter((p) => p.discipline && knownScope.includes(p.discipline));
-  const hasRoster = (fromDatabase && !managingMode) || canCheckIn || knownScope.length > 0;
-
-  const filteredRoster = visibleRoster.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.org.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-    if (filter === 'checkedIn') return p.status === 'checkedIn';
-    if (filter === 'pending') return p.status !== 'checkedIn';
-    return true;
-  });
-
   const managed = MOCK_SESSIONS
     .filter((m) => volunteerSchedule.includes(m.id))
     .sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
-  const checkedInCount = visibleRoster.filter((p) => p.status === 'checkedIn').length;
-  const totalCount = visibleRoster.length;
 
   return (
     <AppShell>
-      <PageHeader
-        label="Volunteer Dashboard"
-        title="Volunteer Hub & Track Management"
-      />
-
-      <div className="space-y-6">
-        {/* Track Banner */}
-        <section className="glass rounded-2xl p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-xl font-bold tracking-tight">
-                  Assigned Track
-                </h2>
-                {allDisciplines ? (
-                  <span className="inline-flex items-center rounded-full bg-emerald/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-mint ring-1 ring-emerald-glow/40">
-                    All disciplines
-                  </span>
-                ) : (
-                  knownScope.map((d) => <TrackPill key={d} track={d} />)
-                )}
-              </div>
-              {trackInfo ? (
-                <p className="text-sm text-muted-foreground">
-                  {trackInfo.description}
-                </p>
-              ) : knownScope.length === 0 ? (
-                <div className="flex items-center gap-2 text-sm text-amber-500 font-medium">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>No assigned track found</span>
-                </div>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold">
-                  {roleLabelFor(profile?.role === 'admin' ? 'admin' : 'volunteer', profile?.volunteer_subtype)}
-                </span>
-                {capabilities.map(({ label, icon: Icon }) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
-                  >
-                    <Icon className="h-3 w-3" /> {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {hasRoster && (
-              <div className="flex items-center gap-4 rounded-xl bg-accent/40 px-4 py-2.5 text-xs">
-                <div className="text-center">
-                  <span className="block font-bold text-foreground text-sm">
-                    {checkedInCount} / {totalCount}
-                  </span>
-                  <span className="text-muted-foreground">Checked In</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {managingMode ? (
-          <section className="glass space-y-4 rounded-2xl p-6">
-            <div>
-              <h2 className="font-display text-lg font-semibold">Sessions I'm managing</h2>
-              <p className="text-sm text-muted-foreground">Take attendance for sessions you run. Check-in happens at the front desk.</p>
-            </div>
-            {managed.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No sessions yet. An admin assigns the sessions you manage, and you'll be notified when they do.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {managed.map((m) => (
-                  <li key={m.id}>
-                    <Link to={`/sessions/${m.id}`} className="flex items-center gap-3 py-3 hover:bg-accent/30">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium">{m.title}</p>
-                        <p className="text-xs text-muted-foreground">{[m.time, m.room || 'Unassigned room'].join(' · ')}</p>
-                      </div>
-                      <span className="text-xs font-semibold text-emerald">Attendance</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+      <PageHeader label="Volunteering" title="Sessions I'm managing" />
+      <section className="glass mx-auto max-w-3xl rounded-2xl p-2 sm:p-4">
+        {managed.length === 0 ? (
+          <p className="p-6 text-center text-sm text-muted-foreground">
+            You're not assigned to any sessions yet. An admin assigns volunteers to sessions. Once you are, they show up here with their rosters.
+          </p>
         ) : (
-        <section className="glass rounded-2xl p-6 space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-emerald-mint" />
-                <h2 className="font-display text-lg font-semibold">
-                  Participant Roster
-                </h2>
-                <span className="rounded-full bg-emerald/15 px-2.5 py-0.5 text-xs font-bold text-emerald-mint">
-                  {totalCount} Total
-                </span>
-              </div>
-
-              {canCheckIn ? (
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-deep transition-all"
-                >
-                  <QrCode className="h-4 w-4" />
-                  <span>Scan QR Code</span>
-                </button>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  Check-in happens at the front desk.
-                </span>
-              )}
-            </div>
-
-            {/* Filter Tabs & Search */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-[180px]">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search participants..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 w-full rounded-lg border border-border bg-background/50 pl-8 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-glow"
-                />
-              </div>
-
-              <div className="flex rounded-lg bg-accent/50 p-1 text-xs">
-                <button
-                  onClick={() => setFilter('all')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 font-medium transition-colors',
-                    filter === 'all'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  All ({totalCount})
-                </button>
-                <button
-                  onClick={() => setFilter('checkedIn')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 font-medium transition-colors',
-                    filter === 'checkedIn'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Checked In ({checkedInCount})
-                </button>
-                <button
-                  onClick={() => setFilter('pending')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 font-medium transition-colors',
-                    filter === 'pending'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Pending ({totalCount - checkedInCount})
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Participant List or Empty State */}
-          {!hasRoster ? (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center">
-              <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground" />
-              <h3 className="mt-2 font-display text-base font-semibold">
-                No assigned track
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Ask an admin to add your disciplines to the volunteer sheet.
-              </p>
-            </div>
-          ) : filteredRoster.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-8 text-center">
-              <Users className="mx-auto h-8 w-8 text-muted-foreground" />
-              <h3 className="mt-2 font-display text-base font-semibold">
-                No participants assigned to this track
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {searchQuery || filter !== 'all'
-                  ? 'No participants match your current search or filter criteria.'
-                  : 'There are currently no participants listed under this assigned track.'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredRoster.map((p) => {
-                const isCheckedIn = p.status === 'checkedIn';
-                return (
-                  <div
-                    key={p.id}
-                    className="glass flex flex-col justify-between rounded-xl p-4 transition-colors hover:border-emerald-glow/40"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald text-xs font-bold text-white"
-                        aria-hidden
-                      >
-                        {p.initials}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate font-semibold text-sm">
-                            {p.name}
-                          </span>
-                          {isCheckedIn && (
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-glow" />
-                          )}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {p.org}
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
-                              isCheckedIn
-                                ? 'bg-emerald/15 text-emerald-mint'
-                                : 'bg-amber-500/15 text-amber-400',
-                            )}
-                          >
-                            {isCheckedIn ? (
-                              <>
-                                <UserCheck className="h-3 w-3" /> Checked In
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-3 w-3" /> Arriving Soon
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">
-                        Status: <strong className="text-foreground">{isCheckedIn ? 'Checked In' : 'Pending'}</strong>
-                      </span>
-                      {canCheckIn && (
-                        <button
-                          onClick={() => toggleCheckIn(p.id)}
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-                            isCheckedIn
-                              ? 'bg-secondary text-muted-foreground hover:bg-destructive/15 hover:text-destructive'
-                              : 'bg-emerald text-white hover:bg-emerald-deep',
-                          )}
-                        >
-                          {isCheckedIn ? (
-                            <>
-                              <UserX className="h-3 w-3" /> Undo Check-in
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="h-3 w-3" /> Check In
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
+          <ul className="divide-y divide-border">
+            {managed.map((m) => (
+              <li key={m.id}>
+                <Link to={`/sessions/${m.id}`} className="flex items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-accent/40">
+                  <CalendarDays className="h-5 w-5 shrink-0 text-emerald" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{m.title}</p>
+                    <p className="text-xs text-muted-foreground">{[m.time, m.room || 'Unassigned room'].join(' · ')}</p>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
-
-      {canCheckIn && (
-        <VolunteerQrScannerModal
-          open={isScannerOpen}
-          onOpenChange={setIsScannerOpen}
-          onCheckInSuccess={handleCheckInSuccess}
-        />
-      )}
+      </section>
     </AppShell>
   );
 }

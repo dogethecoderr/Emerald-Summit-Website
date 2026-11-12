@@ -58,9 +58,9 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
   ],
   expert: [
     {
-      to: '/judging',
-      label: 'View judging schedule',
-      sub: 'Rooms, times, and walking routes',
+      to: '/schedule',
+      label: 'My schedule',
+      sub: 'The sessions you serve as an expert',
       icon: Gavel,
     },
   ],
@@ -74,8 +74,8 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
     },
     {
       to: '/volunteer',
-      label: 'Open Volunteer Hub',
-      sub: 'Track roster, check-ins, and attendee support',
+      label: "Sessions I'm managing",
+      sub: 'Take attendance for sessions you run',
       icon: BookUser,
     },
   ],
@@ -235,7 +235,7 @@ export default function HomePage() {
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { listFor, spectating } = useSchedule();
-  const { announcements, canManage, isUnread, markRead } = useAnnouncements();
+  const { announcements, canPost, isUnread, markRead } = useAnnouncements();
 
   const isSignedIn = session != null;
 
@@ -522,8 +522,7 @@ export default function HomePage() {
               onMarkRead={markRead}
               variant="compact"
               onViewAll={() => navigate('/announcements')}
-              canManage={canManage}
-              onCompose={() => navigate('/announcements')}
+              onCompose={canPost ? () => navigate('/announcements') : undefined}
             />
           </div>
         </div>
@@ -540,7 +539,7 @@ export default function HomePage() {
           Quick access
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          {[...QUICK_LINKS, ...(['volunteer', 'admin', 'ambassador'].includes(roleName) ? [{ to: '/volunteer/contacts', label: 'Volunteer contacts', sub: 'Contact the volunteer team', icon: BookUser }] : [])].map(({ to, label, sub, icon: Icon }) => (
+          {[...QUICK_LINKS, ...(['volunteer', 'admin', 'ambassador'].includes(roleName) ? [{ to: '/volunteer/contacts', label: 'Volunteer hub', sub: 'Volunteers, admins, and how to reach them', icon: BookUser }] : [])].map(({ to, label, sub, icon: Icon }) => (
             <button
               key={to}
               type="button"

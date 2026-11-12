@@ -115,6 +115,45 @@ describe('test account sign-in', () => {
     db.devLogin = false;
     await expect(auth.signInWithTestAccount('a@test.example', 'pw')).rejects.toThrow('Test accounts are off in this build.');
   });
+
+  test('five wrong passwords lock this browser out for 15 minutes without asking the function', async () => {
+    db.invoke = () => httpError(401);
+    for (let i = 1; i < auth.TEST_SIGN_IN_MAX_FAILURES; i++) {
+      await expect(auth.signInWithTestAccount('a@test.example', `guess${i}`)).rejects.toThrow('Wrong email or password.');
+    }
+    await expect(auth.signInWithTestAccount('a@test.example', 'guess5')).rejects.toThrow('Too many wrong passwords. Try again in 15 minutes.');
+    expect(auth.testSignInLockedUntil()).not.toBeNull();
+
+    const calls = backend.functions.invoke.mock.calls.length;
+    db.invoke = () => ({ data: { otp: '123456', type: 'magiclink' }, error: null });
+    await expect(auth.signInWithTestAccount('a@test.example', 'right-one')).rejects.toThrow('Too many wrong passwords.');
+    expect(backend.functions.invoke.mock.calls.length).toBe(calls);
+    expect(backend.auth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  test('the lock lifts after 15 minutes, and a right password resets the count', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      db.invoke = () => httpError(401);
+      for (let i = 0; i < auth.TEST_SIGN_IN_MAX_FAILURES; i++) {
+        await auth.signInWithTestAccount('a@test.example', 'x').catch(() => {});
+      }
+      expect(auth.testSignInLockedUntil()).not.toBeNull();
+      vi.setSystemTime(Date.now() + auth.TEST_SIGN_IN_LOCK_MS + 1000);
+      expect(auth.testSignInLockedUntil()).toBeNull();
+
+      await auth.signInWithTestAccount('a@test.example', 'x').catch(() => {});
+      db.invoke = () => ({ data: { otp: '123456', type: 'magiclink' }, error: null });
+      await auth.signInWithTestAccount('a@test.example', 'right-one');
+      // The earlier miss no longer counts: four more misses still don't lock.
+      db.invoke = () => httpError(401);
+      for (let i = 1; i < auth.TEST_SIGN_IN_MAX_FAILURES; i++) {
+        await expect(auth.signInWithTestAccount('a@test.example', 'x')).rejects.toThrow('Wrong email or password.');
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('test account onboarding', () => {

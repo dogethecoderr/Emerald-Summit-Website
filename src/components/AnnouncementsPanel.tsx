@@ -1,53 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Pin,
-  PinOff,
   Bell,
-  Search,
   ChevronRight,
   Link2,
   Download,
-  Pencil,
   Trash2,
   Plus,
-  CheckCheck,
   EyeOff,
 } from '@/components/icons';
 import type {
   Announcement,
   AnnouncementAttachment,
-  AnnouncementCategory,
 } from '../models/announcements';
 import { formatBytes, INLINE_ATTACHMENT_TYPES } from '../models/announcements';
 import { ATTACHMENT_ICON, AttachmentBlock } from './AttachmentPreview';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const CATEGORY_STYLE: Record<AnnouncementCategory, string> = {
-  Urgent: 'bg-red-500/15 text-red-400 ring-red-500/30',
-  Logistics: 'bg-sky-500/15 text-sky-400 ring-sky-500/30',
-  Workshop: 'bg-violet-500/15 text-violet-400 ring-violet-500/30',
-  General: 'bg-emerald/15 text-emerald-mint ring-emerald-glow/30',
-};
-
-const CATEGORIES = ['All', 'Logistics', 'General', 'Urgent', 'Workshop'] as const;
-
 const COMPACT_COUNT = 3;
 
-/** Admin-only controls; omitted entirely for every other role. */
+/**
+ * Posting and deleting. Like the app, a post can be written and deleted but
+ * not edited or re-pinned afterwards.
+ */
 export interface AnnouncementAdminProps {
+  /** Admins: Delete on each post. */
   canManage?: boolean;
+  /** Set only for accounts that may post (admins, volunteers with the flag). */
   onCompose?: () => void;
-  onEdit?: (announcement: Announcement) => void;
   onDelete?: (announcement: Announcement) => void;
-  onTogglePin?: (announcement: Announcement) => void;
 }
 
 /** Read state, owned by AnnouncementsContext; omit to show everything as read. */
 export interface AnnouncementReadProps {
   isUnread?: (id: string) => boolean;
   onMarkRead?: (id: string) => void;
-  onMarkAllRead?: () => void;
   /** "Remove from my feed" (hidden only for this account). */
   onHide?: (announcement: Announcement) => void;
 }
@@ -92,9 +80,7 @@ export function AnnouncementItem({
   onMarkRead,
   onHide,
   canManage = false,
-  onEdit,
   onDelete,
-  onTogglePin,
 }: {
   announcement: Announcement;
   unread?: boolean;
@@ -131,15 +117,7 @@ export function AnnouncementItem({
             <Pin className="h-3 w-3" weight="fill" /> Pinned
           </span>
         )}
-        <span
-          className={cn(
-            'rounded-full px-2 py-0.5 font-semibold ring-1',
-            CATEGORY_STYLE[announcement.category],
-          )}
-        >
-          {announcement.category}
-        </span>
-        <span className="text-muted-foreground">→ {announcement.audience}</span>
+        <span className="text-muted-foreground">{announcement.audience}</span>
         <span className="ml-auto text-muted-foreground">{announcement.date}</span>
       </div>
       <h3
@@ -155,10 +133,6 @@ export function AnnouncementItem({
       </p>
       <div className="mt-1.5 text-[11px] text-muted-foreground/80">
         Posted by {announcement.author}
-        {announcement.updatedAt &&
-          announcement.createdAt &&
-          announcement.updatedAt !== announcement.createdAt &&
-          ' · edited'}
       </div>
 
       {inline.length > 0 && (
@@ -191,43 +165,8 @@ export function AnnouncementItem({
         </button>
       )}
 
-      {unread && onMarkRead && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMarkRead(announcement.id);
-          }}
-          className="mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:text-rose-300 dark:hover:bg-rose-500/15"
-        >
-          <CheckCheck className="h-3 w-3" /> Mark as read
-        </button>
-      )}
-
       {canManage && (
         <div className="mt-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => onEdit?.(announcement)}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Pencil className="h-3 w-3" /> Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => onTogglePin?.(announcement)}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            {announcement.pinned ? (
-              <>
-                <PinOff className="h-3 w-3" /> Unpin
-              </>
-            ) : (
-              <>
-                <Pin className="h-3 w-3" /> Pin
-              </>
-            )}
-          </button>
           <button
             type="button"
             onClick={() => onDelete?.(announcement)}
@@ -247,24 +186,18 @@ export default function AnnouncementsPanel({
   onViewAll,
   canManage = false,
   onCompose,
-  onEdit,
   onDelete,
-  onTogglePin,
   isUnread,
   onMarkRead,
-  onMarkAllRead,
   onHide,
 }: {
   announcements: Announcement[];
   /** 'compact' = top-3 preview with a "View all" link (Dashboard use).
-   *  'full' = the complete searchable/filterable list (Announcements tab). */
+   *  'full' = the whole feed (News), like the app's News tab. */
   variant?: 'compact' | 'full';
   onViewAll?: () => void;
 } & AnnouncementAdminProps &
   AnnouncementReadProps) {
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All');
-
   const pinnedCount = announcements.filter((a) => a.pinned).length;
   const unreadCount = isUnread
     ? announcements.filter((a) => isUnread(a.id)).length
@@ -278,21 +211,8 @@ export default function AnnouncementsPanel({
     [announcements],
   );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return sorted.filter((a) => {
-      const matchesCategory = category === 'All' || a.category === category;
-      const matchesQuery =
-        !q ||
-        a.title.toLowerCase().includes(q) ||
-        a.body.toLowerCase().includes(q) ||
-        a.author.toLowerCase().includes(q);
-      return matchesCategory && matchesQuery;
-    });
-  }, [sorted, category, query]);
-
   const isFull = variant === 'full';
-  const visible = isFull ? filtered : sorted.slice(0, COMPACT_COUNT);
+  const visible = isFull ? sorted : sorted.slice(0, COMPACT_COUNT);
 
   return (
     <section className="glass rounded-2xl p-5">
@@ -309,58 +229,18 @@ export default function AnnouncementsPanel({
               {unreadCount} unread
             </span>
           )}
-          {isFull && unreadCount > 0 && onMarkAllRead && (
-            <button
-              type="button"
-              onClick={onMarkAllRead}
-              className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <CheckCheck className="h-3 w-3" /> Mark all as read
-            </button>
-          )}
           {pinnedCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald/15 px-2 py-1 text-[11px] font-semibold text-emerald-mint">
               <Bell className="h-3 w-3" /> {pinnedCount} pinned
             </span>
           )}
-          {canManage && onCompose && (
+          {onCompose && (
             <Button size="sm" className="h-8" onClick={onCompose}>
               <Plus className="h-3.5 w-3.5" /> New
             </Button>
           )}
         </div>
       </div>
-
-      {isFull && (
-        <div className="mb-4 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search announcements…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-secondary/40 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-emerald-glow/60"
-            />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                className={cn(
-                  'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                  category === c
-                    ? 'bg-emerald text-white'
-                    : 'bg-secondary/60 text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="space-y-3">
         {visible.map((a) => (
@@ -371,16 +251,12 @@ export default function AnnouncementsPanel({
             onMarkRead={onMarkRead}
             onHide={onHide}
             canManage={canManage}
-            onEdit={onEdit}
             onDelete={onDelete}
-            onTogglePin={onTogglePin}
           />
         ))}
-        {(isFull ? filtered.length === 0 : announcements.length === 0) && (
+        {announcements.length === 0 && (
           <div className={cn('text-center text-sm text-muted-foreground', isFull ? 'py-10' : 'py-6')}>
-            {announcements.length === 0
-              ? 'No announcements yet.'
-              : 'No announcements match your search.'}
+            No announcements yet.
           </div>
         )}
       </div>

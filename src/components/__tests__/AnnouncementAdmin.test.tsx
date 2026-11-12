@@ -6,7 +6,9 @@ import AnnouncementComposer from '../AnnouncementComposer';
 import type { Announcement } from '../../models/announcements';
 
 const create = vi.fn().mockResolvedValue(undefined);
-const update = vi.fn().mockResolvedValue(undefined);
+const auth = vi.hoisted(() => ({
+  profile: { id: 'admin-1', role: 'admin' } as Record<string, unknown>,
+}));
 
 vi.mock('../../context/AnnouncementsContext', () => ({
   useAnnouncements: () => ({
@@ -14,15 +16,16 @@ vi.mock('../../context/AnnouncementsContext', () => ({
     loading: false,
     error: null,
     canManage: true,
+    canPost: true,
     live: true,
     configured: true,
     refresh: vi.fn(),
     create,
-    update,
     remove: vi.fn(),
-    togglePinned: vi.fn(),
   }),
 }));
+
+vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ profile: auth.profile }) }));
 
 vi.mock('../../services/announcements', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/announcements')>();
@@ -76,28 +79,24 @@ describe('AnnouncementsPanel admin controls', () => {
     expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
   });
 
-  test('shows compose, edit, pin, and delete to admins', async () => {
+  test('admins can post and delete, but not edit or re-pin, like the app', async () => {
     const onCompose = vi.fn();
-    const onEdit = vi.fn();
     render(
       <AnnouncementsPanel
         announcements={[announcement]}
         canManage
         onCompose={onCompose}
-        onEdit={onEdit}
         onDelete={vi.fn()}
-        onTogglePin={vi.fn()}
       />,
     );
 
     await userEvent.click(screen.getByRole('button', { name: /new/i }));
     expect(onCompose).toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole('button', { name: /edit/i }));
-    expect(onEdit).toHaveBeenCalledWith(announcement);
-
-    expect(screen.getByRole('button', { name: /^pin$/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /delete/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /pin/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /mark as read/i })).toBeNull();
+    expect(screen.queryByPlaceholderText(/search/i)).toBeNull();
   });
 
   test('plays media inline and lists documents as download rows', () => {
@@ -115,15 +114,15 @@ describe('AnnouncementsPanel admin controls', () => {
 describe('AnnouncementComposer', () => {
   beforeEach(() => {
     create.mockClear();
-    update.mockClear();
+    auth.profile = { id: 'admin-1', role: 'admin' };
   });
 
   test('requires a title and body before posting', async () => {
     render(<AnnouncementComposer open onOpenChange={vi.fn()} />);
-    const post = screen.getByRole('button', { name: /post announcement/i });
+    const post = screen.getByRole('button', { name: /^post$/i });
     expect(post).toBeDisabled();
 
-    await userEvent.type(screen.getByLabelText('Title'), 'Track sign-ups close');
+    await userEvent.type(screen.getByLabelText('Subject'), 'Track sign-ups close');
     expect(post).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText('Message'), 'Friday at noon.');
@@ -134,7 +133,7 @@ describe('AnnouncementComposer', () => {
     const onOpenChange = vi.fn();
     render(<AnnouncementComposer open onOpenChange={onOpenChange} />);
 
-    await userEvent.type(screen.getByLabelText('Title'), 'Photos are up');
+    await userEvent.type(screen.getByLabelText('Subject'), 'Photos are up');
     await userEvent.type(screen.getByLabelText('Message'), 'From the kickoff.');
 
     const file = new File(['binary'], 'kickoff.png', { type: 'image/png' });
@@ -144,7 +143,7 @@ describe('AnnouncementComposer', () => {
     await screen.findByText('kickoff.png');
 
     await userEvent.click(
-      screen.getByRole('button', { name: /post announcement/i }),
+      screen.getByRole('button', { name: /^post$/i }),
     );
 
     await waitFor(() => expect(create).toHaveBeenCalled());
@@ -169,15 +168,20 @@ describe('AnnouncementComposer', () => {
     expect(screen.getByText(/drag files here/i)).toBeTruthy();
   });
 
-  test('opens prefilled when editing and saves through update', async () => {
-    render(
-      <AnnouncementComposer open onOpenChange={vi.fn()} editing={announcement} />,
-    );
+  test('a scoped volunteer posts to one of their disciplines, never Everyone', async () => {
+    auth.profile = { id: 'vol-1', role: 'volunteer', can_post_announcements: true, managed_disciplines: ['biosphere'] };
+    render(<AnnouncementComposer open onOpenChange={vi.fn()} />);
+    expect(screen.getByLabelText('Audience')).toHaveTextContent('BioSphere');
+    await userEvent.type(screen.getByLabelText('Subject'), 'Lab coats');
+    await userEvent.type(screen.getByLabelText('Message'), 'Bring one.');
+    await userEvent.click(screen.getByRole('button', { name: /^post$/i }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0][0]).toMatchObject({ audience: 'BioSphere', disciplineId: 'biosphere' });
+  });
 
-    expect(screen.getByLabelText('Title')).toHaveValue('Buses leave at 4');
-    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
-
-    await waitFor(() => expect(update).toHaveBeenCalled());
-    expect(update.mock.calls[0][0]).toBe('a1');
+  test('admins post to Everyone by default', async () => {
+    render(<AnnouncementComposer open onOpenChange={vi.fn()} />);
+    expect(screen.getByLabelText('Audience')).toHaveTextContent('Everyone');
+    expect(screen.queryByText(/add link/i)).toBeNull();
   });
 });

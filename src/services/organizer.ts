@@ -301,23 +301,9 @@ export async function setEafInterest(yes: boolean): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Metrics (admins) and front-desk counts
+// Metrics (admins)
 // ---------------------------------------------------------------------------
 
 export async function fetchSummitMetrics(): Promise<SummitMetrics> {
   return summitMetricsFrom(await rpc<Record<string, unknown> | null>('fetch_summit_metrics'));
-}
-
-export interface CheckinCount {
-  checkedIn: number;
-  total: number;
-}
-
-/** Arrived / registered per role (front desk and admins). */
-export async function fetchCheckinStats(): Promise<Record<string, CheckinCount>> {
-  const rows = await rpc<Record<string, unknown>[] | null>('fetch_checkin_stats');
-  return Object.fromEntries((rows ?? []).map((r) => [
-    String(r.role ?? ''),
-    { checkedIn: Number(r.checked_in ?? 0), total: Number(r.total ?? 0) },
-  ]));
 }

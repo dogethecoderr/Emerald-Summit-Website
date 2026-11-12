@@ -19,6 +19,8 @@ export interface AnnouncementDraft {
   body: string;
   category: AnnouncementCategory;
   audience: string;
+  /** Set when the post goes to one discipline; unset means Everyone. */
+  disciplineId?: string;
   pinned: boolean;
   attachments: AnnouncementAttachment[];
 }
@@ -146,6 +148,7 @@ function draftToRow(draft: AnnouncementDraft, author?: AnnouncementAuthor) {
     title: draft.title.trim(),
     body: draft.body.trim(),
     audience: draft.audience.trim() || 'Everyone',
+    discipline_id: draft.disciplineId ?? null,
     pinned: draft.pinned,
     attachments: draft.attachments.map((a) => ({
       url: a.url ?? '',

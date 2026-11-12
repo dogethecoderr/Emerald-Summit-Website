@@ -6,7 +6,7 @@ import {
   Notepad,
   Compass,
   CalendarDays,
-  Users,
+  Sparkles,
   UserRound,
   Megaphone,
   ArrowLeftRight,
@@ -41,7 +41,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // Same names and order as the app's tabs: Home · Schedule · Discover · News.
+  // Same names and order as the app's tabs: Home · Schedule · Discover · News · Archie.
   { to: '/home', label: 'Home', icon: House, group: 'My Summit' },
   {
     to: '/schedule',
@@ -52,13 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { to: '/disciplines', label: 'Discover', icon: Compass, group: 'My Summit' },
   { to: '/announcements', label: 'News', icon: Megaphone, group: 'My Summit' },
-  {
-    to: '/volunteer',
-    label: 'Volunteer Hub',
-    icon: Users,
-    group: 'My Summit',
-    roles: ['volunteer', 'admin'],
-  },
+  { to: '/archie', label: 'Archie', icon: Sparkles, group: 'My Summit' },
   { to: '/resources', label: 'Resources', icon: FolderOpen, group: 'Event' },
   { to: '/account', label: 'Profile', icon: UserRound, group: 'Account' },
 ];
@@ -168,8 +162,10 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
         to: n.to,
         icon: n.icon,
       }));
+    // The same fields as the search on the app's Discover tab: title, track,
+    // room and discipline.
     const sessions = MOCK_SESSIONS.filter((s) =>
-      [s.title, s.speaker, s.location].some((f) => f.toLowerCase().includes(q)),
+      [s.title, s.trackName, s.location, s.room, s.disciplineName].some((f) => (f ?? '').toLowerCase().includes(q)),
     ).map((s) => ({
       key: s.id,
       label: s.title,

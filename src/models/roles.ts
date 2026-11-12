@@ -19,19 +19,20 @@ export interface RoleInfo {
   color: string;
 }
 
+// Descriptions are the app's SummitRole.blurb (user_profile.dart).
 export const USER_ROLES: RoleInfo[] = [
   {
     name: 'participant',
     label: 'Participant',
     description:
-      'Build your schedule, register for tracks, and follow your day.',
+      'Build your schedule and follow your summit day.',
     icon: GraduationCap, // school_outlined
     color: '#0EA5E9',
   },
   {
     name: 'attendee',
     label: 'Parent / Spectator',
-    description: 'Explore the Summit, browse event updates, and see what is happening.',
+    description: 'Follow along and stay in the loop.',
     icon: Eye,
     color: '#2563EB',
   },
@@ -47,7 +48,7 @@ export const USER_ROLES: RoleInfo[] = [
     name: 'admin',
     label: 'Admin',
     description:
-      'Post and edit announcements, share files, and broadcast Summit news.',
+      'Manage the summit, announcements, and content.',
     icon: ShieldCheck, // admin_panel_settings_outlined
     color: '#0C7A55',
   },
@@ -55,14 +56,14 @@ export const USER_ROLES: RoleInfo[] = [
     name: 'volunteer',
     label: 'Volunteer',
     description:
-      'Manage your assigned track, check in participants, and support Summit attendees.',
+      'Help run the summit: EAF ambassadors, parent and student volunteers.',
     icon: Users,
     color: '#E11D48',
   },
   {
     name: 'expert',
     label: 'Expert / Speaker',
-    description: 'View your judging assignments and navigate between rooms.',
+    description: 'Lead a session or speak at the summit.',
     icon: Award, // workspace_premium_outlined
     color: '#7C3AED',
   },

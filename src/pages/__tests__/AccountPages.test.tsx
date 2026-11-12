@@ -89,9 +89,13 @@ describe('unified profile', () => {
     state.profile = { ...state.profile, role: 'admin' };
     state.guard = { ready: true, redirect: null, roleName: 'admin' };
     render(<MemoryRouter initialEntries={['/account']}><Routes><Route path="/account" element={<SettingsPage />} /></Routes></MemoryRouter>);
-    for (const name of [/Metrics/, /Expert approvals/, /Manage rooms/, /Front desk check-in/, /Track volunteer hours/]) {
+    for (const name of [/Metrics/, /Expert approvals/, /Manage rooms/, /Track volunteer hours/]) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
+    // Front desk scans passes with the camera, so on the website it's labelled app-only.
+    expect(screen.queryByRole('button', { name: /Front desk check-in/ })).toBeNull();
+    expect(screen.getByText('Front desk check-in')).toBeInTheDocument();
+    expect(screen.getByText('Mobile app only')).toBeInTheDocument();
     state.profile = { ...state.profile, role: 'volunteer' };
   });
 });

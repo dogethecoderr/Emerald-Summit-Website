@@ -26,29 +26,27 @@ import {
   markSeen,
   unhideForMe,
   isBackendConfigured,
-  setAnnouncementPinned,
   sortAnnouncements,
   subscribeToAnnouncements,
-  updateAnnouncement,
   type AnnouncementDraft,
 } from '../services/announcements';
-import type { Announcement } from '../models/announcements';
+import { postAudiences, type Announcement } from '../models/announcements';
 
 interface AnnouncementsContextValue {
   announcements: Announcement[];
   loading: boolean;
   error: string | null;
-  /** True for admins — gates every composer and edit control in the UI. */
+  /** True for admins: delete for everyone. */
   canManage: boolean;
+  /** Admins, and volunteers with can_post_announcements: the New button. */
+  canPost: boolean;
   /** False when posts can't leave this browser (no backend, or no admin session). */
   live: boolean;
   /** Whether a Supabase client exists at all. */
   configured: boolean;
   refresh: () => Promise<void>;
   create: (draft: AnnouncementDraft) => Promise<void>;
-  update: (id: string, draft: AnnouncementDraft) => Promise<void>;
   remove: (id: string) => Promise<void>;
-  togglePinned: (id: string, pinned: boolean) => Promise<void>;
   /** Posts this account hasn't seen yet: the badge, like the app's News tab. */
   unreadCount: number;
   isUnread: (id: string) => boolean;
@@ -247,23 +245,9 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
     [profile],
   );
 
-  const update = useCallback(async (id: string, draft: AnnouncementDraft) => {
-    const updated = await updateAnnouncement(id, draft);
-    setAnnouncements((prev) =>
-      sortAnnouncements(prev.map((a) => (a.id === id ? updated : a))),
-    );
-  }, []);
-
   const remove = useCallback(async (id: string) => {
     await deleteAnnouncement(id);
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
-  }, []);
-
-  const togglePinned = useCallback(async (id: string, pinned: boolean) => {
-    setAnnouncements((prev) =>
-      sortAnnouncements(prev.map((a) => (a.id === id ? { ...a, pinned } : a))),
-    );
-    await setAnnouncementPinned(id, pinned);
   }, []);
 
   const value = useMemo<AnnouncementsContextValue>(
@@ -272,13 +256,12 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       canManage: profile?.role === 'admin',
+      canPost: postAudiences(profile).length > 0,
       live,
       configured: isBackendConfigured(),
       refresh,
       create,
-      update,
       remove,
-      togglePinned,
       unreadCount,
       isUnread,
       markRead,
@@ -294,9 +277,7 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       profile,
       refresh,
       create,
-      update,
       remove,
-      togglePinned,
       unreadCount,
       isUnread,
       markRead,

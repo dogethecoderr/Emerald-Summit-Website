@@ -3,18 +3,14 @@ import {
   UploadCloud,
   X,
   Loader2,
-  Link2,
-  Plus,
   AlertTriangle,
 } from '@/components/icons';
 import { toast } from 'sonner';
 import {
-  ANNOUNCEMENT_AUDIENCES,
-  ANNOUNCEMENT_CATEGORIES,
   formatBytes,
-  type Announcement,
+  postAudiences,
   type AnnouncementAttachment,
-  type AnnouncementCategory,
+  type PostAudience,
 } from '../models/announcements';
 import {
   uploadAttachment,
@@ -22,6 +18,7 @@ import {
   type AnnouncementDraft,
 } from '../services/announcements';
 import { useAnnouncements } from '../context/AnnouncementsContext';
+import { useAuth } from '../context/AuthContext';
 import AttachmentPreview from './AttachmentPreview';
 import {
   Dialog,
@@ -45,59 +42,46 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-const EMPTY_DRAFT: AnnouncementDraft = {
-  title: '',
-  body: '',
-  category: 'General',
-  audience: 'Everyone',
-  pinned: false,
-  attachments: [],
-};
-
-function draftFrom(announcement: Announcement | null): AnnouncementDraft {
-  if (!announcement) return { ...EMPTY_DRAFT, attachments: [] };
+function emptyDraft(audience: PostAudience | undefined): AnnouncementDraft {
   return {
-    title: announcement.title,
-    body: announcement.body,
-    category: announcement.category,
-    audience: announcement.audience,
-    pinned: announcement.pinned,
-    attachments: [...(announcement.attachments ?? [])],
+    title: '',
+    body: '',
+    category: 'General',
+    audience: audience?.label ?? 'Everyone',
+    disciplineId: audience && audience.value !== 'everyone' ? audience.value : undefined,
+    pinned: false,
+    attachments: [],
   };
 }
 
+/**
+ * New post, like the app's announcement_compose_screen: subject, message,
+ * audience (Everyone or a discipline), pin, photos and files. Posts can't be
+ * edited afterwards, in the app or here.
+ */
 export default function AnnouncementComposer({
   open,
   onOpenChange,
-  editing = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Existing announcement to edit; null composes a new one. */
-  editing?: Announcement | null;
 }) {
-  const { create, update, live, configured } = useAnnouncements();
-  const [draft, setDraft] = useState<AnnouncementDraft>(() => draftFrom(editing));
+  const { create, live, configured } = useAnnouncements();
+  const { profile } = useAuth();
+  const audiences = postAudiences(profile);
+  const [draft, setDraft] = useState<AnnouncementDraft>(() => emptyDraft(audiences[0]));
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkTitle, setLinkTitle] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   // Nested drag events fire on every child; count them so leaving a child
   // doesn't clear the highlight while the pointer is still over the zone.
   const dragDepth = useRef(0);
 
-  // Reopening for a different announcement must not keep the previous form.
+  // Each time it opens, start from a blank post.
   useEffect(() => {
-    if (open) {
-      setDraft(draftFrom(editing));
-      setLinkOpen(false);
-      setLinkUrl('');
-      setLinkTitle('');
-    }
-  }, [open, editing]);
+    if (open) setDraft(emptyDraft(audiences[0]));
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addFiles = async (files: FileList | File[]) => {
     const list = Array.from(files);
@@ -135,27 +119,6 @@ export default function AnnouncementComposer({
     void removeAttachmentFile(attachment);
   };
 
-  const addLink = () => {
-    const url = linkUrl.trim();
-    if (!url) return;
-    const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-    setDraft((d) => ({
-      ...d,
-      attachments: [
-        ...d.attachments,
-        {
-          id: crypto.randomUUID(),
-          title: linkTitle.trim() || normalized.replace(/^https?:\/\//i, ''),
-          type: 'Link',
-          url: normalized,
-        },
-      ],
-    }));
-    setLinkUrl('');
-    setLinkTitle('');
-    setLinkOpen(false);
-  };
-
   const canSave =
     draft.title.trim().length > 0 &&
     draft.body.trim().length > 0 &&
@@ -166,13 +129,8 @@ export default function AnnouncementComposer({
     if (!canSave) return;
     setSaving(true);
     try {
-      if (editing) {
-        await update(editing.id, draft);
-        toast.success('Announcement updated');
-      } else {
-        await create(draft);
-        toast.success(live ? 'Posted to everyone' : 'Posted to this browser only');
-      }
+      await create(draft);
+      toast.success(live ? 'Announcement posted' : 'Posted to this browser only');
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err?.message ?? 'Could not save announcement');
@@ -186,11 +144,11 @@ export default function AnnouncementComposer({
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
-            {editing ? 'Edit announcement' : 'New announcement'}
+            New announcement
           </DialogTitle>
           <DialogDescription>
             {live
-              ? 'Posts appear on every signed-in profile immediately.'
+              ? 'Posts appear in News straight away for the audience you pick.'
               : 'This post will stay in this browser.'}
           </DialogDescription>
         </DialogHeader>
@@ -208,7 +166,7 @@ export default function AnnouncementComposer({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="announcement-title">Title</Label>
+            <Label htmlFor="announcement-title">Subject</Label>
             <Input
               id="announcement-title"
               value={draft.title}
@@ -228,55 +186,35 @@ export default function AnnouncementComposer({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {!configured && <div className="space-y-1.5">
-              <Label>Category</Label>
-              <Select
-                value={draft.category}
-                onValueChange={(v) =>
-                  setDraft({ ...draft, category: v as AnnouncementCategory })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ANNOUNCEMENT_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
-
-            {!configured && <div className="space-y-1.5">
-              <Label>Audience</Label>
-              <Select
-                value={draft.audience}
-                onValueChange={(v) => setDraft({ ...draft, audience: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ANNOUNCEMENT_AUDIENCES.map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {a}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>}
+          <div className="space-y-1.5">
+            <Label htmlFor="announcement-audience">Audience</Label>
+            <Select
+              value={audiences.find((a) => a.label === draft.audience)?.value ?? audiences[0]?.value}
+              onValueChange={(v) => {
+                const picked = audiences.find((a) => a.value === v);
+                setDraft({ ...draft, audience: picked?.label ?? 'Everyone', disciplineId: v === 'everyone' ? undefined : v });
+              }}
+            >
+              <SelectTrigger id="announcement-audience">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {audiences.map((a) => (
+                  <SelectItem key={a.value} value={a.value}>
+                    {a.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/70 bg-secondary/30 px-3 py-2.5">
             <div>
               <Label htmlFor="announcement-pinned" className="text-sm">
-                Pin to the top
+                Pin to top
               </Label>
               <p className="text-xs text-muted-foreground">
-                Pinned posts lead the feed and count toward the sidebar badge.
+                Pinned posts stay at the top of News.
               </p>
             </div>
             <Switch
@@ -288,38 +226,7 @@ export default function AnnouncementComposer({
 
           {/* Attachments */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Attachments</Label>
-              <button
-                type="button"
-                onClick={() => setLinkOpen((v) => !v)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-mint transition-colors hover:text-emerald-glow"
-              >
-                <Link2 className="h-3 w-3" /> Add link
-              </button>
-            </div>
-
-            {linkOpen && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-secondary/30 p-2">
-                <Input
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://example.com/form"
-                  className="h-8 flex-1 min-w-[180px] text-xs"
-                  onKeyDown={(e) => e.key === 'Enter' && addLink()}
-                />
-                <Input
-                  value={linkTitle}
-                  onChange={(e) => setLinkTitle(e.target.value)}
-                  placeholder="Label (optional)"
-                  className="h-8 w-40 text-xs"
-                  onKeyDown={(e) => e.key === 'Enter' && addLink()}
-                />
-                <Button size="sm" className="h-8" onClick={addLink}>
-                  <Plus className="h-3 w-3" /> Add
-                </Button>
-              </div>
-            )}
+            <Label>Photos and files</Label>
 
             <div
               onDragEnter={(e) => {
@@ -413,7 +320,7 @@ export default function AnnouncementComposer({
           </Button>
           <Button onClick={handleSave} disabled={!canSave}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {editing ? 'Save changes' : 'Post announcement'}
+            Post
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -25,10 +25,10 @@ export default function AnnouncementsPage() {
   const {
     announcements,
     canManage,
+    canPost,
     error,
     live,
     remove,
-    togglePinned,
     isUnread,
     markRead,
     markAllRead,
@@ -46,7 +46,6 @@ export default function AnnouncementsPage() {
   }, [ready, markAllRead]);
 
   const [composerOpen, setComposerOpen] = useState(false);
-  const [editing, setEditing] = useState<Announcement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null);
 
   if (redirect) return <Navigate to={redirect} replace />;
@@ -110,27 +109,14 @@ export default function AnnouncementsPage() {
         onHide={configured ? removeFromFeed : undefined}
         variant="full"
         canManage={canManage}
-        onCompose={() => {
-          setEditing(null);
-          setComposerOpen(true);
-        }}
-        onEdit={(a) => {
-          setEditing(a);
-          setComposerOpen(true);
-        }}
+        onCompose={canPost ? () => setComposerOpen(true) : undefined}
         onDelete={setPendingDelete}
-        onTogglePin={(a) => {
-          void togglePinned(a.id, !a.pinned).catch((err) =>
-            toast.error(err?.message ?? 'Could not update pin'),
-          );
-        }}
       />
 
-      {canManage && (
+      {canPost && (
         <AnnouncementComposer
           open={composerOpen}
           onOpenChange={setComposerOpen}
-          editing={editing}
         />
       )}
 

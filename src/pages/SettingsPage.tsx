@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeftRight, Award, Bell, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, Info, LogOut, MapPin,
+  ArrowLeftRight, Award, Bell, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
   Palette, QrCode, ScanLine, ShieldCheck, UserRound, Users,
 } from '@/components/icons';
 import { Switch } from '@/components/ui/switch';
@@ -41,6 +41,22 @@ function SettingsRow({ icon: Icon, title, subtitle, onClick, destructive }: {
       </span>
       {!destructive && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
     </button>
+  );
+}
+
+/** A menu row for something only the mobile app can do: shown, not clickable. */
+function AppOnlyRow({ icon: Icon, title, subtitle }: { icon: typeof UserRound; title: string; subtitle: string }) {
+  return (
+    <div className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold text-muted-foreground">{title}</span>
+        <span className="mt-0.5 block text-[12px] text-muted-foreground">{subtitle}</span>
+      </span>
+      <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Mobile app only</span>
+    </div>
   );
 }
 
@@ -186,7 +202,7 @@ function ProfileHub({ profile }: { profile: Profile }) {
           </div>
           <div className="flex items-center gap-3 px-4 py-3.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Bell className="h-4 w-4" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Push notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Next-session reminders and announcements in the app</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Push notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Next-session reminders and announcements, sent to your phone by the app</span></span>
             <Switch checked={notifications} aria-label="Push notifications" onCheckedChange={(v) => void toggleNotifications(v)} />
           </div>
           {isVolunteer && <SettingsRow icon={CalendarDays} title="Sessions I'm managing" subtitle="Take attendance for sessions you run" onClick={() => navigate('/volunteer')} />}
@@ -194,12 +210,11 @@ function ProfileHub({ profile }: { profile: Profile }) {
           {status.feedbackOpen && (isVolunteer || isAdmin) && <SettingsRow icon={HeartHandshake} title="Volunteer for EAF again?" subtitle="Let us know" onClick={() => navigate('/follow-up')} />}
           {(isVolunteer || isAdmin) && <SettingsRow icon={Clock} title="Track volunteer hours" subtitle="Your logged hours and summit-day hours" onClick={() => navigate('/volunteer/hours')} />}
           {canOpenVolunteerHub && <SettingsRow icon={Users} title="Volunteer hub" subtitle="Volunteers, admins, and how to reach them" onClick={() => navigate('/volunteer/contacts')} />}
-          {canCheckIn && <SettingsRow icon={ScanLine} title="Front desk check-in" subtitle="Mark attendees arrived at the summit" onClick={() => navigate('/volunteer')} />}
+          {canCheckIn && <AppOnlyRow icon={ScanLine} title="Front desk check-in" subtitle="Scanning QR passes needs the phone camera, so check people in from the Emerald Summit app." />}
           {isAdmin && <SettingsRow icon={ChartLine} title="Metrics" subtitle="Who signed up, from which schools, for what" onClick={() => navigate('/admin/metrics')} />}
           {isAdmin && <SettingsRow icon={ShieldCheck} title="Expert approvals" subtitle="Approve or decline expert sign-ups" onClick={() => navigate('/admin/experts')} />}
           {isAdmin && <SettingsRow icon={MapPin} title="Manage rooms" subtitle="The rooms sessions can be held in" onClick={() => navigate('/admin/rooms')} />}
           <SettingsRow icon={ArrowLeftRight} title="Change role" subtitle={`Currently ${roleLabel}`} onClick={() => navigate('/roles')} />
-          <SettingsRow icon={Info} title="About" subtitle="Emerald Summit ’27 · EHS Academic Foundation" onClick={() => toast.message('Emerald Summit companion app')} />
         </div>
       </section>
       <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/70">

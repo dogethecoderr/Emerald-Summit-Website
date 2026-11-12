@@ -156,7 +156,7 @@ describe('shared announcement contract', () => {
     await announcements.createAnnouncement({ title: 'New', body: 'Body', category: 'Logistics', audience: 'Everyone', pinned: false,
       attachments: [{ id: 'file', title: 'Map.pdf', type: 'PDF', url: 'https://example.test/map.pdf', path: 'admin/map.pdf', mimeType: 'application/pdf', bytes: 42 }],
     }, { id: 'shared-user', name: 'Summit' });
-    expect(backend.queries[0].payload).toEqual({ title: 'New', body: 'Body', audience: 'Everyone', pinned: false,
+    expect(backend.queries[0].payload).toEqual({ title: 'New', body: 'Body', audience: 'Everyone', discipline_id: null, pinned: false,
       author: 'Summit', created_by: 'shared-user',
       attachments: [{ url: 'https://example.test/map.pdf', path: 'admin/map.pdf', name: 'Map.pdf', type: 'application/pdf', size: 42 }],
     });

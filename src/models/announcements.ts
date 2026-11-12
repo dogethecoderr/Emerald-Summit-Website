@@ -5,6 +5,8 @@
 // section in this app; a downloadable/linkable item now just rides along
 // on the announcement that introduced it.
 
+import { USER_DISCIPLINES } from './disciplines';
+
 export type AnnouncementCategory = 'Logistics' | 'General' | 'Urgent' | 'Workshop';
 
 export const ANNOUNCEMENT_CATEGORIES: AnnouncementCategory[] = [
@@ -194,3 +196,35 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
     attachments: [{ id: 'a6-f1', title: 'Summit Promo Video', type: 'Video' }],
   },
 ];
+
+/** One choice in the composer's Audience menu. */
+export interface PostAudience {
+  /** 'everyone' or a discipline id. */
+  value: string;
+  label: string;
+}
+
+/**
+ * Who this account may post to, as in the app's composer: admins pick
+ * Everyone or any discipline; a volunteer with can_post_announcements picks
+ * one of the disciplines they manage (all of them for '*'). Empty means they
+ * can't post. The database's insert policy enforces the same rule.
+ */
+export function postAudiences(profile: {
+  role?: string | null;
+  can_post_announcements?: boolean | null;
+  managed_disciplines?: string[] | null;
+} | null | undefined): PostAudience[] {
+  if (!profile) return [];
+  const isAdmin = profile.role === 'admin';
+  const isPoster = (profile.role === 'volunteer' || profile.role === 'ambassador') && profile.can_post_announcements === true;
+  if (!isAdmin && !isPoster) return [];
+  const scope = profile.managed_disciplines ?? [];
+  const disciplines = isAdmin || scope.includes('*')
+    ? USER_DISCIPLINES
+    : USER_DISCIPLINES.filter((d) => scope.includes(d.name));
+  return [
+    ...(isAdmin ? [{ value: 'everyone', label: 'Everyone' }] : []),
+    ...disciplines.map((d) => ({ value: d.name, label: d.label })),
+  ];
+}

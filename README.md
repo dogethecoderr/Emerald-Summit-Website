@@ -88,7 +88,7 @@ Test accounts sign in with a shared password instead of an emailed code, like th
 2. For a test account, a password box appears instead. The function checks the password and returns a one-time code, which the page verifies, so it's a real Supabase session.
 3. The account skips role picking, like `_autoOnboardTestAccount` in the app: admin if on the admin list, else volunteer if on the volunteer list, else from the email (`expert`, `spectator` or `parent`, otherwise participant). A toast says which role it got.
 
-The password is never stored (not in `localStorage`, the URL, the repo or Vercel). People type it. The test accounts and the password are set up in the app repo (SUPABASE.md §3b). Code: `isTestAccount`, `signInWithTestAccount` and `autoOnboardTestAccount` in `src/services/auth.ts`, the password step in `src/pages/LoginPage.tsx`, the flag in `src/lib/devLogin.ts`.
+The password is never stored (not in `localStorage`, the URL, the repo or Vercel). People type it. After five wrong passwords in a row, the browser stops asking for 15 minutes ("Too many wrong passwords. Try again in N minutes.") without calling the function; a right password resets the count. That only slows someone typing guesses into the page. A script can call `dev-login` directly, so a real lockout has to live in the function (app repo); for now each wrong password there waits 1.5 seconds. The test accounts and the password are set up in the app repo (SUPABASE.md §3b). Code: `isTestAccount`, `signInWithTestAccount` and `autoOnboardTestAccount` in `src/services/auth.ts`, the password step in `src/pages/LoginPage.tsx`, the flag in `src/lib/devLogin.ts`.
 
 The dev server honours a `PORT` environment variable, so a second instance — another checkout, or a teammate's session on the same machine — can run alongside the first instead of colliding on 5173:
 
@@ -118,7 +118,7 @@ npm run preview   # Preview the production build locally
 npm run test      # Run the Vitest component tests
 ```
 
-Tests never reach a real Supabase project: any test that renders a check-in path mocks `src/lib/supabase` (with a fake client, or `null` for the offline mock roster), since `.env` would otherwise point it at the live backend. Suites that call `vi.restoreAllMocks()` in `beforeEach` mock `html5-qrcode` with a plain class rather than `vi.fn().mockImplementation(...)`, because the restore strips `vi.fn` implementations and the scanner modal then shows its camera-error fallback a moment after opening.
+Tests never reach a real Supabase project: any test that renders a check-in path mocks `src/lib/supabase` (with a fake client, or `null` for the offline mock roster), since `.env` would otherwise point it at the live backend.
 
 ---
 
@@ -128,7 +128,7 @@ Tests never reach a real Supabase project: any test that renders a check-in path
 src/
 ├── main.tsx              # App entry point
 ├── App.tsx               # Routes (React Router)
-├── pages/                # Route-level pages (Home, Schedule, Directory, Judging, dashboards, …)
+├── pages/                # Route-level pages (Home, Schedule, Discover, News, Archie, session pages, admin tools, …)
 ├── components/           # Shared UI, including shadcn/ui primitives in components/ui
 ├── context/              # React context providers (Auth, Schedule, Announcements)
 ├── hooks/                # Reusable hooks (e.g. useRequireProfile)
@@ -151,12 +151,12 @@ The website uses the **app's** Supabase project (`dgrskmykbkvphnaasfzl`), so an 
 
 - **No schema from this repo.** There is no `supabase/` folder here any more (it held the website's old project, `spsxfbvamwxsmtjkwxko`). Never run `supabase db push`, `db reset` or `link` against the shared project from this repo. A schema change is a new `.sql` file in the app repo's `supabase/`, run by Arjun.
 - **Additive only.** The app on people's phones reads these columns. Never rename or drop a column or change what an RPC returns.
-- **Write through the app's RPCs.** `register_for_session` (with `p_intent`), `set_session_manage`, `mark_summit_checkin`, `scan_summit_checkin` and the rest. Several tables have no direct write grant on purpose.
+- **Write through the app's RPCs.** `register_for_session` (with `p_intent`), `set_session_manage`, `mark_session_attendance` and the rest. Several tables have no direct write grant on purpose.
 - **RLS and the RPCs are the security.** If a call is refused, the website is doing something the app doesn't allow either. Match the app; don't ask for a looser policy.
 
-**What the website reads and writes today:** `profiles` (own row), `disciplines` and `sessions_with_counts` (catalog), `sessions` (editors), `registrations` and `session_volunteers` (schedule), `rooms`, `volunteer_hour_logs`, `expert_feedback`, `eaf_future_interest`, `announcements`, `announcement_reads` and `announcement_dismissals` plus the `announcement_attachments` bucket, `role_allowlist`, and these RPCs: registration (`register_for_session`, `update_my_registration`, `fetch_my_project`, `find_team`, `transfer_team_ownership`, `remove_team_member`, `session_experts`), organizing (`set_session_manage`, `fetch_session_roster`, `mark_session_attendance`, `fetch_session_volunteers`, `fetch_volunteers`, `assign_volunteer_to_session`, `unassign_volunteer_from_session`, `session_time_conflicts`, `notify_session_time_conflicts`), admin (`fetch_expert_requests`, `review_expert`, `fetch_summit_metrics`), check-in (`my_summit_checkin`, `fetch_attendee_directory`, `mark_summit_checkin`, `scan_summit_checkin`), and `fetch_volunteer_hub`, `preview_role_change`, `acknowledge_expert_decline`, `submit_expert_feedback`, `set_eaf_future_interest`, `fetch_summit_status`.
+**What the website reads and writes today:** `profiles` (own row), `disciplines` and `sessions_with_counts` (catalog), `sessions` (editors), `registrations` and `session_volunteers` (schedule), `rooms`, `volunteer_hour_logs`, `expert_feedback`, `eaf_future_interest`, `announcements`, `announcement_reads` and `announcement_dismissals` plus the `announcement_attachments` bucket, `role_allowlist`, and these RPCs: registration (`register_for_session`, `update_my_registration`, `fetch_my_project`, `find_team`, `transfer_team_ownership`, `remove_team_member`, `session_experts`), organizing (`set_session_manage`, `fetch_session_roster`, `mark_session_attendance`, `fetch_session_volunteers`, `fetch_volunteers`, `assign_volunteer_to_session`, `unassign_volunteer_from_session`, `session_time_conflicts`, `notify_session_time_conflicts`), admin (`fetch_expert_requests`, `review_expert`, `fetch_summit_metrics`), your own check-in status (`my_summit_checkin`), and `fetch_volunteer_hub`, `preview_role_change`, `acknowledge_expert_decline`, `submit_expert_feedback`, `set_eaf_future_interest`, `fetch_summit_status`.
 
-**Not on the website yet:** Archie (the AI assistant and its insights page), session photos (hero and gallery uploads), the discipline editor, and live check-in counts at the front desk. The Discover page still lists the six disciplines from `src/models/disciplines.ts`, so a discipline an admin adds in the app won't show here until it's added to that list.
+**Not on the website yet:** Archie (the AI assistant and its insights page; the Archie tab shows "Coming soon", because every chat costs a Claude API call), front-desk check-in (it scans QR passes with the phone camera, so Profile lists it as "Mobile app only"), session photos (hero and gallery uploads), and the discipline editor. The Discover page still lists the six disciplines from `src/models/disciplines.ts`, so a discipline an admin adds in the app won't show here until it's added to that list.
 
 ---
 
@@ -169,7 +169,7 @@ Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), porte
 - **Organizer tabs.** Admins, the session's managers and its editors also get Participants and Experts (grouped by project, with attendance for admins and managers), Volunteers (admins assign and remove) and Metrics (schools and grades).
 - **Editing** (`src/components/verse/SharedSessionForm.tsx`) writes the app's fields: start and end, capacity, team size, participant deadline, the project question's wording, extra questions and page sections. Moving a session's time warns about schedule clashes and notifies the people affected. Rooms stay locked (`SESSION_ROOMS_ENABLED` in `src/models/sessions.ts`), so the session page hides the room; lists still show it, as in the app.
 
-**Profile menu** (`src/pages/SettingsPage.tsx`) has the app's items by role: Sessions I'm managing, Track volunteer hours (`/volunteer/hours`), Volunteer hub, Front desk check-in, Metrics (`/admin/metrics`), Expert approvals (`/admin/experts`), Manage rooms (`/admin/rooms`), Change role, and after the summit, Summit feedback or Volunteer for EAF again (`/follow-up`).
+**Profile menu** (`src/pages/SettingsPage.tsx`) has the app's items by role: Sessions I'm managing, Track volunteer hours (`/volunteer/hours`), Volunteer hub, Front desk check-in (shown, marked "Mobile app only"), Metrics (`/admin/metrics`), Expert approvals (`/admin/experts`), Manage rooms (`/admin/rooms`), Change role, and after the summit, Summit feedback or Volunteer for EAF again (`/follow-up`).
 
 **Sign-up** (`src/pages/ProfileSetupPage.tsx`, `src/models/profileFields.ts`) asks each role the app's questions: participants pick a school from the Tri-Valley list and give a grade, experts give their expertise and a one-line bio, volunteers and admins give a mobile number. A volunteer or admin with no number, or a student volunteer or EAF ambassador with no grade, is asked for it before going on. Changing role asks the new role's questions.
 
@@ -185,9 +185,9 @@ Who may be a volunteer or an admin comes from two Google Sheets, synced every mi
 
 | Sheet | Effect |
 |---|---|
-| Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer Hub. |
+| Subtype | Labels the person as EAF Ambassador, Student volunteer, or Parent volunteer in the sidebar, the top bar, and the Volunteer hub. |
 | Disciplines | The disciplines whose sessions they can edit (with `can_edit_sessions`). |
-| `can_check_in_front_desk` | Unlocks summit-wide check-in: the whole roster, the QR scanner, and the Check In / Undo buttons (`scan_summit_checkin`, `mark_summit_checkin`). |
+| `can_check_in_front_desk` | Unlocks front-desk check-in in the mobile app (QR scanner and attendee list). The website only shows the item as "Mobile app only". |
 | `can_edit_sessions` | Lets the person add, edit, and delete sessions in their disciplines (see **Editing sessions**). |
 | `can_post_announcements` | Shown as a badge in the hub. |
 
@@ -203,7 +203,7 @@ Relevant files: `src/services/auth.ts` (`getCurrentProfile`), `src/models/roles.
 
 Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); `MOCK_ANNOUNCEMENTS` holds sample posts that no page shows. Posts are the app's `announcements` rows (`audience`, `pinned`, `discipline_id`, `target_user_id`, `created_by`, `attachments`), so a post from either side shows on both. The browser's offline copy uses the key `local_announcements_v2`.
 
-**Authoring (admins only).** The composer creates and edits posts with a category, an audience, and an optional pin-to-top. Attachments come in by drag-and-drop or a file picker:
+**Posting.** Same rules as the app's composer: admins post to Everyone or one discipline; volunteers with `can_post_announcements` post to the disciplines they manage (`discipline_id` set), never to Everyone. A post has a subject, a message, an audience, an optional pin-to-top, and photos and files. Like the app, a post can't be edited, re-pinned or given a link after it's posted; admins can delete it. Photos and files come in by drag-and-drop or a file picker:
 
 | Attachment | How it appears in the feed |
 |---|---|
@@ -211,13 +211,13 @@ Admins author the announcements every other role reads. The feed is one live lis
 | Video | Inline `<video>` player |
 | Audio | Inline `<audio>` player |
 | PDF / document | Download row with type and size |
-| Link / form | Row that opens in a new tab |
+| Link / form | Row that opens in a new tab (older posts only; new posts can't add links) |
 
 Files upload to the shared `announcement_attachments` bucket under the poster's user id (10 MB per file). Only admins and volunteers with `can_post_announcements` can write to it.
 
-**Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a post, edit, pin, or delete reaches every connected profile without a refresh.
+**Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a new or deleted post reaches every connected profile without a refresh.
 
-**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one, or its "Mark as read" button, marks it read. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
+**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
 
 **Remove from my feed.** Each post has a "Remove from my feed" button, as in the app: it hides the post for this account only (`announcement_dismissals`), with an Undo toast. Admins still delete posts for everyone with Delete.
 
@@ -225,13 +225,28 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 
 Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsContext.tsx`, `src/components/AnnouncementComposer.tsx`, `src/components/AnnouncementsPanel.tsx`, `src/components/AttachmentPreview.tsx`.
 
+
+## Notifications (planned, not built)
+
+The website has no push notifications and won't get browser push: it would need a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Push notifications** switch on Profile only saves the account's `notifications_enabled`, which the app reads; nothing on the website listens to it.
+
+Today the bell at the top right opens News. Personal notices ("You've been assigned to manage …", "You were removed from team …", expert approval, session cancelled) are announcements with `target_user_id` set, so they land in News next to the organizers' posts.
+
+**Recommended plan (not decided yet; needs SQL in the app repo first):** a separate **Notifications** feed behind the bell, on the website and in the app, with **Mark all as read**. News stays the organizers' posts.
+
+- Notifications are short, about you, and link somewhere: "Your AI Playground session starts in 1 hour", "An admin posted to everyone in TechVerse", "Maya joined your team", "Your expert sign-up was approved", "You're managing Robot Showcase".
+- A new `notifications` table (owner-only RLS, written only by SECURITY DEFINER functions): `user_id`, `kind`, `title`, `body`, `session_id` / `announcement_id` to link to, `created_at`, `read_at`. The RPCs and triggers that post personal notices today write here instead of `announcements`.
+- A new announcement adds one notification per person in its audience that links to the post. Opening that notification opens the post and marks it opened. Once the bell exists, News drops its own count (it keeps the per-post "New" dots), so a new post is counted once.
+- "Starts in 1 hour" reminders come from a scheduled job that adds rows for each person's sessions.
+- When the app's push is built, each notification row is also one push, skipped when `notifications_enabled` is off. The bell fills either way.
+
 ---
 
 ## People, check-in, and resources
 
-**Volunteer Hub** (`/volunteer`, `src/services/people.ts`). `profiles` is own-row-only, so there's no public directory. Admins and front-desk volunteers see everyone, every role, through `fetch_attendee_directory`, as the app's front desk does. Other volunteers see the sessions an admin assigned them, each linking to its session page for the roster and attendance. The sample `MOCK_PEOPLE` stand in only when no backend is configured at all (tests, offline prototyping).
+**Sessions I'm managing** (`/volunteer`, `src/pages/VolunteerDashboard.tsx`), like the app's `my_assignments_screen.dart`: the sessions an admin assigned this volunteer to, each linking to its session page for the roster and attendance. **Volunteer hub** (`/volunteer/contacts`) is the app's contact list of volunteers and admins.
 
-**Check-in.** The hub's Check In / Undo buttons call `mark_summit_checkin`, and the QR scanner calls `scan_summit_checkin`. The QR pass is the bare account id, the same as the app, so a pass on a laptop scans at the app's front desk and the reverse. Only front-desk volunteers and admins may check people in; the RPCs enforce it.
+**Check-in.** Front-desk check-in is only in the mobile app, because it scans QR passes with the phone camera; the website sends `Permissions-Policy: camera=()`. Everyone still has their QR pass on the website (Profile, and the sidebar for participants). The pass is the bare account id, the same as the app, so a pass on a laptop screen scans at the app's front desk. Home shows whether you've been checked in (`my_summit_checkin`).
 
 **Resources** (`src/models/resources.ts`, `RESOURCES`). Empty until there are real files: the page says "No resources posted yet." Add an entry with a `url` (a public file or Drive link) for each, and its card opens it in a new tab.
 
@@ -280,7 +295,7 @@ Every answer is saved in `profiles.details` (jsonb), merged with whatever the ap
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, News: the app's tab names and order, with the Volunteer Hub for volunteers), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, News, Archie: the app's tab names and order), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
 - **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
 
