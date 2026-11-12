@@ -94,6 +94,8 @@ const UNLOCK_MS = 1400;
 /** The headline's glide from the middle of the sky up to its place, clearing room for the details. */
 const GLIDE_MS = 900;
 const SKIP_GLIDE_MS = 450;
+/** The beat the name rests under the night sky after the sun has set, before it lifts. */
+const SETTLE_HOLD_MS = 900;
 /** The ground under the sky fading off (landing.css, .lp-hero__ground). */
 const GROUND_FADE_MS = 700;
 
@@ -113,6 +115,7 @@ export default function WelcomePage() {
   const [introGone, setIntroGone] = useState(!playingIntro);
   const titleRef = useRef<HTMLSpanElement>(null);
   const glidingRef = useRef(false);
+  const holdRef = useRef<ReturnType<typeof setTimeout>>();
   const [part, setPart] = useState(0);
   const [badge, setBadge] = useState(-1);
 
@@ -171,7 +174,14 @@ export default function WelcomePage() {
     anim.onfinish = () => anim.cancel();
   };
 
+  /** The sun is down: let the sky stand a moment, then bring the page in. */
+  const onSunSet = () => {
+    holdRef.current = setTimeout(() => settle(GLIDE_MS), SETTLE_HOLD_MS);
+  };
+  useEffect(() => () => clearTimeout(holdRef.current), []);
+
   const skipIntro = () => {
+    clearTimeout(holdRef.current);
     setSkipped(true);
     settle(SKIP_GLIDE_MS);
   };
@@ -248,7 +258,7 @@ export default function WelcomePage() {
           aria-labelledby="hero-title"
         >
           <SkyVideo
-            behindRidges={sunUp && !skipped ? <SunArc onFrame={onSunFrame} onDone={() => settle(GLIDE_MS)} /> : null}
+            behindRidges={sunUp && !skipped ? <SunArc onFrame={onSunFrame} onDone={onSunSet} /> : null}
           />
           <div className="lp-hero__scrim" aria-hidden />
           {!introGone && <div className="lp-hero__ground" data-done={revealed || undefined} aria-hidden />}
