@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { RIDGES, RIDGE_WIDTH } from './skyGeometry';
 
 const TAU = Math.PI * 2;
@@ -92,6 +92,8 @@ interface MountainSkylineProps {
   playIntro?: boolean;
   skip?: boolean;
   onCueContent?: () => void;
+  /** Drawn in the sky but behind the ridges, so it can rise and set behind them. */
+  behindRidges?: ReactNode;
 }
 
 /**
@@ -105,6 +107,7 @@ export default function MountainSkyline({
   playIntro = false,
   skip = false,
   onCueContent,
+  behindRidges,
 }: MountainSkylineProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -717,6 +720,8 @@ export default function MountainSkyline({
             'radial-gradient(circle, #22C55E44 0%, #0C7A5522 45%, transparent 75%)',
         }}
       />
+
+      {behindRidges}
 
       {RIDGES.map((ridge, i) => (
         <svg

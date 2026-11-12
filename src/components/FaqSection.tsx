@@ -14,7 +14,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'When and where is the next Summit?',
-    a: 'January 2027 at Emerald High School, 3600 Central Pkwy, Dublin, CA.',
+    a: 'Saturday, January 23, 2027, at Emerald High School, 3600 Central Pkwy, Dublin, CA.',
   },
   {
     q: 'What are the six universes?',
@@ -42,35 +42,33 @@ const FAQ_ITEMS: FaqItem[] = [
   },
 ];
 
-function FaqRow({ item, open, onToggle }: { item: FaqItem; open: boolean; onToggle: () => void }) {
+function FaqRow({
+  item,
+  index,
+  open,
+  onToggle,
+}: {
+  item: FaqItem;
+  index: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const panelId = `faq-answer-${index}`;
   return (
-    <div className="border-b border-border/70 last:border-b-0">
+    <div className="lp-faq__row">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 py-5 text-left"
+        aria-controls={panelId}
+        className="lp-faq__q"
       >
-        <span className="text-[15px] font-semibold text-foreground lg:text-base">
-          {item.q}
-        </span>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300',
-            open && 'rotate-180 text-emerald-mint',
-          )}
-        />
+        <span>{item.q}</span>
+        <ChevronDown className="lp-faq__icon" aria-hidden />
       </button>
-      <div
-        className={cn(
-          'grid transition-all duration-300 ease-out',
-          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
-        )}
-      >
-        <div className="overflow-hidden">
-          <p className="pb-5 text-sm leading-relaxed text-muted-foreground lg:text-[15px]">
-            {item.a}
-          </p>
+      <div id={panelId} className={cn('lp-faq__a', open && 'is-open')}>
+        <div>
+          <p>{item.a}</p>
         </div>
       </div>
     </div>
@@ -81,23 +79,23 @@ export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="scroll-mt-20 py-20 lg:scroll-mt-24 lg:py-28">
-      <p className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-emerald-mint">
-        Questions
-      </p>
-      <h2 className="mt-3 font-hero text-3xl font-bold leading-tight tracking-tight text-navy-bright sm:text-4xl lg:text-5xl">
-        Frequently asked <span className="text-gradient-emerald">questions</span>
-      </h2>
+    <section id="faq" className="lp-section" aria-labelledby="faq-title">
+      <div className="container lp-grid">
+        <div className="lp-faq__head">
+          <h2 id="faq-title">Anything else before January?</h2>
+        </div>
 
-      <div className="glass mt-10 rounded-2xl px-5 lg:px-7">
-        {FAQ_ITEMS.map((item, i) => (
-          <FaqRow
-            key={item.q}
-            item={item}
-            open={openIndex === i}
-            onToggle={() => setOpenIndex((current) => (current === i ? null : i))}
-          />
-        ))}
+        <div className="lp-faq__list">
+          {FAQ_ITEMS.map((item, i) => (
+            <FaqRow
+              key={item.q}
+              item={item}
+              index={i}
+              open={openIndex === i}
+              onToggle={() => setOpenIndex((current) => (current === i ? null : i))}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

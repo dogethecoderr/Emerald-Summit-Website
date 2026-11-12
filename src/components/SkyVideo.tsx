@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import MountainSkyline from './MountainSkyline';
 
@@ -43,6 +43,8 @@ interface SkyVideoProps {
   /** Set when the viewer hits Skip; jumps straight to the settled sky. */
   skip?: boolean;
   onCueContent?: () => void;
+  /** Passed to the live sky: drawn behind its ridges. */
+  behindRidges?: ReactNode;
 }
 
 /**
@@ -57,6 +59,7 @@ export default function SkyVideo({
   playIntro = false,
   skip = false,
   onCueContent,
+  behindRidges,
 }: SkyVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const cuedRef = useRef(false);
@@ -232,7 +235,7 @@ export default function SkyVideo({
             animation: ended ? 'sky-handover 700ms ease-out forwards' : undefined,
           }}
         >
-          <MountainSkyline />
+          <MountainSkyline behindRidges={behindRidges} />
         </div>
       )}
 
@@ -241,6 +244,7 @@ export default function SkyVideo({
           darken the band. */}
       {!showLiveSky && (
         <div
+          data-sky-fade
           className="absolute inset-x-0 bottom-0 h-24"
           style={{
             background:

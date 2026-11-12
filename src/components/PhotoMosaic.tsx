@@ -1,30 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
-/** All 36 downloaded event photos, grouped sequentially into sets of
+/** The downloaded event photos, grouped sequentially into sets of
  * [large tile, top-right tile, bottom-right tile] so the rotation works
- * through the entire gallery rather than a small curated handful. */
+ * through the gallery rather than a small curated handful. Left out, at the
+ * owner's request: the trading-leaderboard and final-rankings screenshots
+ * (photos 32 and 33). */
 const GALLERY_COUNT = 36;
+const LEFT_OUT = new Set([32, 33]);
+const PHOTOS = Array.from({ length: GALLERY_COUNT }, (_, i) => i + 1)
+  .filter((n) => !LEFT_OUT.has(n))
+  .map((n) => `/gallery/photo-${String(n).padStart(2, '0')}.jpg`);
 const PHOTO_SETS: [string, string, string][] = Array.from(
-  { length: Math.floor(GALLERY_COUNT / 3) },
-  (_, i) => {
-    const n = (offset: number) =>
-      `/gallery/photo-${String(i * 3 + offset).padStart(2, '0')}.jpg`;
-    return [n(1), n(2), n(3)];
-  },
+  { length: Math.floor(PHOTOS.length / 3) },
+  (_, i) => [PHOTOS[i * 3], PHOTOS[i * 3 + 1], PHOTOS[i * 3 + 2]],
 );
 
 const ROTATE_MS = 4500;
 
 function Tile({ src, className }: { src: string; className: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/5 ${className}`}>
+    <div className={`lp-mosaic__tile ${className}`} data-slot="mosaic" data-alt="A photograph from the last Summit">
       <AnimatePresence initial={false}>
         <motion.img
           key={src}
           src={src}
-          alt="Emerald Summit"
-          className="absolute inset-0 h-full w-full object-cover"
+          alt=""
           loading="lazy"
           // Hands the JPEG decode to the browser's own thread instead of
           // letting it land on the main thread mid-scroll.
@@ -32,31 +33,48 @@ function Tile({ src, className }: { src: string; className: string }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.8, ease: 'easeInOut' }}
+          transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
         />
       </AnimatePresence>
     </div>
   );
 }
 
-/** Compact 1-large + 2-stacked photo mosaic that periodically swaps in a
- * different trio of event photos (crossfade, not a moving/spinning effect). */
+/**
+ * 1-large + 2-stacked photo mosaic that swaps in a different trio of event
+ * photos every few seconds (a crossfade, not a moving effect). It only runs
+ * while on screen and holds still under the pointer or keyboard focus (the
+ * group is focusable for that); reduced motion shows the first trio and stays put.
+ */
 export default function PhotoMosaic({ className = '' }: { className?: string }) {
   const reduceMotion = useReducedMotion();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [seen, setSeen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const running = !reduceMotion && seen && !hover && !focus;
 
   useEffect(() => {
-    if (reduceMotion) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!running) return;
     const id = setInterval(() => {
       setIndex((i) => (i + 1) % PHOTO_SETS.length);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, [reduceMotion]);
+  }, [running]);
 
   // Fetch and decode the next trio while the browser is idle, so the swap
   // never pays for a decode at the moment it needs to paint.
   useEffect(() => {
-    if (reduceMotion) return;
+    if (!running) return;
     const next = PHOTO_SETS[(index + 1) % PHOTO_SETS.length];
     const idle: typeof requestIdleCallback | undefined =
       typeof requestIdleCallback === 'function' ? requestIdleCallback : undefined;
@@ -80,13 +98,23 @@ export default function PhotoMosaic({ className = '' }: { className?: string }) 
         clearTimeout(handle as ReturnType<typeof setTimeout>);
       }
     };
-  }, [index, reduceMotion]);
+  }, [index, running]);
 
   const [large, topRight, bottomRight] = PHOTO_SETS[index];
 
   return (
-    <div className={`relative grid aspect-[5/4] grid-cols-2 gap-3 ${className}`}>
-      <Tile src={large} className="row-span-2" />
+    <div
+      ref={rootRef}
+      className={`lp-mosaic ${className}`}
+      role="group"
+      tabIndex={0}
+      aria-label="Photographs from the last Summit, changing every few seconds; hover or focus to hold them"
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      onFocus={() => setFocus(true)}
+      onBlur={() => setFocus(false)}
+    >
+      <Tile src={large} className="lp-mosaic__tile--large" />
       <Tile src={topRight} className="" />
       <Tile src={bottomRight} className="" />
     </div>

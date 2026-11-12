@@ -1,59 +1,79 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
-import {
-  ArrowRight,
-  CalendarDays,
-  Clock3,
-  MapPin,
-  Sparkles,
-} from '@/components/icons';
 import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
 import SkyVideo from '../components/SkyVideo';
-import PhotoMosaic from '../components/PhotoMosaic';
 import FaqSection from '../components/FaqSection';
-import CtaBand from '../components/CtaBand';
-import LandingFooter from '../components/LandingFooter';
 import OrbitalUniverses from '../components/OrbitalUniverses';
-import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
-import { Button } from '@/components/ui/button';
+import PhotoMosaic from '../components/PhotoMosaic';
+import LandingFooter from '../components/LandingFooter';
+import PhotoRail from '../landing/PhotoRail';
+import HairlineFigure from '../landing/HairlineFigure';
+import { SIGN_IN_ROLES } from '../models/roles';
+import { DAY_PARTS, type DayPart } from '../landing/dayParts';
+import SunArc from '../landing/SunArc';
+import '../landing/landing.css';
 
 const VENUE = 'Emerald High School, Dublin, CA';
 
 /** Opens the venue in Google Maps (a new tab, or the Maps app on phones). */
 const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(VENUE)}`;
 
-const FACTS: { icon: typeof MapPin; text: string; href?: string }[] = [
-  { icon: CalendarDays, text: 'January 2027' },
-  { icon: Clock3, text: '9:00 AM – 5:00 PM' },
-  { icon: MapPin, text: VENUE, href: VENUE_MAP_URL },
+const FACTS: { label: string; text: string; href?: string }[] = [
+  { label: 'Date', text: 'Saturday, January 23, 2027' },
+  { label: 'Hours', text: '9:00 AM to 5:00 PM' },
+  { label: 'Place', text: 'Emerald High School, 3600 Central Pkwy, Dublin, CA', href: VENUE_MAP_URL },
+  { label: 'Cost', text: 'Free to attend and to compete' },
 ];
 
 const ABOUT_STATS = [
-  { value: '20+', label: 'Tracks' },
-  { value: '30+', label: 'Visiting experts' },
-  { value: '6', label: 'Universes' },
-  { value: '1', label: 'Day' },
+  { value: '20+', label: 'Tracks', note: 'From Robothon to Mock Trial' },
+  { value: '30+', label: 'Visiting experts', note: 'Judging the tracks and giving the talks' },
+  { value: '6', label: 'Universes', note: 'TechVerse to CivicVerse' },
+  { value: '1', label: 'Day', note: 'One campus, Emerald High' },
 ];
 
+/** The five roles anyone can sign in as, in the order the badges hang. */
+const BADGE_ROLES = SIGN_IN_ROLES;
 
+/** The owner's own photographs from the last Summit, in rail order. */
+const DAY_PHOTOS: { n: number; alt: string; tall?: boolean }[] = [
+  { n: 19, alt: 'Two students pitch their project to a visiting expert' },
+  { n: 10, alt: 'Students gather around a competition robot' },
+  { n: 13, alt: 'A student walks a visitor through her design project poster' },
+  { n: 28, alt: 'A VentureVerse panel on stage in the lecture hall' },
+  { n: 17, alt: 'Three students present to a judge' },
+  { n: 26, alt: 'Students and families fill the gym bleachers' },
+  { n: 30, alt: 'A team presents their BiteWise nutrition pitch' },
+  { n: 34, alt: 'Two students hold up their award certificates', tall: true },
+  { n: 21, alt: 'Winners on the gym floor with flowers and a judge' },
+];
+
+const photo = (n: number) => `/gallery/photo-${String(n).padStart(2, '0')}.jpg`;
+
+const RAIL_PHOTOS = DAY_PHOTOS.map((p) => ({
+  src: photo(p.n),
+  alt: p.alt,
+  width: p.tall ? 900 : 1200,
+  height: p.tall ? 1200 : 798,
+}));
 
 /**
  * Container that cascades its children in. `custom` is the beat to hold
- * before the first child moves — long enough after the jump for the night
+ * before the first child moves: long enough after the jump for the night
  * sky to stand alone for a moment, short on an ordinary load.
  */
 const stagger: Variants = {
   hidden: {},
   show: (delayChildren: number) => ({
-    transition: { staggerChildren: 0.09, delayChildren },
+    transition: { staggerChildren: 0.08, delayChildren },
   }),
 };
 
-/** Soft rise used for most hero elements. */
+/** One settle: a fade with an 8px rise. */
 const rise: Variants = {
-  hidden: { opacity: 0, y: 16 },
+  hidden: { opacity: 0, y: 8 },
   show: {
     opacity: 1,
     y: 0,
@@ -62,59 +82,18 @@ const rise: Variants = {
 };
 
 /**
- * Shared scroll-in for the sections below the hero. Trips as soon as a slice
- * of the block is on screen (rather than 80px past the edge), travels a
- * shorter distance over longer, and rides a gentle curve instead of the
- * hero's snappy expo — so things ease in as you scroll rather than popping.
- */
-const scrollIn = {
-  initial: { opacity: 0, y: 16 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.15 },
-  transition: { duration: 0.95, ease: [0.22, 0.61, 0.36, 1] },
-} as const;
-
-/** Masked line that slides up from behind its clip. */
-const lineReveal: Variants = {
-  hidden: { y: '110%' },
-  show: {
-    y: '0%',
-    transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1] },
-  },
-};
-
-/** Barely-there emerald wash under the "Emerald" line — still reads white. */
-const EMERALD_GRADIENT =
-  'linear-gradient(100deg, #ffffff 5%, #f2fdf8 45%, #d1fae5 95%)';
-/** Emerald run under the "Summit" line. */
-const SUMMIT_GRADIENT =
-  'linear-gradient(100deg, #d1fae5 5%, #6ee7b7 45%, #22c55e 95%)';
-
-/** Highlight colours for the sweep — pale emerald up top, white below. */
-const GLINT_EMERALD = 'rgba(167, 243, 208, 0.95)';
-const GLINT_WHITE = 'rgba(255, 255, 255, 0.92)';
-/**
- * Hold before the lower line picks the sweep up, so one highlight appears to
- * travel from the "E" of Emerald through to the "t" of Summit.
- */
-const GLINT_HANDOFF = '0.7s';
-
-/** Narrow highlight band riding above the line's own gradient. */
-function glintLayers(base: string, band: string) {
-  return {
-    backgroundImage: `linear-gradient(100deg, transparent 47%, ${band} 50%, transparent 53%), ${base}`,
-    backgroundSize: '300% 100%, 100% 100%',
-  };
-}
-
-/**
  * The sky cues us the moment the sun is down, so the copy arrives *with* the
- * returning stars rather than after them — only a short beat is needed here.
+ * returning stars rather than after them; only a short beat is needed here.
  */
 const AFTER_INTRO_DELAY = 0.25;
 /** Nav drops in just behind the copy, then scrolling is handed back. */
-const NAV_DELAY = 1.2;
-const UNLOCK_MS = 2200;
+const NAV_DELAY = 0.5;
+const UNLOCK_MS = 1400;
+/** The headline's glide from the middle of the sky down to its place. */
+const GLIDE_MS = 900;
+const SKIP_GLIDE_MS = 450;
+/** The ground under the sky fading off (landing.css, .lp-hero__ground). */
+const GROUND_FADE_MS = 700;
 
 export default function WelcomePage() {
   const navigate = useNavigate();
@@ -126,14 +105,70 @@ export default function WelcomePage() {
   const [revealed, setRevealed] = useState(() => !shouldPlayIntro());
   const [locked, setLocked] = useState(playingIntro);
   const [skipped, setSkipped] = useState(false);
+  /** The sun is still crossing the sky. */
+  const [sunUp, setSunUp] = useState(playingIntro);
+  /** The intro's ground and pinned headline, dropped once both have settled. */
+  const [introGone, setIntroGone] = useState(!playingIntro);
+  const titleRef = useRef<HTMLSpanElement>(null);
+  const glidingRef = useRef(false);
+  const [part, setPart] = useState(0);
+  const [badge, setBadge] = useState(-1);
 
   useEffect(() => {
     if (playingIntro) markIntroPlayed();
   }, [playingIntro]);
 
+  // While the sun crosses, the headline waits in the middle of the sky, wiped
+  // on as the sun climbs (the app's splash does the same with its wordmark).
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    const hero = el?.closest('.lp-hero');
+    if (!playingIntro || !el || !hero || glidingRef.current) return;
+    // Measured from its own place, so running twice (React's dev check) still centres it.
+    el.style.transform = '';
+    const h = hero.getBoundingClientRect();
+    const t = el.getBoundingClientRect();
+    const dx = h.left + h.width / 2 - (t.left + t.width / 2);
+    const dy = h.top + h.height * 0.46 - (t.top + t.height / 2);
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    el.style.clipPath = 'inset(0 100% 0 0)';
+  }, [playingIntro]);
+
+  /** The wipe: from 28% to 52% of the sun's crossing, easing out. */
+  const onSunFrame = (t: number) => {
+    const el = titleRef.current;
+    if (!el || glidingRef.current) return;
+    const p = Math.min(1, Math.max(0, (t - 0.28) / 0.24));
+    const e = 1 - (1 - p) ** 3;
+    el.style.clipPath = `inset(-0.2em ${(1 - e) * 100}% -0.2em 0)`;
+  };
+
+  /** The sun has set (or Skip): the headline glides to its place and the page comes in. */
+  const settle = (ms: number) => {
+    if (glidingRef.current) return;
+    glidingRef.current = true;
+    setSunUp(false);
+    setRevealed(true);
+    const el = titleRef.current;
+    const done = () => setIntroGone(true);
+    if (!el) {
+      done();
+      return;
+    }
+    const from = el.style.transform || 'none';
+    el.style.transform = '';
+    el.style.clipPath = '';
+    const anim = el.animate([{ transform: from }, { transform: 'none' }], {
+      duration: ms,
+      easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    });
+    setTimeout(done, Math.max(ms, GROUND_FADE_MS) + 50);
+    anim.onfinish = () => anim.cancel();
+  };
+
   const skipIntro = () => {
     setSkipped(true);
-    setRevealed(true);
+    settle(SKIP_GLIDE_MS);
   };
 
   // Hold the scroll position until the whole reveal has landed. The document
@@ -182,306 +217,231 @@ export default function WelcomePage() {
   }, [location.state]);
 
   return (
-    <div className="relative min-h-screen overflow-clip">
+    <div className="lp lp-page">
       <LandingNav
         overlay
         entered={playingIntro ? revealed : undefined}
         entranceDelay={NAV_DELAY}
       />
 
-      {/* Stays for the whole sequence — halo behind it so it reads against
-          both the black void and the lit sun. */}
-      {playingIntro && !revealed && (
-        <div className="fixed bottom-9 left-1/2 z-[110] -translate-x-1/2">
-          <div
-            className="pointer-events-none absolute -inset-4 rounded-full bg-black/60 blur-xl"
-            aria-hidden
-          />
-          <button
-            type="button"
-            onClick={skipIntro}
-            className="relative rounded-full border border-white/60 bg-white/10 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-white backdrop-blur-md transition hover:border-white hover:bg-white/25"
-          >
+      {playingIntro && !revealed && !skipped && (
+        <div className="lp-night lp-skip">
+          <button type="button" onClick={skipIntro} className="lp-btn lp-btn--quiet">
             Skip
           </button>
         </div>
       )}
 
-      {/* dark night-sky hero band — fills the full viewport so nothing below peeks in on load */}
-      <div className="relative min-h-screen overflow-hidden">
-        <SkyVideo
-          playIntro={playingIntro}
-          skip={skipped}
-          onCueContent={() => setRevealed(true)}
-        />
-
-        <div className="relative z-10 flex min-h-screen flex-col">
-          <div className="relative mx-auto flex w-full max-w-[1440px] flex-1 flex-col px-6 lg:px-14">
-            <motion.section
-              className="flex flex-1 flex-col items-center justify-center pb-20 pt-20 text-center lg:pb-28 lg:pt-24"
-              variants={stagger}
-              initial="hidden"
-              animate={revealed ? 'show' : 'hidden'}
-              custom={playingIntro ? AFTER_INTRO_DELAY : 0.15}
-            >
-              <motion.div
-                variants={rise}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur-sm lg:px-5 lg:py-2 lg:text-sm"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Summit ’27 · The Tri-Valley’s largest student-led STEAM conference
-              </motion.div>
-
-              <h1 className="mt-7 font-title text-6xl font-normal leading-[0.98] tracking-tight text-white sm:text-7xl md:text-8xl xl:text-9xl">
-                <span className="block overflow-hidden pb-[0.06em]">
-                  <motion.span
-                    className={`block bg-clip-text text-transparent ${
-                      reduceMotion ? '' : 'animate-glint'
-                    }`}
-                    style={
-                      reduceMotion
-                        ? { backgroundImage: EMERALD_GRADIENT }
-                        : glintLayers(EMERALD_GRADIENT, GLINT_EMERALD)
-                    }
-                    variants={lineReveal}
-                  >
-                    Emerald
-                  </motion.span>
-                </span>
-                <span className="mt-1 block overflow-hidden pb-[0.06em] sm:mt-2">
-                  <motion.span
-                    className={`block bg-clip-text text-transparent ${
-                      reduceMotion ? '' : 'animate-glint'
-                    }`}
-                    style={
-                      reduceMotion
-                        ? { backgroundImage: SUMMIT_GRADIENT }
-                        : {
-                            ...glintLayers(SUMMIT_GRADIENT, GLINT_WHITE),
-                            animationDelay: GLINT_HANDOFF,
-                          }
-                    }
-                    variants={lineReveal}
-                  >
-                    Summit
-                  </motion.span>
-                </span>
-              </h1>
-
-              <motion.div
-                variants={rise}
-                className="mt-8 flex flex-wrap items-center justify-center gap-2.5"
-              >
-                {FACTS.map(({ icon: Icon, text, href }) => {
-                  const chip =
-                    'inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-semibold text-emerald-100 backdrop-blur-sm lg:px-6 lg:py-2.5 lg:text-[15px]';
-                  return href ? (
-                    <a
-                      key={text}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${text} (opens Google Maps)`}
-                      className={`${chip} transition-colors hover:border-emerald-300/60 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300`}
-                    >
-                      <Icon className="h-3.5 w-3.5 opacity-80 lg:h-4 lg:w-4" />
-                      {text}
-                    </a>
-                  ) : (
-                    <span key={text} className={chip}>
-                      <Icon className="h-3.5 w-3.5 opacity-80 lg:h-4 lg:w-4" />
-                      {text}
-                    </span>
-                  );
-                })}
-              </motion.div>
-
-              <motion.div
-                variants={rise}
-                className="mt-10 flex flex-wrap items-center justify-center gap-3"
-              >
-                <Button
-                  size="lg"
-                  className="group h-12 rounded-full bg-emerald-400 px-8 text-[15px] font-semibold text-emerald-950 shadow-[0_0_40px_-8px_rgba(52,211,153,0.6)] transition-all duration-200 hover:scale-[1.04] hover:bg-emerald-300 hover:shadow-[0_0_56px_-8px_rgba(52,211,153,0.8)] active:scale-[0.98] lg:h-14 lg:px-12 lg:text-lg"
-                  onClick={() => navigate('/home')}
-                >
-                  Get started
-                  <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1 lg:h-5 lg:w-5" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 rounded-full border-white/25 bg-white/5 px-8 text-[15px] font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:scale-[1.03] hover:bg-white/10 active:scale-[0.98] lg:h-14 lg:px-12 lg:text-lg"
-                  onClick={() => navigate('/app')}
-                >
-                  Explore the app
-                </Button>
-              </motion.div>
-
-              {/* discipline strip */}
-              <motion.div variants={rise} className="relative mt-14">
-                {/* soft blurred halo lifting the labels off the mountain ridgeline */}
-                <div
-                  className="absolute inset-[-20px] rounded-full bg-black/25 blur-2xl"
-                  aria-hidden
-                />
-                <div className="relative flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-                  {USER_DISCIPLINES.map((d) => (
-                    <span
-                      key={d.name}
-                      className="inline-flex items-center gap-1.5 font-mono text-[12px] font-medium tracking-tight text-white/55 lg:gap-2 lg:text-[13px]"
-                    >
-                      <span
-                        className="h-1.5 w-1.5 rounded-full lg:h-2 lg:w-2"
-                        style={{ background: d.color, boxShadow: `0 0 8px -1px ${d.color}` }}
-                        aria-hidden
-                      />
-                      {d.label}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-
-              {/* scroll cue */}
-              {!reduceMotion && (
-                <motion.button
-                  type="button"
-                  onClick={() =>
-                    document
-                      .getElementById('about')
-                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                  className="mt-12 flex flex-col items-center gap-1 text-white/40 transition-colors hover:text-emerald-200"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: revealed ? 1 : 0 }}
-                  transition={{ delay: revealed ? 1.2 : 0, duration: 0.8 }}
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-[0.25em]">
-                    Scroll
-                  </span>
-                  <motion.div
-                    className="h-8 w-[1.5px] rounded-full bg-gradient-to-b from-emerald-300/70 to-transparent"
-                    animate={{ scaleY: [0.4, 1, 0.4], opacity: [0.4, 1, 0.4] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{ transformOrigin: 'top' }}
-                  />
-                </motion.button>
-              )}
-            </motion.section>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative mx-auto flex max-w-[1440px] flex-col px-6 lg:px-14">
-        {/* about / event summary */}
+      <main id="main">
+        {/* Ledge: the night sky is the tall field; the name rests at its base. */}
+        {/* The arrival plays in this same sky: the sun rises and sets behind
+            its ridges, while a ground below hides the rest of the page; then
+            the headline glides down to its place and the ground fades off. */}
         <section
-          id="about"
-          className="scroll-mt-20 py-20 lg:py-28 lg:scroll-mt-24"
+          className={`lp-hero lp-night${introGone ? '' : ' lp-hero--intro'}`}
+          aria-labelledby="hero-title"
         >
-          <div className="grid gap-12 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-16 xl:gap-24">
-            <motion.div
-              {...scrollIn}
-            >
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-emerald-mint">
-                About the Summit
+          <SkyVideo
+            behindRidges={sunUp && !skipped ? <SunArc onFrame={onSunFrame} onDone={() => settle(GLIDE_MS)} /> : null}
+          />
+          <div className="lp-hero__scrim" aria-hidden />
+          {!introGone && <div className="lp-hero__ground" data-done={revealed || undefined} aria-hidden />}
+
+          <motion.div
+            className="container lp-grid lp-hero__inner"
+            variants={stagger}
+            initial={reduceMotion ? false : 'hidden'}
+            animate={revealed ? 'show' : 'hidden'}
+            custom={playingIntro ? AFTER_INTRO_DELAY : 0.1}
+          >
+            <motion.h1 id="hero-title" className="lp-hero__title" variants={playingIntro ? undefined : rise}>
+              <span ref={titleRef} className="lp-hero__title-in">
+                <span>Emerald</span>
+                <span>Summit</span>
+              </span>
+            </motion.h1>
+
+            <motion.div className="lp-hero__aside" variants={rise}>
+              <p className="lead lp-hero__lede">
+                The Tri-Valley’s largest student-led STEAM conference.
               </p>
-              <h2 className="mt-3 font-hero text-3xl font-bold leading-tight tracking-tight text-navy-bright sm:text-4xl lg:text-5xl">
-                One Summit. <span className="text-gradient-emerald">Six universes.</span>
-              </h2>
-              <p className="mt-5 text-base leading-relaxed text-muted-foreground lg:text-lg">
-                Emerald Summit is the Tri-Valley’s largest student-led STEAM
-                conference. It is a full day where hundreds of builders move between six
+              <p className="lp-hero__when">
+                Saturday, January 23, 2027
+                <br />
+                9 AM to 5 PM, Emerald High School, Dublin
+              </p>
+              <div className="lp-hero__actions">
+                <button type="button" className="lp-btn" onClick={() => navigate('/home')}>
+                  Get started
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* What is it? The answer, the owner's photograph, the four figures. */}
+        <section id="about" className="lp-section" aria-labelledby="about-title">
+          <div className="container lp-grid">
+            <div className="lp-about__text">
+              <h2 id="about-title">What is Emerald Summit?</h2>
+              <p>
+                A full day where hundreds of builders move between six
                 disciplines (universes), pitch to visiting experts, and leave
                 with something better than they started with.
               </p>
-              
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button
-                  size="lg"
-                  className="glow-emerald h-12 rounded-full bg-primary px-7 text-[15px] font-semibold hover:bg-emerald"
-                  onClick={() => navigate('/home')}
-                >
-                  Get started <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 rounded-full border-border/80 bg-secondary/30 px-7 text-[15px] font-semibold hover:border-emerald-glow/50 hover:bg-accent"
-                  onClick={() => navigate('/app')}
-                >
-                  Explore the app
-                </Button>
-              </div>
-
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                {ABOUT_STATS.map((s) => (
-                  <div
-                    key={s.label}
-                    className="glass rounded-2xl p-6 text-center"
-                    style={{
-                      borderColor: 'rgba(30, 58, 107, 0.65)',
-                      borderWidth: '2px',
-                    }}
-                  >
-                    <div className="font-hero text-3xl font-bold text-gradient-emerald lg:text-4xl">
-                      {s.value}
-                    </div>
-                    <div className="mt-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {s.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              {...scrollIn}
-              transition={{ ...scrollIn.transition, delay: 0.12 }}
-            >
-              <PhotoMosaic />
-            </motion.div>
-          </div>
-
-          {/* when & where */}
-          <motion.div
-            className="mt-6 glass rounded-2xl p-6"
-            {...scrollIn}
-            transition={{ ...scrollIn.transition, delay: 0.24 }}
-          >
-            <h3 className="font-hero text-lg font-semibold">When &amp; where</h3>
-            <ul className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-              {FACTS.map(({ icon: Icon, text, href }) => (
-                <li key={text} className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-emerald-mint" />
-                  {href ? (
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline-offset-4 hover:text-foreground hover:underline"
-                    >
-                      {text}
-                    </a>
-                  ) : (
-                    text
-                  )}
-                </li>
+            </div>
+            <PhotoMosaic className="lp-about__photo" />
+            <dl className="lp-figures">
+              {ABOUT_STATS.map((s) => (
+                <div key={s.label}>
+                  <dt>
+                    <span className="lp-figures__label">{s.label}</span>
+                    <span className="lp-figures__note">{s.note}</span>
+                  </dt>
+                  <dd>{s.value}</dd>
+                </div>
               ))}
-            </ul>
-          </motion.div>
+            </dl>
+          </div>
         </section>
-      </div>
 
-      {/* six universes — scroll-driven orbit */}
-      <OrbitalUniverses />
+        {/* The day from the peak down: the Summit figure, and the part of the day it has out. */}
+        <section id="day" className="lp-section lp-day" aria-labelledby="day-title">
+          <div className="container lp-grid lp-day__inner">
+            <div className="lp-day__head">
+              <h2 id="day-title">What happens on Summit day?</h2>
+            </div>
+            <figure className="lp-day__figure">
+              <HairlineFigure
+                name="summit"
+                label="The Summit day as a stepped mountain of six terraces, check-in at the peak down to awards at the base, with Emerald High's flag on top"
+                className="lp-hairline lp-hairline--summit"
+                onPick={setPart}
+              />
+              <figcaption className="lp-day__hint">Hover over a terrace to see that part of the day.</figcaption>
+            </figure>
+            <DayPanel part={DAY_PARTS[part]} index={part} />
+          </div>
+        </section>
 
-      <div className="relative mx-auto max-w-[1440px] px-6 lg:px-14">
+        {/* The lineup: a scroll-driven orbit of the six universes and their tracks. */}
+        <OrbitalUniverses />
+
+        {/* The day, in the owner's photographs. */}
+        <section className="lp-section lp-section--tight" aria-labelledby="rail-title">
+          <PhotoRail
+            photos={RAIL_PHOTOS}
+            label="Photographs from the last Summit"
+            renderControls={(controls) => (
+              <div className="container">
+                <div className="lp-head lp-head--row">
+                  <h2 id="rail-title">What did the previous years look like?</h2>
+                  {controls}
+                </div>
+              </div>
+            )}
+          />
+        </section>
+
+        {/* Where and when, as a table on a change of paper. */}
+        <section id="venue" className="lp-section lp-venue" aria-labelledby="venue-title">
+          <div className="container">
+            <div className="lp-head">
+              <h2 id="venue-title">How do I get to Emerald High?</h2>
+            </div>
+            <dl className="lp-facts">
+              {FACTS.map(({ label, text, href }) => (
+                <div key={label} className="lp-grid">
+                  <dt>{label}</dt>
+                  <dd>
+                    <span>{text}</span>
+                    {href && (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${VENUE} (opens Google Maps)`}
+                        className="lp-link"
+                      >
+                        Open in Google Maps
+                      </a>
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         <FaqSection />
-      </div>
 
-      <CtaBand />
+        {/* The close: who you're coming as, on the badge rack, and the way in. */}
+        <section id="roles" className="lp-section lp-roles" aria-labelledby="roles-title">
+          <div className="container lp-grid lp-roles__inner">
+            <figure className="lp-roles__figure">
+              <HairlineFigure
+                name="badges"
+                label="Five lanyard badges hanging on a rack, one for each way to sign in to the Summit"
+                className="lp-hairline"
+                onPick={setBadge}
+              />
+            </figure>
+            <div className="lp-roles__text">
+              <h2 id="roles-title">Who are you coming as?</h2>
+              <ul className="lp-roles__list">
+                {BADGE_ROLES.map((r, i) => (
+                  <li key={r.name} className={badge === i ? 'is-active' : undefined}>
+                    <h3>{r.label}</h3>
+                    <p>{r.description}</p>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="lp-btn" onClick={() => navigate('/roles')}>
+                Choose your role
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
 
       <LandingFooter />
+    </div>
+  );
+}
+
+/** The part of the day the Summit figure has out: its photograph, name and the facts about it. */
+function DayPanel({ part, index }: { part: DayPart; index: number }) {
+  return (
+    <div className="lp-day__panel" aria-live="polite">
+      {part.photo ? (
+        <figure className="lp-day__photo" data-slot={`day-part-${index + 1}`} data-alt={part.photo.alt}>
+          <img
+            key={part.photo.n}
+            src={photo(part.photo.n)}
+            width={1200}
+            height={798}
+            alt={part.photo.alt}
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
+      ) : null}
+      <p className="lp-day__step num">
+        {index + 1} of {DAY_PARTS.length}
+      </p>
+      <h3 className="lp-day__name">{part.name}</h3>
+      <ul className="lp-day__points">
+        {part.points.map((pt) => (
+          <li key={pt}>{pt}</li>
+        ))}
+        {part.pending && (
+          <li>
+            <span className="fill" data-fill={part.name}>
+              {part.pending}
+            </span>
+          </li>
+        )}
+      </ul>
     </div>
   );
 }

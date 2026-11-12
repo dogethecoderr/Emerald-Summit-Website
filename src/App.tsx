@@ -8,7 +8,6 @@ import ScrollToTop from './components/ScrollToTop';
 // for pages most visitors never open.
 import WelcomePage from './pages/WelcomePage';
 
-const AppShowcasePage = lazy(() => import('./pages/AppShowcasePage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RolesPage = lazy(() => import('./pages/RolesPage'));
@@ -39,7 +38,6 @@ export default function App() {
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <Routes>
           <Route path="/" element={<WelcomePage />} />
-          <Route path="/app" element={<AppShowcasePage />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/login/:role" element={<LoginPage />} />

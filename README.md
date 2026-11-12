@@ -7,7 +7,7 @@ A React web app used to **test, visualize, and integrate features** for the Emer
 | | |
 |---|---|
 | **Event** | Emerald Summit '27 |
-| **When** | January 2027 |
+| **When** | Saturday, January 23, 2027 |
 | **Where** | Emerald High, Dublin CA |
 | **This repo** | Web prototype — testing, visualization, and feature integration |
 | **Production app** | Separate Flutter mobile app (iOS + Android), in its own repo |
@@ -173,7 +173,7 @@ Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), porte
 
 **Sign-up** (`src/pages/ProfileSetupPage.tsx`, `src/models/profileFields.ts`) asks each role the app's questions: participants pick a school from the Tri-Valley list and give a grade, experts give their expertise and a one-line bio, volunteers and admins give a mobile number. A volunteer or admin with no number, or a student volunteer or EAF ambassador with no grade, is asked for it before going on. Changing role asks the new role's questions.
 
-**Summit date.** `fetch_summit_status()` (`src/services/summitStatus.ts`) gives the summit date, which stays null until the organizers set it. The Home hero shows "January 2027" until then, and the real day (for example "Sat, Jan 23") plus a countdown to the first session once it's set, the same way the app's Home does. The public landing page still says "January 2027" by hand.
+**Summit date.** `fetch_summit_status()` (`src/services/summitStatus.ts`) gives the summit date, which stays null on the shared backend until the organizers set it. Until then the website uses its own `SUMMIT_DATE` (2027-01-23), so the Home hero shows "Sat, Jan 23" and a countdown to the first session, the same way the app's Home does, and volunteer hours count sessions on that day. A date set on the backend wins over it. The mobile app has its own date handling and is not affected. The public landing page states the date by hand: Saturday, January 23, 2027.
 
 ---
 
@@ -201,7 +201,7 @@ Relevant files: `src/services/auth.ts` (`getCurrentProfile`), `src/models/roles.
 
 ## Announcements
 
-Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); the sample posts in `MOCK_ANNOUNCEMENTS` only illustrate the `/app` showcase. Posts are the app's `announcements` rows (`audience`, `pinned`, `discipline_id`, `target_user_id`, `created_by`, `attachments`), so a post from either side shows on both. The browser's offline copy uses the key `local_announcements_v2`.
+Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); `MOCK_ANNOUNCEMENTS` holds sample posts that no page shows. Posts are the app's `announcements` rows (`audience`, `pinned`, `discipline_id`, `target_user_id`, `created_by`, `attachments`), so a post from either side shows on both. The browser's offline copy uses the key `local_announcements_v2`.
 
 **Authoring (admins only).** The composer creates and edits posts with a category, an audience, and an optional pin-to-top. Attachments come in by drag-and-drop or a file picker:
 

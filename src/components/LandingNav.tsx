@@ -1,15 +1,14 @@
 import ThemeToggle from './ThemeToggle';
-import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Menu, X } from '@/components/icons';
 import BrandMark from './BrandMark';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const SECTION_LINKS = [
   { id: 'about', label: 'About' },
-  { id: 'universes', label: 'Tracks' },
+  { id: 'universes', label: 'Universes' },
   { id: 'faq', label: 'FAQ' },
 ];
 
@@ -31,10 +30,11 @@ interface LandingNavProps {
 }
 
 /**
- * Sticky marketing navbar shared by the landing page and the /app showcase.
- * "About"/"Universes" are anchors on "/" — when triggered from elsewhere
- * they route home and pass the target id via nav state, which WelcomePage
- * picks up on mount to finish the scroll.
+ * Marketing nav shared by the landing page and the /app showcase: an
+ * edge-aligned bar, clear over the sky and solid once the page moves, with
+ * Sign in always in reach. "About"/"Universes"/"FAQ" are
+ * anchors on "/"; from elsewhere they route home and pass the target id via
+ * nav state, which WelcomePage picks up on mount to finish the scroll.
  */
 export default function LandingNav({
   overlay = false,
@@ -44,17 +44,32 @@ export default function LandingNav({
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  // Solid while parked at the top; only once the page moves does the bar go
-  // translucent and let content blur past underneath it.
+  const reduceMotion = useReducedMotion();
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // The phone menu: Escape closes it and hands focus back to its button;
+  // opening it moves focus to its first link.
+  useEffect(() => {
+    if (!open) return;
+    sheetRef.current?.querySelector<HTMLElement>('.lp-nav__link')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      menuBtnRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+  // Clear over the sky while parked at the top; solid once the page moves.
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    if (!overlay) return;
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [overlay]);
+  }, []);
 
   const goToSection = (id: string) => {
     setOpen(false);
@@ -70,14 +85,9 @@ export default function LandingNav({
   return (
     <motion.header
       className={cn(
-        'z-40 border-b transition-colors duration-300',
-        overlay ? 'fixed inset-x-0 top-0' : 'sticky top-0',
-        // `#30493e` is the exact colour the old translucent bar composited to
-        // over the light page background, so parked-at-top looks unchanged —
-        // just now with stars behind it instead of white.
-        overlay && !scrolled
-          ? 'border-white/5 bg-[#30493e]/95'
-          : 'border-white/10 bg-[#0d2a1e]/85 backdrop-blur-xl',
+        'lp lp-night lp-nav',
+        overlay && 'lp-nav--overlay',
+        (scrolled || open) && 'is-scrolled',
       )}
       initial={entered === undefined ? false : { y: '-105%' }}
       animate={{ y: entered === false ? '-105%' : 0 }}
@@ -87,92 +97,92 @@ export default function LandingNav({
         ease: [0.16, 1, 0.3, 1],
       }}
     >
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-6 lg:h-20 lg:px-14">
-        <BrandMark
-          logoClassName="h-8 w-8 lg:h-10 lg:w-10"
-          titleClassName="text-sm font-semibold tracking-tight text-white lg:text-base"
-          showSubtitle={false}
-          gap="gap-2.5"
-        />
+      <div className="lp-nav__track">
+        <div className="lp-nav__bar">
+          <div className="container lp-nav__inner">
+            <BrandMark
+              logoClassName="h-9 w-9 lg:h-10 lg:w-10"
+              titleClassName="text-[15px] font-semibold tracking-tight text-white lg:text-base"
+              showSubtitle={false}
+              gap="gap-2.5"
+            />
 
-        <nav className="hidden items-center gap-1 md:flex">
-          {SECTION_LINKS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => goToSection(s.id)}
-              className="rounded-full px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              {s.label}
-            </button>
-          ))}
-          <Link
-            to="/app"
-            className={cn(
-              'rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-white/10',
-              location.pathname === '/app'
-                ? 'text-emerald-300'
-                : 'text-white/70 hover:text-white',
-            )}
-          >
-            App
-          </Link>
-        </nav>
+            <nav className="lp-nav__links" aria-label="Main">
+              {SECTION_LINKS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => goToSection(s.id)}
+                  className="lp-nav__link"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <ThemeToggle tone="onDark" />
-          <Button
-            className="h-10 rounded-full bg-white px-6 text-sm font-semibold text-emerald-950 hover:bg-white/90"
-            onClick={() => navigate('/home')}
-          >
-            Sign in
-          </Button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="rounded-lg p-2 text-white md:hidden"
-          aria-label="Toggle menu"
-          aria-expanded={open}
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-      </div>
-
-      {open && (
-        <div className="border-t border-white/10 bg-[#0d2a1e]/95 px-6 py-4 backdrop-blur-xl md:hidden">
-          <div className="flex flex-col gap-1">
-            <ThemeToggle tone="onDark" labels className="mb-2 self-start" />
-            {SECTION_LINKS.map((s) => (
+            <div className="lp-nav__actions">
+              <ThemeToggle tone="onDark" />
               <button
-                key={s.id}
                 type="button"
-                onClick={() => goToSection(s.id)}
-                className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                className="lp-btn lp-btn--quiet"
+                onClick={() => navigate('/home')}
               >
-                {s.label}
+                Sign in
               </button>
-            ))}
-            <Link
-              to="/app"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white"
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              ref={menuBtnRef}
+              className="lp-nav__menu-btn"
+              aria-label="Toggle menu"
+              aria-expanded={open}
+              aria-controls="lp-nav-sheet"
             >
-              App
-            </Link>
-            <Button
-              className="mt-2 h-11 w-full rounded-full bg-white text-sm font-semibold text-emerald-950 hover:bg-white/90"
-              onClick={() => {
-                setOpen(false);
-                navigate('/home');
-              }}
-            >
-              Sign in
-            </Button>
+              {open ? <X /> : <Menu />}
+            </button>
           </div>
         </div>
-      )}
+
+        <AnimatePresence>
+        {open && (
+          <motion.div
+            id="lp-nav-sheet"
+            ref={sheetRef}
+            className="lp-nav__sheet"
+            initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -8, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="container lp-nav__sheet-list">
+              <ThemeToggle tone="onDark" labels className="mb-2 self-start" />
+              {SECTION_LINKS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => goToSection(s.id)}
+                  className="lp-nav__link"
+                >
+                  {s.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="lp-btn"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/home');
+                }}
+              >
+                Sign in
+              </button>
+            </div>
+          </motion.div>
+        )}
+        </AnimatePresence>
+      </div>
     </motion.header>
   );
 }

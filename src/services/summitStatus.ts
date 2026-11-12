@@ -13,8 +13,15 @@ export interface SummitStatus {
 
 export const UNKNOWN_STATUS: SummitStatus = { date: null, feedbackOpen: false };
 
-/** Shown wherever the app shows SampleData.eventDate while the date is unset. */
-export const EVENT_DATE_FALLBACK = 'January 2027';
+/**
+ * The website's own summit day, used until the organizers set
+ * summit_settings.summit_date on the shared backend (which then wins). Kept on
+ * the website only: writing it to the backend would change the mobile app too.
+ */
+export const SUMMIT_DATE = '2027-01-23';
+
+/** Shown wherever the app shows SampleData.eventDate while no date is known. */
+export const EVENT_DATE_FALLBACK = 'January 23, 2027';
 export const EVENT_VENUE = 'Emerald High · Dublin, CA';
 
 /** Never throws: a failed read means "date not set yet", like the app. */
@@ -34,13 +41,16 @@ export async function fetchSummitStatus(): Promise<SummitStatus> {
 
 let cached: Promise<SummitStatus> | null = null;
 
-/** The status, read once per page load and shared by every caller. */
+/**
+ * The status, read once per page load and shared by every caller. The date is
+ * the backend's when it is set, and the website's SUMMIT_DATE until then.
+ */
 export function useSummitStatus(): SummitStatus {
-  const [status, setStatus] = useState<SummitStatus>(UNKNOWN_STATUS);
+  const [status, setStatus] = useState<SummitStatus>({ ...UNKNOWN_STATUS, date: SUMMIT_DATE });
   useEffect(() => {
     let live = true;
     cached ??= fetchSummitStatus();
-    cached.then((s) => { if (live) setStatus(s); });
+    cached.then((s) => { if (live) setStatus({ ...s, date: s.date ?? SUMMIT_DATE }); });
     return () => { live = false; };
   }, []);
   return status;
