@@ -252,11 +252,17 @@ Today the bell at the top right opens News. Personal notices ("You've been assig
 
 ## Landing hero
 
-The hero (`src/pages/WelcomePage.tsx`) opens with the "Summit '27 · …" pill; the round logo that sat above it is gone (the nav bar still carries it), and the column stays centered. The "Emerald High School, Dublin, CA" chip is a link that opens the venue in Google Maps in a new tab (`VENUE_MAP_URL`, a Maps search for that address), as does the address under **When & where** further down.
+The hero (`src/pages/WelcomePage.tsx`, styles in `src/landing/landing.css`) fills the first screen with the night sky. The "Emerald Summit" wordmark sits centered in it, with the tagline above it as a spaced uppercase caption in the wordmark's pale emerald. Below it are the date, hours and place on one line (stacked on phones), then two buttons side by side: **Get started** (to sign-in) and **Learn more** (scrolls to About). A feathered pool behind those details blurs and dims the sky and ridges so they stay readable (`.lp-hero__aside::before`). The wordmark is colored: "Emerald" runs white to pale emerald, "Summit" pale emerald to green, and one highlight sweeps across both lines every 4.5 seconds (`lp-glint`; it holds still under reduced motion).
+
+**The arrival** plays once per browser session (`src/components/introSession.ts`) while scrolling is locked. An emerald sun (`src/landing/SunArc.tsx`) rises from behind the range just left of center, crests over the central summit and sets on the right. It is drawn as light, not a ball: a pale core that fades out with no rim, a soft halo, and a short fringe of rays that grow and retract. It is kept dim enough that the sky stays a night sky. While it climbs, the wordmark is wiped on in the middle of the screen; once it sets, the wordmark lifts a little and the details come in below it, then the nav drops in. **Skip** jumps straight to the settled page. The tunables are at the top of `SunArc.tsx`: `SUN_ARC_MS` (length), `ARC_HALF_SPAN` (how far from center it rises and sets), and `ARC_TOP` (how high it crests).
+
+**The central summit.** The far range comes to one taller peak in the middle, under the point where the sun crests. It is the `summit` option on the first ridge in `src/components/skyGeometry.ts` (`at`, `rise`, `spread`). Its top is kept to a point: `SUMMIT_MIN_SLOPE` and `SUMMIT_TIP_REACH` set how steep and how long the tip is, and `SUMMIT_FLANK_SLOPE` keeps the shoulders from climbing back up beside it.
+
+**Nav and Contact.** The landing nav (`src/components/LandingNav.tsx`) links to About, Universes, FAQ and Contact, in the same 16px type as the Sign in button. Contact scrolls to the closing "Start the trek." band above the footer, a short strip on the sky's deep emerald (`--color-emerald-night`) that fades into the footer. It has **Get started** and a mail link to contact@ehsacademics.org (`CONTACT_EMAIL` in `WelcomePage.tsx`; the footer repeats the address).
 
 ## Landing sky
 
-The hero (`src/components/SkyVideo.tsx`) plays the arrival as a pre-rendered video while scrolling is locked. It then hands over to the live sky (`src/components/MountainSkyline.tsx`), which is tuned to stay out of scrolling's way:
+The hero's sky is the live canvas in `src/components/MountainSkyline.tsx` (under reduced motion, `src/components/SkyVideo.tsx` shows a still instead, which predates the central summit). It is tuned to stay out of scrolling's way:
 
 - **Still stars are painted once.** Seven in eight of the 900 stars are drawn a single time onto the main canvas. The other ~110 twinkle on a second canvas, which redraws only the small square around each one.
 - **It twinkles only at the top.** The twinkle starts 4 seconds after the page settles within 48px of the top, freezes the moment you scroll down, and starts the countdown again when you come back. It also stops in a hidden tab or when the hero is off screen.

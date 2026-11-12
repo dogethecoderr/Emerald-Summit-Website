@@ -39,9 +39,20 @@ interface RidgeOptions {
   depth: number;
   /** How much roughness survives each subdivision. Higher = more jagged. */
   persistence: number;
+  /**
+   * One summit lifted above the rest of the range: where it stands (0 to 1
+   * across the width), how far it rises, and how wide its shoulders run.
+   */
+  summit?: { at: number; rise: number; spread: number };
 }
 
 const SHADE_BUCKETS = 8;
+/** The least a summit's flanks fall away from its top, in viewBox units down per unit across. */
+const SUMMIT_MIN_SLOPE = 1.15;
+/** How far either side of the top that slope is enforced, in viewBox units. */
+const SUMMIT_TIP_REACH = 60;
+/** The gentler fall kept below the tip, so no shoulder climbs back up beside it. */
+const SUMMIT_FLANK_SLOPE = 0.45;
 
 /**
  * Midpoint-displacement ridgeline. Real mountains are self-similar — big
@@ -58,6 +69,7 @@ function ridgePoints({
   coarse,
   depth,
   persistence,
+  summit,
 }: RidgeOptions): [number, number][] {
   const rnd = mulberry32(seed);
 
@@ -78,6 +90,33 @@ function ridgePoints({
     next.push(pts[pts.length - 1]);
     pts = next;
     amp *= persistence;
+  }
+
+  if (summit) {
+    // Lift the range toward one point. Straight shoulders (a tent, not a
+    // bell) keep it a peak, and the ridge's own roughness rides up with it.
+    // The nearest point is pinned as the top so the summit lands dead centre.
+    const cx = summit.at * width;
+    const half = summit.spread * width;
+    let top = 0;
+    pts.forEach(([x], i) => {
+      if (Math.abs(x - cx) < Math.abs(pts[top][0] - cx)) top = i;
+    });
+    const topY = crestY - summit.rise;
+    pts = pts.map(([x, y], i) => {
+      const away = Math.abs(x - cx);
+      const near = Math.max(0, 1 - away / half);
+      // Past 1, the shoulders hollow toward the top: a horn, not a dome.
+      const lifted = y - summit.rise * Math.pow(near, 1.5);
+      if (i === top) return [x, Math.min(lifted, topY)];
+      // Nothing beside the top may stand nearly as tall, or the point reads as a flat crown.
+      // Steep at the tip, then easing off, and only over the summit's own
+      // upper half; further out the shoulders keep their own rock.
+      if (away > half * 0.5) return [x, lifted];
+      const tip = Math.min(away, SUMMIT_TIP_REACH) * SUMMIT_MIN_SLOPE;
+      const flank = Math.max(0, away - SUMMIT_TIP_REACH) * SUMMIT_FLANK_SLOPE;
+      return [x, Math.max(lifted, topY + tip + flank)];
+    });
   }
 
   return pts.map(([x, y]) => [x, Math.max(3, Math.min(height - 3, y))]);
@@ -201,6 +240,9 @@ export const RIDGES: Ridge[] = [
       coarse: 7,
       depth: 3,
       persistence: 0.52,
+      // The Summit itself: the far range comes to one peak at the centre,
+      // under the point where the arrival's sun crests.
+      summit: { at: 0.5, rise: 136, spread: 0.2 },
     },
     'h-[48%]',
   ),

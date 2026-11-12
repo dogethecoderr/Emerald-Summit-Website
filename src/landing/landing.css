@@ -6,9 +6,10 @@
 /* Hallmark · waive 80 · the ridge is the owner's own encoded intro footage and canvas (SkyVideo, MountainSkyline), kept from their page · the summit is what the Emerald Summit name points at */
 /* Hallmark · waive 83 · the rail is a gallery of the owner's own photographs from the last Summit, two in view at a time · the day itself is the strongest proof the Summit has */
 /* Hallmark · waive 82 · the four badges are four different roles (Participant, Parent / Spectator, Expert / Speaker, Volunteer), each named in the list beside it · the Summit's ways to come, not a count */
-/* Hallmark · dropped Start the trek. · the owner asked to remove the closing band; the roles section and its Choose your role button close the page */
+/* Hallmark · restored Start the trek. · the owner asked for the closing band back as the Contact section (nav link included), with contact@ehsacademics.org */
 /* Hallmark · dropped navigate('/app') · the hero's Explore the app button, the nav and footer App links and the /app showcase page, all removed at the owner's request */
-/* Hallmark · dropped mailto:contact.ehsaf@gmail.com · the owner replaced it with contact@ehsacademics.org in the footer */
+/* Hallmark · dropped mailto:contact.ehsaf@gmail.com · the owner replaced it with contact@ehsacademics.org in the footer and the Contact band */
+/* Hallmark · hero recentred at the owner's request · the sky fills the first screen, the wordmark sits centred with its emerald gradient and glint, the date and place beneath it; the arrival's sun is larger, crests over a central summit, and is drawn as rays and glow rather than a disc */
 /* Hallmark · dropped the mosaic's pause button · the owner asked for it gone; the photos still hold under the pointer and keyboard focus, and stop off screen */
 /* Hallmark · dropped photo-33.jpg · the owner asked for the final-rankings screenshot to come out of the gallery and the mosaic */
 /* Hallmark · waive 39b · the FAQ rows are disclosures whose whole question is the hit target, 64px tall · a row of the Summit questions reads as a list, not a control */
@@ -18,7 +19,7 @@
 /* Hallmark · dismissed 54 · the hero section is labelled by its own h1, rendered through motion.h1 */
 /* Hallmark · dismissed F20 · the mosaic's large tile spans both rows, so its 2 + 1 is one tall frame beside two stacked ones, not an orphan */
 /* Hallmark · answered F8 · one scroll pattern on the page: the pinned universe orbit, a scrub through framer-motion's useScroll kept from the owner's OrbitalUniverses; phones and reduced motion get the static index */
-/* Hallmark · dropped getElementById('about') · the hero's scroll cue, which 66 names; the nav's About link does the same */
+/* Hallmark · dropped getElementById('about') · the hero's scroll cue, which 66 names; the nav's About link does the same · the owner later asked for a Learn more button beside Get started that scrolls to About */
 /* Hallmark · dropped 1day · the figure is kept as a dl, label in the dt and 1 in the dd, so it reads Day 1 in the markup */
 /* Hallmark · dropped the hero's discipline strip · 63 and 64 name its status dots and mono; the six universes are an index lower down */
 /* Hallmark · dropped the About section's repeat Get started and Explore the app buttons · the hero and the close carry them */
@@ -75,7 +76,7 @@
 .lp-nav--overlay:not(.is-scrolled) .lp-nav__bar { background: transparent; border-color: transparent; }
 .lp-nav__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); height: var(--bar-h); }
 .lp-nav__links { display: flex; align-items: center; gap: var(--space-2xs); }
-.lp-nav__link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-md); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-night-ink-2); font: 500 0.9375rem/1 var(--font-body); text-decoration: none; cursor: pointer; transition: color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
+.lp-nav__link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-md); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-night-ink); font: 500 var(--text-md)/1 var(--font-body); text-decoration: none; cursor: pointer; transition: color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
 .lp-nav__link:hover { color: var(--color-night-ink); background: var(--color-night-2); }
 .lp-nav__link[aria-current="page"] { color: var(--color-night-accent); }
 .lp-nav__link:active { transform: translateY(1px); }
@@ -93,33 +94,40 @@
   .lp-nav__menu-btn { display: inline-flex; }
 }
 
-/* ───────────── Hero: Ledge. The sky is the tall field; the name rests at its base ───────────── */
-.lp-hero { position: relative; isolation: isolate; color: var(--color-night-ink); display: flex; flex-direction: column; justify-content: flex-end; min-height: min(66svh, 600px); background: var(--color-night); }
+/* ───────────── Hero: the sky fills the first screen; the name sits centred in it, the date and place beneath ───────────── */
+.lp-hero { position: relative; isolation: isolate; color: var(--color-night-ink); display: flex; flex-direction: column; justify-content: center; min-height: 100svh; background: var(--color-night); }
 .lp-hero [data-sky-fade] { display: none; }
-.lp-hero__scrim { position: absolute; inset: auto 0 0; height: 55%; z-index: 1; background: linear-gradient(to top, var(--color-scrim) 0%, transparent 100%); pointer-events: none; }
-.lp-hero__inner { position: relative; z-index: 2; padding-top: calc(var(--bar-h) + var(--space-2xl)); padding-bottom: var(--space-3xl); row-gap: var(--space-xl); align-items: end; }
-.lp-hero__title { grid-column: 1 / span 8; max-width: none; font-family: var(--font-outlier); font-weight: 400; font-size: var(--text-poster); line-height: 0.98; letter-spacing: 0; color: var(--color-night-ink); }
+.lp-hero__scrim { position: absolute; inset: auto 0 0; height: 62%; z-index: 1; background: linear-gradient(to top, var(--color-scrim) 0%, transparent 100%); pointer-events: none; }
+.lp-hero__inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: var(--space-lg); padding-top: calc(var(--bar-h) + var(--space-md)); padding-bottom: calc(var(--space-lg) + 2svh); text-align: center; }
+.lp-hero__title { max-width: none; font-family: var(--font-outlier); font-weight: 400; font-size: var(--text-poster); line-height: 0.98; letter-spacing: 0; color: var(--color-night-ink); }
 .lp-hero__title span { display: block; }
-.lp-hero__aside { grid-column: 9 / span 4; display: grid; gap: var(--space-lg); padding-bottom: var(--space-xs); }
-.lp-hero__lede { color: var(--color-night-ink-2); max-width: 30ch; }
-.lp-hero__when { line-height: 1.5; color: var(--color-night-ink); font-weight: 500; }
-.lp-hero__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-@media (max-width: 64rem) {
-  .lp-hero { min-height: 0; }
-  .lp-hero__inner { padding-top: calc(var(--bar-h) + var(--space-4xl)); }
-  .lp-hero__title { grid-column: 1 / -1; }
-  .lp-hero__aside { grid-column: 1 / span 8; }
-}
+/* The wordmark's colour: white easing to pale emerald, then pale emerald running to green, with one highlight that travels across both lines. */
+.lp-hero__title-in > span { --fill: linear-gradient(100deg, #ffffff 5%, #f2fdf8 45%, #d1fae5 95%); --glint: rgb(167 243 208 / 0.95); padding-bottom: 0.06em; background-image: linear-gradient(100deg, transparent 47%, var(--glint) 50%, transparent 53%), var(--fill); background-size: 300% 100%, 100% 100%; background-position: 100% 0, 0 0; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lp-glint 4.5s linear infinite; }
+.lp-hero__title-in > span + span { --fill: linear-gradient(100deg, #d1fae5 5%, #6ee7b7 45%, #22c55e 95%); --glint: rgb(255 255 255 / 0.92); animation-delay: 0.7s; }
+@keyframes lp-glint { 0%, 80% { background-position: 100% 0, 0 0; } 100% { background-position: 0% 0, 0 0; } }
+.lp-hero__aside { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
+/* A soft pool behind the details: the sky and ridges under them are blurred and dimmed, feathered out so no edge shows. */
+.lp-hero__aside::before { content: ""; position: absolute; inset: calc(-1 * var(--space-xl)) calc(-1 * var(--space-3xl)); z-index: -1; background: oklch(13% 0.02 165 / 0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); -webkit-mask-image: radial-gradient(closest-side, #000 45%, transparent 100%); mask-image: radial-gradient(closest-side, #000 45%, transparent 100%); pointer-events: none; }
+/* Over the wordmark: its tagline as a spaced caption in the wordmark's own pale emerald. Under it: the facts on one line, then the two ways on. */
+.lp-hero__lede { max-width: none; font: 500 var(--text-md)/1.4 var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-night-accent); margin-bottom: calc(-1 * var(--space-xs)); }
+.lp-hero__when { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2xs) 0; max-width: none; font: 500 1.1875rem/1.4 var(--font-display); letter-spacing: -0.01em; color: var(--color-night-ink); }
+.lp-hero__when span + span::before { content: ""; display: inline-block; width: 4px; height: 4px; margin: 0 var(--space-sm); border-radius: var(--radius-pill); background: var(--color-night-accent); vertical-align: middle; }
+.lp-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-md); margin-top: 85px; }
+.lp-hero__actions .lp-btn { min-height: 50px; padding-inline: 30px; font-size: 1.0625rem; }
 @media (max-width: 40rem) {
-  .lp-hero__aside { grid-column: 1 / -1; }
-  .lp-hero__inner { padding-bottom: var(--space-2xl); }
+  .lp-hero__inner { padding-bottom: var(--space-3xl); }
+  .lp-hero__lede { letter-spacing: 0.12em; font-size: var(--text-sm); }
+  .lp-hero__when { flex-direction: column; font-size: 1.0625rem; }
+  .lp-hero__actions { margin-top: var(--space-2xl); }
+  .lp-hero__aside::before { inset: calc(-1 * var(--space-lg)) calc(-1 * var(--space-md)); }
+  .lp-hero__when span + span::before { display: none; }
 }
 
 /* The arrival: the hero sits over the page while the sun crosses, with a ground below it the page fades in from. */
 .lp-hero--intro { z-index: var(--z-raised); }
 .lp-hero__ground { position: absolute; top: 100%; left: 0; right: 0; height: 100lvh; background: var(--color-night); color: var(--color-night-ink); pointer-events: none; transition: opacity 700ms var(--ease-out); }
 .lp-hero__ground[data-done] { opacity: 0; }
-.lp-hero__title .lp-hero__title-in { display: inline-block; will-change: transform; }
+.lp-hero__title .lp-hero__title-in { display: inline-block; will-change: transform; filter: drop-shadow(0 2px 18px rgb(2 12 9 / 0.55)); }
 .lp-sun { position: absolute; inset: 0; width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) { .lp-hero__ground { transition: none; } }
 .lp-skip { position: fixed; bottom: var(--space-xl); left: 50%; z-index: var(--z-toast); transform: translateX(-50%); }
@@ -314,6 +322,18 @@
 .lp-roles__list li.is-active h3 { color: var(--color-accent); }
 @media (max-width: 60rem) {
   .lp-roles__figure, .lp-roles__text { grid-column: 1 / -1; }
+}
+
+/* ───────────── Contact: Start the trek. A short closing band on the deep emerald of the night sky ───────────── */
+.lp-cta { background: linear-gradient(180deg, var(--color-emerald-night), var(--color-night)); border-top: 1px solid var(--color-night-rule); padding-block: var(--space-3xl) var(--space-2xl); text-align: center; }
+.lp-cta__inner { display: grid; justify-items: center; gap: var(--space-md); }
+.lp-cta h2 { max-width: none; font-size: var(--text-section); color: var(--color-night-ink); }
+.lp-cta__lede { max-width: 46ch; color: var(--color-night-ink-2); }
+.lp-cta__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-sm); margin-top: var(--space-sm); }
+@media (max-width: 40rem) {
+  .lp-cta { padding-block: var(--space-2xl) var(--space-xl); }
+  .lp-cta__actions { flex-direction: column; width: 100%; }
+  .lp-cta .lp-btn { width: 100%; }
 }
 
 /* ───────────── The photo viewer (Radix Dialog) ───────────── */

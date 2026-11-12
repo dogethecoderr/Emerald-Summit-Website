@@ -10,6 +10,7 @@ const SECTION_LINKS = [
   { id: 'about', label: 'About' },
   { id: 'universes', label: 'Universes' },
   { id: 'faq', label: 'FAQ' },
+  { id: 'contact', label: 'Contact' },
 ];
 
 interface LandingNavProps {
@@ -32,7 +33,7 @@ interface LandingNavProps {
 /**
  * Marketing nav shared by the landing page and the /app showcase: an
  * edge-aligned bar, clear over the sky and solid once the page moves, with
- * Sign in always in reach. "About"/"Universes"/"FAQ" are
+ * Sign in always in reach. "About"/"Universes"/"FAQ"/"Contact" are
  * anchors on "/"; from elsewhere they route home and pass the target id via
  * nav state, which WelcomePage picks up on mount to finish the scroll.
  */
@@ -102,7 +103,7 @@ export default function LandingNav({
           <div className="container lp-nav__inner">
             <BrandMark
               logoClassName="h-9 w-9 lg:h-10 lg:w-10"
-              titleClassName="text-[15px] font-semibold tracking-tight text-white lg:text-base"
+              titleClassName="text-base font-semibold tracking-tight text-white lg:text-[17px]"
               showSubtitle={false}
               gap="gap-2.5"
             />

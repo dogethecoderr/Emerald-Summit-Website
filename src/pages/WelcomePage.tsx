@@ -13,9 +13,11 @@ import HairlineFigure from '../landing/HairlineFigure';
 import { SIGN_IN_ROLES } from '../models/roles';
 import { DAY_PARTS, type DayPart } from '../landing/dayParts';
 import SunArc from '../landing/SunArc';
+import { Mail } from '@/components/icons';
 import '../landing/landing.css';
 
 const VENUE = 'Emerald High School, Dublin, CA';
+const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
 /** Opens the venue in Google Maps (a new tab, or the Maps app on phones). */
 const VENUE_MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(VENUE)}`;
@@ -89,7 +91,7 @@ const AFTER_INTRO_DELAY = 0.25;
 /** Nav drops in just behind the copy, then scrolling is handed back. */
 const NAV_DELAY = 0.5;
 const UNLOCK_MS = 1400;
-/** The headline's glide from the middle of the sky down to its place. */
+/** The headline's glide from the middle of the sky up to its place, clearing room for the details. */
 const GLIDE_MS = 900;
 const SKIP_GLIDE_MS = 450;
 /** The ground under the sky fading off (landing.css, .lp-hero__ground). */
@@ -118,7 +120,7 @@ export default function WelcomePage() {
     if (playingIntro) markIntroPlayed();
   }, [playingIntro]);
 
-  // While the sun crosses, the headline waits in the middle of the sky, wiped
+  // While the sun crosses, the headline waits in the very middle of the sky, wiped
   // on as the sun climbs (the app's splash does the same with its wordmark).
   useLayoutEffect(() => {
     const el = titleRef.current;
@@ -129,21 +131,21 @@ export default function WelcomePage() {
     const h = hero.getBoundingClientRect();
     const t = el.getBoundingClientRect();
     const dx = h.left + h.width / 2 - (t.left + t.width / 2);
-    const dy = h.top + h.height * 0.46 - (t.top + t.height / 2);
+    const dy = h.top + h.height * 0.5 - (t.top + t.height / 2);
     el.style.transform = `translate(${dx}px, ${dy}px)`;
     el.style.clipPath = 'inset(0 100% 0 0)';
   }, [playingIntro]);
 
-  /** The wipe: from 28% to 52% of the sun's crossing, easing out. */
+  /** The wipe: from 36% to 60% of the sun's crossing, once it has climbed clear of the name. */
   const onSunFrame = (t: number) => {
     const el = titleRef.current;
     if (!el || glidingRef.current) return;
-    const p = Math.min(1, Math.max(0, (t - 0.28) / 0.24));
+    const p = Math.min(1, Math.max(0, (t - 0.36) / 0.24));
     const e = 1 - (1 - p) ** 3;
     el.style.clipPath = `inset(-0.2em ${(1 - e) * 100}% -0.2em 0)`;
   };
 
-  /** The sun has set (or Skip): the headline glides to its place and the page comes in. */
+  /** The sun has set (or Skip): the headline lifts to its place and the details come in under it. */
   const settle = (ms: number) => {
     if (glidingRef.current) return;
     glidingRef.current = true;
@@ -233,10 +235,11 @@ export default function WelcomePage() {
       )}
 
       <main id="main">
-        {/* Ledge: the night sky is the tall field; the name rests at its base. */}
-        {/* The arrival plays in this same sky: the sun rises and sets behind
-            its ridges, while a ground below hides the rest of the page; then
-            the headline glides down to its place and the ground fades off. */}
+        {/* The night sky fills the first screen, the name centred in it with the
+            date and place beneath. */}
+        {/* The arrival plays in this same sky: the sun rises over the central
+            summit and sets behind the ridges while the name is wiped on in
+            the middle; then the name lifts and the details come in under it. */}
         <section
           className={`lp-hero lp-night${introGone ? '' : ' lp-hero--intro'}`}
           aria-labelledby="hero-title"
@@ -248,12 +251,16 @@ export default function WelcomePage() {
           {!introGone && <div className="lp-hero__ground" data-done={revealed || undefined} aria-hidden />}
 
           <motion.div
-            className="container lp-grid lp-hero__inner"
+            className="container lp-hero__inner"
             variants={stagger}
             initial={reduceMotion ? false : 'hidden'}
             animate={revealed ? 'show' : 'hidden'}
             custom={playingIntro ? AFTER_INTRO_DELAY : 0.1}
           >
+            <motion.p className="lp-hero__lede" variants={rise}>
+              The Tri-Valley’s largest student-led STEAM conference
+            </motion.p>
+
             <motion.h1 id="hero-title" className="lp-hero__title" variants={playingIntro ? undefined : rise}>
               <span ref={titleRef} className="lp-hero__title-in">
                 <span>Emerald</span>
@@ -262,17 +269,21 @@ export default function WelcomePage() {
             </motion.h1>
 
             <motion.div className="lp-hero__aside" variants={rise}>
-              <p className="lead lp-hero__lede">
-                The Tri-Valley’s largest student-led STEAM conference.
-              </p>
               <p className="lp-hero__when">
-                Saturday, January 23, 2027
-                <br />
-                9 AM to 5 PM, Emerald High School, Dublin
+                <span>Saturday, January 23, 2027</span>
+                <span>9 AM to 5 PM</span>
+                <span>Emerald High School, Dublin</span>
               </p>
               <div className="lp-hero__actions">
                 <button type="button" className="lp-btn" onClick={() => navigate('/home')}>
                   Get started
+                </button>
+                <button
+                  type="button"
+                  className="lp-btn lp-btn--quiet"
+                  onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                >
+                  Learn more
                 </button>
               </div>
             </motion.div>
@@ -403,6 +414,24 @@ export default function WelcomePage() {
           </div>
         </section>
       </main>
+
+      {/* The close: the way in, and who to write to. */}
+      <section id="contact" className="lp-night lp-cta" aria-labelledby="contact-title">
+        <div className="container lp-cta__inner">
+          <h2 id="contact-title">Start the trek.</h2>
+          <p className="lp-cta__lede">
+            Free to attend and to compete. Questions before January 23? Email us.
+          </p>
+          <div className="lp-cta__actions">
+            <button type="button" className="lp-btn" onClick={() => navigate('/home')}>
+              Get started
+            </button>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="lp-btn lp-btn--quiet">
+              <Mail aria-hidden /> {CONTACT_EMAIL}
+            </a>
+          </div>
+        </div>
+      </section>
 
       <LandingFooter />
     </div>
