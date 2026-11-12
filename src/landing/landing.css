@@ -129,6 +129,8 @@
 .lp-hero__ground[data-done] { opacity: 0; }
 .lp-hero__title .lp-hero__title-in { display: inline-block; will-change: transform; filter: drop-shadow(0 2px 18px rgb(2 12 9 / 0.55)); }
 .lp-sun { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Daylight on the range: while the sun is up (--sun, 0 to 1, set each frame by WelcomePage) the rock brightens and takes a little colour. The crest outlines are left as they are, at the owner's request. */
+.lp-hero--intro [data-ridge] { filter: brightness(calc(1 + 0.6 * var(--sun, 0))) saturate(calc(1 + 0.35 * var(--sun, 0))); }
 @media (prefers-reduced-motion: reduce) { .lp-hero__ground { transition: none; } }
 .lp-skip { position: fixed; bottom: var(--space-xl); left: 50%; z-index: var(--z-toast); transform: translateX(-50%); }
 

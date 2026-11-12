@@ -729,6 +729,7 @@ export default function MountainSkyline({
           ref={(el) => {
             ridgeRefs.current[i] = el;
           }}
+          data-ridge={i}
           className={`absolute inset-x-0 bottom-0 w-full ${ridge.heightClass}`}
           style={{ opacity: 0 }}
           viewBox={`0 0 ${RIDGE_WIDTH} ${ridge.height}`}

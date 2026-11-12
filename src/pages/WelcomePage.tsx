@@ -140,6 +140,8 @@ export default function WelcomePage() {
   const onSunFrame = (t: number) => {
     const el = titleRef.current;
     if (!el || glidingRef.current) return;
+    // Daylight, 0 on the horizons and 1 at the crest: the stylesheet lights the range with it.
+    el.closest<HTMLElement>('.lp-hero')?.style.setProperty('--sun', Math.sin(t * Math.PI).toFixed(3));
     const p = Math.min(1, Math.max(0, (t - 0.36) / 0.24));
     const e = 1 - (1 - p) ** 3;
     el.style.clipPath = `inset(-0.2em ${(1 - e) * 100}% -0.2em 0)`;
@@ -152,6 +154,7 @@ export default function WelcomePage() {
     setSunUp(false);
     setRevealed(true);
     const el = titleRef.current;
+    el?.closest<HTMLElement>('.lp-hero')?.style.removeProperty('--sun');
     const done = () => setIntroGone(true);
     if (!el) {
       done();

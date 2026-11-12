@@ -14,7 +14,9 @@ import { useEffect, useRef } from 'react';
 const SKY_CORE = [12, 74, 53];
 
 /** One full rise and set. */
-export const SUN_ARC_MS = 4600;
+export const SUN_ARC_MS = 6400;
+/** Above 1 the rise takes longer than the set: at 1.3 the crest comes about 59% of the way through. */
+const RISE_EASE = 1.3;
 
 /** How far either side of centre the sun rises and sets, as a share of the width. */
 const ARC_HALF_SPAN = 0.21;
@@ -68,8 +70,8 @@ export default function SunArc({
 
       // The sky warms to emerald while the sun is up, and gives the stars back as it sets.
       const sky = ctx.createRadialGradient(w * 0.5, h * 0.34, 0, w * 0.5, h * 0.34, Math.max(w, h) * 0.95);
-      sky.addColorStop(0, rgba(SKY_CORE, 0.5 * day));
-      sky.addColorStop(0.55, rgba(SKY_CORE, 0.2 * day));
+      sky.addColorStop(0, rgba(SKY_CORE, 0.62 * day));
+      sky.addColorStop(0.55, rgba(SKY_CORE, 0.27 * day));
       sky.addColorStop(1, rgba(SKY_CORE, 0));
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, w, h);
@@ -77,11 +79,12 @@ export default function SunArc({
       // A narrow arc about the centre; low enough at both ends that the ridges hide it.
       const x = w * (0.5 + ARC_HALF_SPAN * (2 * t - 1));
       const y = h * (ARC_BASE - day * (ARC_BASE - ARC_TOP));
-      const r = Math.max(36, Math.min(112, Math.min(w, h) * 0.115));
+      // Like a real day: the sun and its rays are smallest on the horizons and fullest at the crest.
+      const grow = smooth(day);
+      const r = Math.max(42, Math.min(138, Math.min(w, h) * 0.14)) * (0.42 + 0.58 * grow);
       const a = clamp01(0.12 + day * 1.25);
       const secs = (t * SUN_ARC_MS) / 1000;
-      // The rays swell toward the crest and breathe a little all the way across.
-      const energy = clamp01(0.3 + 0.5 * day + 0.12 * Math.sin(secs * 2.1));
+      const energy = clamp01(0.3 + 0.55 * day);
 
       ctx.globalCompositeOperation = 'lighter';
 
@@ -98,14 +101,15 @@ export default function SunArc({
       ctx.fill();
 
       // Corona: the soft halo the core sits inside.
-      const corona = ctx.createRadialGradient(x, y, 0, x, y, r * 3.4);
+      const coronaR = r * (3.1 + 0.6 * grow);
+      const corona = ctx.createRadialGradient(x, y, 0, x, y, coronaR);
       corona.addColorStop(0, `rgba(120, 245, 200, ${0.26 * a})`);
       corona.addColorStop(0.32, `rgba(52, 211, 153, ${0.12 * a})`);
       corona.addColorStop(0.68, `rgba(16, 150, 105, ${0.05 * a})`);
       corona.addColorStop(1, 'rgba(16, 150, 105, 0)');
       ctx.fillStyle = corona;
       ctx.beginPath();
-      ctx.arc(x, y, r * 3.4, 0, TAU);
+      ctx.arc(x, y, coronaR, 0, TAU);
       ctx.fill();
 
       // Rays: spokes that start inside the glow and taper away, each growing
@@ -119,8 +123,9 @@ export default function SunArc({
             0.16 * Math.sin(i * 1.9 - secs * 0.6) +
             0.12 * Math.sin(i * 3.3 + secs * 1.4),
         );
-        const reach = smooth(n) * (0.3 + 0.6 * energy);
-        const fade = (0.04 + 0.22 * energy) * smooth(n) * a;
+        // Short on the horizons, longest at the crest, and even then inside the halo.
+        const reach = smooth(n) * (0.22 + 0.4 * energy) * (0.35 + 0.65 * grow);
+        const fade = (0.04 + 0.22 * energy) * smooth(n) * a * (0.45 + 0.55 * grow);
         if (fade <= 0.003) continue;
         // Rooted further out than the core's bright heart, so a bigger sun doesn't mean longer rays.
         const inner = r * 0.5;
@@ -143,7 +148,7 @@ export default function SunArc({
 
       // The core: blown out to white at the heart and falling away into the
       // corona well past where a rim would be, so no edge is left to read.
-      const coreR = r * 2.2;
+      const coreR = r * (2.12 + 0.16 * grow);
       const core = ctx.createRadialGradient(x, y, 0, x, y, coreR);
       core.addColorStop(0, `rgba(240, 255, 249, ${0.9 * a})`);
       core.addColorStop(0.1, `rgba(226, 255, 243, ${0.82 * a})`);
@@ -167,7 +172,8 @@ export default function SunArc({
     let done = false;
     const frame = (now: number) => {
       if (!start) start = now;
-      const t = Math.min(1, (now - start) / SUN_ARC_MS);
+      // Position along the arc, eased so the climb is unhurried and the set a little quicker.
+      const t = Math.pow(Math.min(1, (now - start) / SUN_ARC_MS), RISE_EASE);
       paint(t);
       onFrameRef.current?.(t);
       if (t < 1) {
