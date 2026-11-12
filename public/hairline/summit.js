@@ -18,7 +18,7 @@ const {
 
 const N = 6;
 const SIDE = [124, 104, 86, 68, 52, 36];
-const TH = [15, 13, 13, 12, 11, 10];
+const TH = [21, 19, 18, 17, 16, 15];
 const CX = (k) => 62 - k * 4, CY = (k) => 62 - k * 2.5;
 const SLIDE = 9, POLE = 34, FW = 24, FH = 15;
 const FLAG = [[0, 0], [FW, 0], [FW, -FH], [0, -FH]];
@@ -30,7 +30,7 @@ function mount({ stage, svg, read }, value) {
   let GAP = value;
 
   // Fitted to the most extreme pose: every gap open at the slider's top and the picked terrace slid out.
-  const C = Cam(45, 0.5, 1.36);
+  const C = Cam(45, 0.5, 1.26);
   const zMax = BASEZ[N - 1] + TH[N - 1] + POLE + 2.8 * 26;
   fit(C, [[-2, -2, 0], [128, 128, 0], [128, -2, 0], [-2, 128, 0], [CX(5), CY(5), zMax], [SIDE[0] + SLIDE, SIDE[0] + SLIDE, 0]], 200, 166);
   const P = proj(C), front = facing(C);
@@ -95,6 +95,13 @@ function mount({ stage, svg, read }, value) {
   /** The terrace whose band holds the pointer's height; -1 off the mountain. */
   function hit([x, y]) {
     if (x < xL || x > xR) return -1;
+    // The terrace already out keeps the pointer a little past its band's edges,
+    // so a pointer resting on a boundary never flickers between two terraces.
+    if (act >= 0) {
+      const lower = act === 0 ? bandFoot : bandTop[act - 1], upper = act === N - 1 ? peakY : bandTop[act];
+      const m = (lower - upper) * 0.35;
+      if (y <= lower + m && y > upper - m) return act;
+    }
     for (let k = 0; k < N; k++) {
       const lower = k === 0 ? bandFoot : bandTop[k - 1], upper = k === N - 1 ? peakY : bandTop[k];
       if (y <= lower && y > upper) return k;
