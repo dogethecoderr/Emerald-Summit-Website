@@ -18,12 +18,12 @@ A React web app used to **test, visualize, and integrate features** for the Emer
 
 ## Why this repo exists
 
-The Emerald Summit runs corporate-style and is driven entirely by students, with six disciplines, 20+ tracks, and 30+ visiting experts across a high-school campus. The production experience is a native mobile app, but iterating on native is slow.
+The Emerald Summit runs corporate-style and is driven entirely by students, with six disciplines, 20+ tracks, and 30+ visiting experts across a high-school campus. It is not a competition: students come to share project ideas, work on them together, and get feedback from the experts. The website's copy follows that, with no competing, judging, winners or awards. The production experience is a native mobile app, but iterating on native is slow.
 
 This web version gives the team a place to move fast:
 
 - **Prototype UX quickly** in the browser with instant hot-reload
-- **Visualize features** (schedule builder, announcements, directory, judging, dashboards) end to end
+- **Visualize features** (schedule builder, announcements, directory, expert sessions, dashboards) end to end
 - **Integrate and test the shared Supabase backend** — auth, roles, row-level security, and migrations — against a real UI
 - **Validate the design system and flows** before the corresponding work is built into the Flutter app
 
@@ -50,7 +50,7 @@ Roles are the app's roles, stored in `profiles.role` on the shared backend. The 
 
 | Stored role | Website label | Who |
 |---|---|---|
-| `participant` | Participant | Students who compete or present. Anyone can pick it. |
+| `participant` | Participant | Students who bring a project or present. Anyone can pick it. |
 | `parentSpectator` | Attendee | Parents and spectators. Adding a session always spectates. |
 | `expert` | Expert | Judges and speakers. Picking it sets `expert_status = pending` until an admin approves (`review_expert`, on the website's Expert approvals page or in the app). |
 | `volunteer` | Volunteer | Only if the email is on the Allowed Volunteers sheet. `volunteer_subtype` (`eaf_ambassador`, `student_volunteer`, `parent_volunteer`) and the `can_*` flags come from the sheet. |
@@ -260,6 +260,17 @@ The hero (`src/pages/WelcomePage.tsx`, styles in `src/landing/landing.css`) fill
 
 **Nav and Contact.** The landing nav (`src/components/LandingNav.tsx`) links to About, Universes, FAQ and Contact, in the same 16px type as the Sign in button. Contact scrolls to the closing "Start the trek." band above the footer, a short strip on the sky's deep emerald (`--color-emerald-night`) that fades into the footer. It has **Get started** and a mail link to contact@ehsacademics.org (`CONTACT_EMAIL` in `WelcomePage.tsx`; the footer repeats the address).
 
+**Below the hero**, in order:
+- **What is Emerald Summit?** A short answer, a photo mosaic of the owner's photos that swaps every 4.5 seconds while on screen (`src/components/PhotoMosaic.tsx`; the leaderboard and award photos are left out), and four figures with notes.
+- **What happens on Summit day?** A Hairline figure of six stacked terraces (`public/hairline/summit.js`, mounted by `src/landing/HairlineFigure.tsx`) with Emerald High's flag on top. Hovering a terrace lifts it and shows that part of the day beside it, from Check-in at the peak down to the Landing at the base (`src/landing/dayParts.ts`). Facts nobody has announced yet, like this year's keynote speaker, show as a visible blank.
+- **Which universe is yours?** The six universes on a scroll-driven orbit (`src/components/OrbitalUniverses.tsx`), with each one's tracks beside it.
+- **What did the previous years look like?** A photo rail with a full-size viewer (`src/landing/PhotoRail.tsx`).
+- **How do I get to Emerald High?** Date, hours, place (with a Google Maps link) and cost.
+- **FAQ** (`src/components/FaqSection.tsx`).
+- **Who are you coming as?** A Hairline badge rack (`public/hairline/badges.js`) with one badge for each of the five sign-in roles; hovering a badge highlights its role in the list.
+
+The Hairline kernel (`public/hairline/kernel.js`) is an unchanged copy of the hairline-create skill's kernel. The landing page's own tokens and styles are in `src/landing/` (`tokens.css`, `base.css`, `landing.css`), scoped under `.lp`. There is no `/app` showcase page any more; old links to it land on the home page.
+
 ## Landing sky
 
 The hero's sky is the live canvas in `src/components/MountainSkyline.tsx` (under reduced motion, `src/components/SkyVideo.tsx` shows a still instead, which predates the central summit). It is tuned to stay out of scrolling's way:
@@ -304,6 +315,7 @@ Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`
 - **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, News, Archie: the app's tab names and order), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and an announcements bell that shows a red dot when there are unread announcements. The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, speaker, or room.
 - **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The top bar's switch icon opens the roles page.
+- **Look.** The portal shares the landing page's look: a flat background, solid cards on a hairline border (`.glass` in `src/index.css`, which no longer blurs or glows), pill-shaped buttons (`src/components/ui/button.tsx`), and page labels as plain small text above a bold title (`src/components/PageHeader.tsx`).
 
 **Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row. Signed in, your current role continues straight to the dashboard ("Continue as …"). Any other role opens its sign-in page, which offers **Change role to …** (`src/components/ChangeRolePanel.tsx`): it first calls `preview_role_change` and lists what happens to each of your sessions, in the app's words, then saves the role and re-reads what the server kept. A gated role that isn't on the allowlist is refused with "You aren't eligible to sign up as …". A first sign-in with a picked role goes through `getCurrentProfile` (`src/services/auth.ts`), which throws `SignInRefusedError` when the server keeps a different role; `AuthContext` then signs out and shows the message as `signInError`. A failed Google sign-in is shown the same way (see **Google sign-in**). If the account can't be loaded at all, you're signed out with "We couldn't load your account."
 
