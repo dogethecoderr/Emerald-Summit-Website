@@ -263,12 +263,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const role = roleByName(roleName) ?? USER_ROLES[0];
   const roleLabel = roleLabelFor(roleName, profile?.volunteer_subtype);
   const items = navItemsForRole(roleName);
-  const settingsItem = items.find((n) => n.to === '/account');
-  const otherItems = items.filter((n) => n.to !== '/account');
-  const mobileItems = [
-    ...otherItems.slice(0, 4),
-    ...(settingsItem ? [settingsItem] : []),
-  ];
+  // On a phone, the bottom bar is the app's tab bar: Home · Schedule ·
+  // Discover · News · Archie. Profile is the avatar in the top bar, as on the
+  // app's Home.
+  const MOBILE_TABS = ['/home', '/schedule', '/disciplines', '/announcements', '/archie'];
+  const mobileItems = MOBILE_TABS
+    .map((to) => items.find((n) => n.to === to))
+    .filter((n): n is NavItem => n != null);
   const isQrEligible = roleName === 'participant' || roleName === 'ambassador';
   const [qrPassOpen, setQrPassOpen] = useState(false);
   const hasUnread = (unreadCount ?? 0) > 0;
@@ -467,14 +468,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </span>
               )}
             </NavLink>
-            <button
-              type="button"
-              onClick={() => navigate('/roles')}
-              aria-label="Switch role"
-              className="rounded-lg border border-white/15 p-1.5 text-white/70 hover:text-white"
+            <NavLink
+              to="/account"
+              aria-label={`Profile: ${name}`}
+              className={({ isActive }) =>
+                cn(
+                  'flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-bold text-white',
+                  isActive ? 'border-white' : 'border-white/40',
+                )
+              }
+              style={{ background: role.color }}
             >
-              <ArrowLeftRight className="h-4 w-4" />
-            </button>
+              {initials || <UserRound className="h-4 w-4" />}
+            </NavLink>
           </div>
         </div>
 
