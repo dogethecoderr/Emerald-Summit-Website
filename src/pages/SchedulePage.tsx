@@ -65,7 +65,7 @@ function ScheduleBody() {
 
   return (
     <AppShell>
-      <PageHeader label="Emerald High School · Dublin, CA" title="My Day" />
+      <PageHeader label="Emerald High School, Dublin, CA" title="My Day" />
       {scheduleError && <p role="alert" className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">We could not load your saved schedule. Refresh the page to retry.</p>}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{added.length} session{added.length !== 1 ? 's' : ''}{isVolunteer ? ' · Volunteer sessions are assigned by an admin.' : ''}</p>

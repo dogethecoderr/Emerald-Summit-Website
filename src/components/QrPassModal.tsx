@@ -106,7 +106,7 @@ export default function QrPassModal({
             My QR Pass
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Present this code to summit volunteers at the front desk for instant check-in.
+            Show this code at the front desk to check in.
           </DialogDescription>
         </DialogHeader>
 
@@ -232,7 +232,7 @@ export default function QrPassModal({
         {/* Tip */}
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles className="h-3.5 w-3.5 text-emerald shrink-0" />
-          <span>Tip: Turn up screen brightness when presenting to volunteer scanner.</span>
+          <span>Turn your screen brightness up so the volunteer’s scanner can read it.</span>
         </div>
       </DialogContent>
     </Dialog>

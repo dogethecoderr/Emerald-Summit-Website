@@ -27,7 +27,7 @@ export const DAY_PARTS: DayPart[] = [
   {
     name: 'Opening keynote',
     points: [
-      'The whole Summit together before the tracks begin',
+      'The whole Summit together before the sessions begin',
       'Last year’s keynote speaker was Sabeer Bhatia',
     ],
     pending: 'This year’s speaker to be announced',
@@ -37,19 +37,19 @@ export const DAY_PARTS: DayPart[] = [
     name: 'Workshops',
     points: [
       FORMAT_NOTES.Workshop,
-      'Every track is open to solo competitors',
+      'Come on your own or with a team',
       'No technical background needed',
     ],
-    photo: { n: 10, alt: 'Students gather around a competition robot' },
+    photo: { n: 10, alt: 'Students gather around a robot they built' },
   },
   {
-    name: 'Pitches and exhibits',
+    name: 'Presentations and exhibits',
     points: [
       FORMAT_NOTES.Presentation,
       FORMAT_NOTES.Exhibit,
-      '30+ visiting experts judge the tracks',
+      '30+ visiting experts give feedback',
     ],
-    photo: { n: 19, alt: 'Two students pitch their project to a visiting expert' },
+    photo: { n: 19, alt: 'Two students show their project to a visiting expert' },
   },
   {
     name: 'Lunch',
@@ -57,12 +57,12 @@ export const DAY_PARTS: DayPart[] = [
     pending: 'Time and menu to be announced',
   },
   {
-    name: 'Awards',
+    name: 'Landing',
     points: [
-      'Winners recognised on the gym floor',
-      'Certificates for the top teams',
+      'Everyone back together in the gym',
+      'Take home the feedback from your sessions',
       'The day wraps by 5 PM',
     ],
-    photo: { n: 21, alt: 'Winners on the gym floor with flowers and a judge' },
+    photo: { n: 26, alt: 'Students and families fill the gym bleachers' },
   },
 ];

@@ -10,7 +10,7 @@ interface FaqItem {
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Who can attend Emerald Summit?',
-    a: 'Any Tri-Valley high schooler. Last year’s Summit drew 225+ signups from six schools. Come as a competitor, or just stop by to explore as a spectator.',
+    a: 'Any Tri-Valley high schooler. Last year’s Summit drew 225+ signups from six schools. Bring a project or an idea to share, or come to look around as a spectator.',
   },
   {
     q: 'When and where is the next Summit?',
@@ -22,23 +22,23 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Do I need a team?',
-    a: 'No. Every track is open to solo competitors. Team up if you want, but it’s never required.',
+    a: 'No. Come on your own or with friends. A team is never required.',
   },
   {
     q: 'Is it free?',
-    a: 'Yes, Emerald Summit is 100% free to attend and compete in.',
+    a: 'Yes. Emerald Summit is free.',
   },
   {
     q: 'Do I need to be technical to join?',
     a: 'Not at all. The six universes span arts, business, civics, and science, as well as tech.',
   },
   {
-    q: 'What’s the difference between competing and spectating?',
-    a: 'Competitors reserve a seat in a track and are judged; spectators can sit in and watch without competing. Both are booked in the schedule builder.',
+    q: 'What’s the difference between participating and spectating?',
+    a: 'Participants book a seat in a session to share their work and get feedback. Spectators sit in and watch. Both book seats in the schedule builder.',
   },
   {
-    q: 'Can I get involved beyond competing?',
-    a: 'Yes. Sign in as a Volunteer to help run the day, or as an Expert to judge a track. Check-in on the day is one tap at the front desk.',
+    q: 'Can I help out in other ways?',
+    a: 'Yes. Sign in as a Volunteer to help run the day, or as an Expert to lead a session and give feedback. Check-in on the day is one tap at the front desk.',
   },
 ];
 

@@ -52,7 +52,7 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
     {
       to: '/schedule',
       label: 'Build your schedule',
-      sub: 'Reserve competitor or spectator seats',
+      sub: 'Reserve participant or spectator seats',
       icon: CalendarDays,
     },
   ],
@@ -90,7 +90,7 @@ const QUICK_ACTIONS: Record<string, QuickAction[]> = {
 };
 
 /** 'Session' is a plain listing for roles with no schedule of their own. */
-type AgendaKind = 'Competing' | 'Judging' | 'Volunteering' | 'Spectating' | 'Session';
+type AgendaKind = 'Participating' | 'Expert' | 'Volunteering' | 'Spectating' | 'Session';
 
 interface AgendaItem {
   session: Session;
@@ -279,7 +279,7 @@ export default function HomePage() {
   const scheduleLabel =
     ownKind === 'volunteering' ? 'View assigned sessions' : 'Browse sessions';
   const ownLabel: AgendaKind =
-    ownKind === 'judging' ? 'Judging' : ownKind === 'volunteering' ? 'Volunteering' : 'Competing';
+    ownKind === 'judging' ? 'Expert' : ownKind === 'volunteering' ? 'Volunteering' : 'Participating';
   const agenda: AgendaItem[] = MOCK_SESSIONS.filter(
     (s) => ownIds.includes(s.id) || spectating.includes(s.id),
   )

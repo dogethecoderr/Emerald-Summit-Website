@@ -234,7 +234,7 @@ export default function SettingsPage() {
   if (section && section !== 'edit' && section !== 'profile') return <Navigate to="/account" replace />;
   return (
     <AppShell>
-      {!section && <><PageHeader label="Emerald High School · Dublin, CA" title="Profile" /><div className="-mt-4 mb-8 border-t border-border/60" /></>}
+      {!section && <><PageHeader label="Emerald High School, Dublin, CA" title="Profile" /><div className="-mt-4 mb-8 border-t border-border/60" /></>}
       {section ? <ProfileSettings profile={profile} onSaved={refreshProfile} /> : <ProfileHub profile={profile} />}
     </AppShell>
   );

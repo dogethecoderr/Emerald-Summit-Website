@@ -81,9 +81,7 @@ export default function RolesPage() {
         </div>
 
         <div className="relative mt-10 lg:my-auto lg:pb-28">
-          <div className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-sky-300">
-            Emerald Summit 2027 · Dublin, CA
-          </div>
+          <p className="text-sm text-white/60">Emerald Summit 2027, Dublin, CA</p>
           <h1 className="mt-3 font-display text-4xl font-bold leading-[1.08] tracking-tight lg:text-[52px]">
             Who are you at the Summit?
           </h1>

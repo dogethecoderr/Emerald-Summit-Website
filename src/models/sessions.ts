@@ -88,7 +88,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     track: 'keynote',
     duration: '60 min',
     description:
-      'Summit directors open the day with a vision for what students can build, discover, and lead.',
+      'Summit directors open the day and talk about what students can build.',
     capacity: 300,
     enrolled: 212,
     expertCapacity: 3,
@@ -126,7 +126,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Presentations',
     duration: '60 min',
     description:
-      'Student researchers present local environmental projects and scalable solutions.',
+      'Student researchers present local environmental projects.',
     capacity: 40,
     enrolled: 31,
     expertCapacity: 3,
@@ -164,7 +164,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Core Science',
     duration: '60 min',
     description:
-      'From orbital mechanics to student-built model rockets, exploring beyond Earth.',
+      'Orbital mechanics, and the model rockets students have built.',
     capacity: 30,
     enrolled: 18,
     expertCapacity: 3,
@@ -183,7 +183,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Entrepreneurship',
     duration: '90 min',
     description:
-      'Students pitch business concepts to a panel of volunteers and receive live feedback.',
+      'Students present business ideas to a panel of volunteers and get feedback on the spot.',
     capacity: 20,
     enrolled: 17,
     expertCapacity: 3,
@@ -239,7 +239,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     trackName: 'Genetics',
     duration: '60 min',
     description:
-      'Dive into gene editing technology and the moral questions scientists must navigate.',
+      'Gene editing, and the moral questions it raises for scientists.',
     capacity: 28,
     enrolled: 15,
     expertCapacity: 3,
@@ -534,7 +534,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
   },
   {
     id: 's13',
-    title: 'Closing Ceremony & Discipline Awards',
+    title: 'Closing Session',
     speaker: 'Marcus Chen & Elena Rodriguez',
     time: '5:00 PM',
     location: 'Main Hall A',
@@ -542,7 +542,7 @@ const SESSION_DRAFTS: SessionDraft[] = [
     track: 'keynote',
     duration: '45 min',
     description:
-      'Celebrate standout work across all six disciplines with peer-nominated awards.',
+      'Everyone back together to share work from all six disciplines.',
     capacity: 300,
     enrolled: 198,
     expertCapacity: 3,

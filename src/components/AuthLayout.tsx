@@ -124,7 +124,7 @@ export default function AuthLayout({
           <div className="mt-2 font-display text-5xl font-bold leading-[1.04] tracking-tight xl:text-6xl">
             {title}
           </div>
-          <div className="mt-4 text-[13px] text-white/55">Emerald Summit 2027 · Dublin, CA</div>
+          <div className="mt-4 text-[13px] text-white/55">Emerald Summit 2027, Dublin, CA</div>
         </div>
       </aside>
 

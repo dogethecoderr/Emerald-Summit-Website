@@ -26,12 +26,12 @@ const FACTS: { label: string; text: string; href?: string }[] = [
   { label: 'Date', text: 'Saturday, January 23, 2027' },
   { label: 'Hours', text: '9:00 AM to 5:00 PM' },
   { label: 'Place', text: 'Emerald High School, 3600 Central Pkwy, Dublin, CA', href: VENUE_MAP_URL },
-  { label: 'Cost', text: 'Free to attend and to compete' },
+  { label: 'Cost', text: 'Free' },
 ];
 
 const ABOUT_STATS = [
   { value: '20+', label: 'Tracks', note: 'From Robothon to Mock Trial' },
-  { value: '30+', label: 'Visiting experts', note: 'Judging the tracks and giving the talks' },
+  { value: '30+', label: 'Visiting experts', note: 'Giving feedback and leading the talks' },
   { value: '6', label: 'Universes', note: 'TechVerse to CivicVerse' },
   { value: '1', label: 'Day', note: 'One campus, Emerald High' },
 ];
@@ -41,15 +41,13 @@ const BADGE_ROLES = SIGN_IN_ROLES;
 
 /** The owner's own photographs from the last Summit, in rail order. */
 const DAY_PHOTOS: { n: number; alt: string; tall?: boolean }[] = [
-  { n: 19, alt: 'Two students pitch their project to a visiting expert' },
-  { n: 10, alt: 'Students gather around a competition robot' },
+  { n: 19, alt: 'Two students show their project to a visiting expert' },
+  { n: 10, alt: 'Students gather around a robot they built' },
   { n: 13, alt: 'A student walks a visitor through her design project poster' },
   { n: 28, alt: 'A VentureVerse panel on stage in the lecture hall' },
-  { n: 17, alt: 'Three students present to a judge' },
+  { n: 17, alt: 'Three students present to a visiting expert' },
   { n: 26, alt: 'Students and families fill the gym bleachers' },
-  { n: 30, alt: 'A team presents their BiteWise nutrition pitch' },
-  { n: 34, alt: 'Two students hold up their award certificates', tall: true },
-  { n: 21, alt: 'Winners on the gym floor with flowers and a judge' },
+  { n: 30, alt: 'A team presents their BiteWise nutrition idea' },
 ];
 
 const photo = (n: number) => `/gallery/photo-${String(n).padStart(2, '0')}.jpg`;
@@ -333,9 +331,9 @@ export default function WelcomePage() {
             <div className="lp-about__text">
               <h2 id="about-title">What is Emerald Summit?</h2>
               <p>
-                A full day where hundreds of builders move between six
-                disciplines (universes), pitch to visiting experts, and leave
-                with something better than they started with.
+                A day at Emerald High where students share project ideas,
+                work on them together, and get feedback from visiting experts
+                across six disciplines (universes).
               </p>
             </div>
             <PhotoMosaic className="lp-about__photo" />
@@ -362,7 +360,7 @@ export default function WelcomePage() {
             <figure className="lp-day__figure">
               <HairlineFigure
                 name="summit"
-                label="The Summit day as a stepped mountain of six terraces, check-in at the peak down to awards at the base, with Emerald High's flag on top"
+                label="The Summit day as a stepped mountain of six terraces, check-in at the peak down to the landing at the base, with Emerald High's flag on top"
                 className="lp-hairline lp-hairline--summit"
                 onPick={setPart}
               />
@@ -457,7 +455,7 @@ export default function WelcomePage() {
         <div className="container lp-cta__inner">
           <h2 id="contact-title">Start the trek.</h2>
           <p className="lp-cta__lede">
-            Free to attend and to compete. Questions before January 23? Email us.
+            Free to attend. Questions before January 23? Email us.
           </p>
           <div className="lp-cta__actions">
             <button type="button" className="lp-btn" onClick={() => navigate('/home')}>

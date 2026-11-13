@@ -153,7 +153,7 @@ function mount({ stage, svg, read }, value) {
 
 hairline({
   name: "summit",
-  means: "The day as a climb: six terraces, check-in to awards, and the one at the pointer's height slides out as the gaps open.",
+  means: "The day as a climb: six terraces, check-in down to the landing, and the one at the pointer's height slides out as the gaps open.",
   rules: [1, 2, 5, 8],
   range: [8, 16, 26],
   tour: [[193, 143], [197, 192], [200, 228], null],

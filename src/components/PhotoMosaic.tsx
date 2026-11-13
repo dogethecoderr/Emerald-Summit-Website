@@ -4,10 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 /** The downloaded event photos, grouped sequentially into sets of
  * [large tile, top-right tile, bottom-right tile] so the rotation works
  * through the gallery rather than a small curated handful. Left out, at the
- * owner's request: the trading-leaderboard and final-rankings screenshots
- * (photos 32 and 33). */
+ * owner's request: two leaderboard screenshots (photos 32 and 33), and the
+ * award photos (21 and 34), since the Summit is not a competition. */
 const GALLERY_COUNT = 36;
-const LEFT_OUT = new Set([32, 33]);
+const LEFT_OUT = new Set([21, 32, 33, 34]);
 const PHOTOS = Array.from({ length: GALLERY_COUNT }, (_, i) => i + 1)
   .filter((n) => !LEFT_OUT.has(n))
   .map((n) => `/gallery/photo-${String(n).padStart(2, '0')}.jpg`);

@@ -89,51 +89,32 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    background-image:
-      radial-gradient(1200px 640px at 85% -10%, hsl(158 55% 62% / 0.18), transparent 60%),
-      radial-gradient(900px 520px at -10% 110%, hsl(158 50% 55% / 0.14), transparent 60%);
-    background-attachment: fixed;
-  }
-  .dark body {
-    background-image: none;
   }
   ::selection {
     background: hsl(158 62% 40% / 0.3);
   }
+  /* Headings as on the landing page: Satoshi, bold, set a touch tight. */
   h1, h2, h3, h4 {
     @apply font-display;
+    letter-spacing: -0.02em;
   }
 }
 
 @layer utilities {
-  /* Frosted card surface used across panels */
+  /* Panel surface, as on the landing page: a solid card on a hairline
+     border, no blur, gradient or shadow. (The name is kept from when it was
+     frosted, so every panel picks this up.) */
   .glass {
-    background: linear-gradient(
-      160deg,
-      hsl(0 0% 100% / 0.85),
-      hsl(150 30% 98% / 0.75)
-    );
-    backdrop-filter: blur(14px);
-    border: 1px solid hsl(154 22% 82% / 0.8);
-    box-shadow: 0 2px 16px -6px hsl(160 40% 30% / 0.12);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
   }
-  .dark .glass {
-    background: linear-gradient(160deg, hsl(155 20% 8% / 0.9), hsl(155 20% 6% / 0.85));
-    border-color: hsl(155 14% 17%);
-    box-shadow: none;
-  }
-  /* Emerald text gradient for hero/display moments */
+  /* Display emphasis in the brand emerald (once a gradient). */
   .text-gradient-emerald {
-    background: linear-gradient(100deg, #0a5f43 10%, #0c7a55 55%, #10b981 90%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: hsl(var(--primary));
   }
-  /* Soft outer glow for primary emphasis elements */
+  /* Primary emphasis: a hairline emerald ring (once a glow). */
   .glow-emerald {
-    box-shadow:
-      0 0 0 1px hsl(158 62% 32% / 0.25),
-      0 8px 32px -8px hsl(158 62% 32% / 0.45);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.35);
   }
   .scrollbar-none {
     scrollbar-width: none;

@@ -319,7 +319,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               Summit 2027 · {roleLabel}
             </div>
             <div className="truncate text-[11.5px] text-white/55">
-              Emerald High School · Dublin, CA
+              Emerald High School, Dublin, CA
             </div>
           </div>
         </div>

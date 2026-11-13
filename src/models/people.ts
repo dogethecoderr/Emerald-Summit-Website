@@ -100,7 +100,7 @@ export const MOCK_PEOPLE: Person[] = [
     email: 'l.mendes@emeraldhigh.edu',
     phone: '(925) 555-0106',
     initials: 'LM',
-    bio: "VentureVerse ambassador and winner of last year's Dublin Youth Pitch Competition.",
+    bio: 'VentureVerse ambassador.',
     emailVisible: 'public',
     phoneVisible: 'ambassadors',
     status: 'validated',
