@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { AnnouncementsProvider } from './context/AnnouncementsContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import { Toaster } from '@/components/ui/sonner';
 import App from './App';
 import { loadSummitContent } from './services/summitContent';
@@ -23,10 +24,12 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
       <AuthProvider>
         <ScheduleProvider>
-          <AnnouncementsProvider>
-            <App />
-            <Toaster position="bottom-center" />
-          </AnnouncementsProvider>
+          <NotificationsProvider>
+            <AnnouncementsProvider>
+              <App />
+              <Toaster position="bottom-center" />
+            </AnnouncementsProvider>
+          </NotificationsProvider>
         </ScheduleProvider>
       </AuthProvider>
       </ThemeProvider>

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useAuth } from './AuthContext';
 import { useSchedule } from './ScheduleContext';
+import { useNotifications } from './NotificationsContext';
 import { MOCK_SESSIONS } from '../models/sessions';
 import { canEditVerse, useSummitContent } from '../services/summitContent';
 import {
@@ -99,6 +100,8 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   // True once read state comes from the shared tables for this account.
   const [sharedState, setSharedState] = useState(false);
   const [feedUserId, setFeedUserId] = useState(userId);
+  // Personal notices move to the bell once its list has loaded.
+  const { available: bellAvailable } = useNotifications();
   const announcements = useMemo(() => {
     if (feedUserId !== userId) return [];
     const registered = new Set([...mySchedule, ...expertSchedule, ...spectating]);
@@ -107,8 +110,9 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       userId,
       registeredDisciplines: disciplines,
       canManageDiscipline: (id) => canEditVerse(profile, id),
+      bellAvailable,
     });
-  }, [storedAnnouncements, hiddenIds, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion]);
+  }, [storedAnnouncements, hiddenIds, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion, bellAvailable]);
   const activeUser = useRef(userId);
   activeUser.current = userId;
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));

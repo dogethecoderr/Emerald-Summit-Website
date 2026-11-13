@@ -427,6 +427,7 @@ export async function signInWithTestAccount(email: string, password: string): Pr
       }
       throw new Error(
         status === 401 ? 'Wrong email or password.'
+          : status === 429 ? 'Too many wrong passwords. Try again later.'
           : status === 403 || status === 404 ? 'Test accounts are turned off on this server.'
             : TEST_SIGN_IN_UNREACHABLE,
       );

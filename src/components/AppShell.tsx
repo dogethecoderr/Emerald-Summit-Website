@@ -21,7 +21,7 @@ import {
 } from '@/components/icons';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
-import { useAnnouncements } from '../context/AnnouncementsContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { signOut } from '../services/auth';
 import { MOCK_SESSIONS, joinParts } from '../models/sessions';
@@ -66,18 +66,8 @@ export function navItemsForRole(roleName: string): NavItem[] {
 function NavBadge({ to }: { to: string }) {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
-  const { unreadCount = 0 } = useAnnouncements();
-  if (to === '/announcements') {
-    if (unreadCount === 0) return null;
-    return (
-      <span
-        className="ml-auto rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-        aria-label={`${unreadCount} unread`}
-      >
-        {unreadCount}
-      </span>
-    );
-  }
+  // News has no count: the bell counts new posts, so a post isn't counted
+  // twice. Each post keeps its own "New" label in News.
   if (to === '/schedule') {
     const scheduleCount =
       profile?.role === 'expert'
@@ -263,7 +253,7 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const { unreadCount } = useAnnouncements();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const name = (profile?.name as string | undefined) ?? 'Signed in';
@@ -430,13 +420,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {roleLabel}
             </span>
             <NavLink
-              to="/announcements"
-              aria-label="Announcements"
+              to="/notifications"
+              aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
               className="relative rounded-[10px] border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
             >
               <Bell className="h-[18px] w-[18px]" />
               {hasUnread && (
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-600 ring-2 ring-card" />
+                <span className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-card">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
             </NavLink>
           </div>
@@ -462,13 +454,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </button>
             )}
             <NavLink
-              to="/announcements"
-              aria-label="Announcements"
+              to="/notifications"
+              aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
               className="relative rounded-lg border border-white/15 p-1.5 text-white/70"
             >
               <Bell className="h-4 w-4" />
               {hasUnread && (
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
+                <span className="absolute -right-1.5 -top-1.5 min-w-[16px] rounded-full bg-rose-500 px-1 text-center text-[9.5px] font-bold leading-4 text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
               )}
             </NavLink>
             <button

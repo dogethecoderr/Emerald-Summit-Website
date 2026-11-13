@@ -26,6 +26,7 @@ const RoomsPage = lazy(() => import('./pages/RoomsPage'));
 const MetricsPage = lazy(() => import('./pages/MetricsPage'));
 const SummitFollowupPage = lazy(() => import('./pages/SummitFollowupPage'));
 const ArchiePage = lazy(() => import('./pages/ArchiePage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 function LegacyApplicationRedirect() {
   const { role } = useParams();
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/sessions/:id" element={<SessionPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/archie" element={<ArchiePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profiles" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<SettingsPage />} />
           <Route path="/account/:section" element={<SettingsPage />} />

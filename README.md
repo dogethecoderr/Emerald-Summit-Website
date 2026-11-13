@@ -88,7 +88,7 @@ Test accounts sign in with a shared password instead of an emailed code, like th
 2. For a test account, a password box appears instead. The function checks the password and returns a one-time code, which the page verifies, so it's a real Supabase session.
 3. The account skips role picking, like `_autoOnboardTestAccount` in the app: admin if on the admin list, else volunteer if on the volunteer list, else from the email (`expert`, `spectator` or `parent`, otherwise participant). A toast says which role it got.
 
-The password is never stored (not in `localStorage`, the URL, the repo or Vercel). People type it. After five wrong passwords in a row, the browser stops asking for 15 minutes ("Too many wrong passwords. Try again in N minutes.") without calling the function; a right password resets the count. That only slows someone typing guesses into the page. A script can call `dev-login` directly, so a real lockout has to live in the function (app repo); for now each wrong password there waits 1.5 seconds. The test accounts and the password are set up in the app repo (SUPABASE.md §3b). Code: `isTestAccount`, `signInWithTestAccount` and `autoOnboardTestAccount` in `src/services/auth.ts`, the password step in `src/pages/LoginPage.tsx`, the flag in `src/lib/devLogin.ts`.
+The password is never stored (not in `localStorage`, the URL, the repo or Vercel). People type it. After five wrong passwords in a row, the browser stops asking for 15 minutes ("Too many wrong passwords. Try again in N minutes.") without calling the function; a right password resets the count. That only slows someone typing into the page. The real lockout is in the `dev-login` function (app repo, `dev_login_lockout.sql`): 5 wrong passwords from one address in 15 minutes, or 50 from anywhere in an hour, and it answers `429`, which the page shows as "Too many wrong passwords. Try again later." Each wrong password there also waits 1.5 seconds. The test accounts and the password are set up in the app repo (SUPABASE.md §3b). Code: `isTestAccount`, `signInWithTestAccount` and `autoOnboardTestAccount` in `src/services/auth.ts`, the password step in `src/pages/LoginPage.tsx`, the flag in `src/lib/devLogin.ts`.
 
 The dev server honours a `PORT` environment variable, so a second instance — another checkout, or a teammate's session on the same machine — can run alongside the first instead of colliding on 5173:
 
@@ -217,7 +217,7 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a new or deleted post reaches every connected profile without a refresh.
 
-**Unread.** Each account's unread posts show a red count on the sidebar's News link, a red dot on the bell, and an "N unread" chip on the panel. Unread posts are tinted red with a "New" label. Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
+**Unread.** Unread posts are tinted red with a "New" label and counted in an "N unread" chip on the panel. The sidebar's News link has no count: the bell counts new posts (see **Notifications**). Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
 
 **Remove from my feed.** Each post has a "Remove from my feed" button, as in the app: it hides the post for this account only (`announcement_dismissals`), with an Undo toast. Admins still delete posts for everyone with Delete.
 
@@ -226,19 +226,19 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsContext.tsx`, `src/components/AnnouncementComposer.tsx`, `src/components/AnnouncementsPanel.tsx`, `src/components/AttachmentPreview.tsx`.
 
 
-## Notifications (planned, not built)
+## Notifications (the bell)
 
-The website has no push notifications and won't get browser push: it would need a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Push notifications** switch on Profile only saves the account's `notifications_enabled`, which the app reads; nothing on the website listens to it.
+The bell at the top right opens **Notifications** (`/notifications`, `src/pages/NotificationsPage.tsx`), the same list as the app's bell, with a red count of unread notes. It holds short notes about you, separate from News:
 
-Today the bell at the top right opens News. Personal notices ("You've been assigned to manage …", "You were removed from team …", expert approval, session cancelled) are announcements with `target_user_id` set, so they land in News next to the organizers' posts.
+- a new post that reaches you ("Priya Shah posted to TechVerse"), which opens News and marks that post opened;
+- personal notices (assignments, team changes, expert approval, the admins' sheet and expert-queue notices), which open their session when they have one;
+- "Coming up at 10:30 AM: AI Playground" in the hour before a session you're in or managing.
 
-**Recommended plan (not decided yet; needs SQL in the app repo first):** a separate **Notifications** feed behind the bell, on the website and in the app, with **Mark all as read**. News stays the organizers' posts.
+Clicking a note marks it read; **Mark all as read** clears the bell. The rows are the app's `notifications` table, written only by the backend (`notifications_setup.sql` in the app repo); the website reads them (`src/services/notifications.ts`, `src/context/NotificationsContext.tsx`), marks them read (`mark_notifications_read`), keeps them live over Realtime, and every 5 minutes calls `queue_my_session_reminders` (reminders start once the backend's `summit_date` is set; the website's own `SUMMIT_DATE` doesn't count for this).
 
-- Notifications are short, about you, and link somewhere: "Your AI Playground session starts in 1 hour", "An admin posted to everyone in TechVerse", "Maya joined your team", "Your expert sign-up was approved", "You're managing Robot Showcase".
-- A new `notifications` table (owner-only RLS, written only by SECURITY DEFINER functions): `user_id`, `kind`, `title`, `body`, `session_id` / `announcement_id` to link to, `created_at`, `read_at`. The RPCs and triggers that post personal notices today write here instead of `announcements`.
-- A new announcement adds one notification per person in its audience that links to the post. Opening that notification opens the post and marks it opened. Once the bell exists, News drops its own count (it keeps the per-post "New" dots), so a new post is counted once.
-- "Starts in 1 hour" reminders come from a scheduled job that adds rows for each person's sessions.
-- When the app's push is built, each notification row is also one push, skipped when `notifications_enabled` is off. The bell fills either way.
+Personal notices are no longer in News. Until the `notifications` table has loaded once (for example before that SQL is run), News keeps showing each person their own notices, so nothing goes missing. News has no count of its own any more; each post keeps its "New" label until it's opened.
+
+There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Push notifications** switch on Profile saves the account's `notifications_enabled`, the same setting the app's switch changes; it mutes the app's banner (and push, once the app has it) and doesn't affect the bell on either.
 
 ---
 

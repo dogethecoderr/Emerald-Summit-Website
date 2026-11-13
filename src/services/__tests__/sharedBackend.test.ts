@@ -205,7 +205,14 @@ describe('shared announcement audience rules', () => {
     { ...base, id: 'theirs', targetUserId: 'someone-else' },
   ];
 
-  test('a registration grants its discipline notices; personal notices stay recipient-only', () => {
+  test('a registration grants its discipline posts; personal notices go to the bell, not News', () => {
+    const visible = announcements.announcementsForUser(feed, {
+      userId: 'me', registeredDisciplines: new Set(['techverse']), canManageDiscipline: () => false, bellAvailable: true,
+    });
+    expect(visible.map((a) => a.id)).toEqual(['broadcast', 'tech']);
+  });
+
+  test('until the bell can load, News still shows the recipient their own notices', () => {
     const visible = announcements.announcementsForUser(feed, {
       userId: 'me', registeredDisciplines: new Set(['techverse']), canManageDiscipline: () => false,
     });
