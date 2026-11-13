@@ -31,6 +31,7 @@ import {
   Compass as PhCompass,
   Copy as PhCopy,
   Dna as PhDna,
+  DotsThree,
   DownloadSimple,
   Envelope,
   Eye as PhEye,
@@ -137,6 +138,7 @@ export const Copy = duotone(PhCopy, 'Copy');
 export const CornerDownLeft = duotone(ArrowElbowDownLeft, 'CornerDownLeft');
 export const Dna = duotone(PhDna, 'Dna');
 export const Download = duotone(DownloadSimple, 'Download');
+export const MoreHorizontal = duotone(DotsThree, 'MoreHorizontal');
 export const Eye = duotone(PhEye, 'Eye');
 export const EyeOff = duotone(EyeSlash, 'EyeOff');
 export const File = duotone(PhFile, 'File');

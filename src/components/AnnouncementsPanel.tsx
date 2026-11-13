@@ -8,7 +8,14 @@ import {
   Trash2,
   Plus,
   EyeOff,
+  MoreHorizontal,
 } from '@/components/icons';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type {
   Announcement,
   AnnouncementAttachment,
@@ -36,7 +43,7 @@ export interface AnnouncementAdminProps {
 export interface AnnouncementReadProps {
   isUnread?: (id: string) => boolean;
   onMarkRead?: (id: string) => void;
-  /** "Remove from my feed" (hidden only for this account). */
+  /** "Remove this announcement from my feed" in the ⋯ menu (hidden only for this account; the page confirms first). */
   onHide?: (announcement: Announcement) => void;
 }
 
@@ -119,6 +126,31 @@ export function AnnouncementItem({
         )}
         <span className="text-muted-foreground">{announcement.audience}</span>
         <span className="ml-auto text-muted-foreground">{announcement.date}</span>
+        {(onHide || (canManage && onDelete)) && (
+          // Out of the way on purpose: removing a post from your feed can't be
+          // undone, so it sits behind ⋯ and asks first (AnnouncementsPage).
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`More options for ${announcement.title}`}
+              className="-my-1 -mr-1.5 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              {onHide && (
+                <DropdownMenuItem onSelect={() => onHide(announcement)}>
+                  <EyeOff className="h-4 w-4" /> Remove this announcement from my feed
+                </DropdownMenuItem>
+              )}
+              {canManage && onDelete && (
+                <DropdownMenuItem onSelect={() => onDelete(announcement)} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4" /> Delete for everyone
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
       <h3
         className={cn(
@@ -151,31 +183,6 @@ export function AnnouncementItem({
         </div>
       )}
 
-      {onHide && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onHide(announcement);
-          }}
-          title="Hidden only for you"
-          className="mt-3 mr-1.5 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <EyeOff className="h-3 w-3" /> Remove from my feed
-        </button>
-      )}
-
-      {canManage && (
-        <div className="mt-3 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => onDelete?.(announcement)}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" /> Delete
-          </button>
-        </div>
-      )}
     </article>
   );
 }

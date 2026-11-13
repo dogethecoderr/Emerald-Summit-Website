@@ -33,7 +33,6 @@ export default function AnnouncementsPage() {
     markRead,
     markAllRead,
     hide,
-    unhide,
     configured,
   } = useAnnouncements();
 
@@ -47,6 +46,7 @@ export default function AnnouncementsPage() {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Announcement | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<Announcement | null>(null);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -58,13 +58,15 @@ export default function AnnouncementsPage() {
     );
   }
 
-  // Same wording as the app's "Remove from my feed" and its Undo snackbar.
-  const removeFromFeed = async (announcement: Announcement) => {
+  // Asked first, because it can't be undone: there's no way to bring a post
+  // back into your feed. Everyone else still sees it. Same as the app.
+  const confirmRemoveFromFeed = async () => {
+    const announcement = pendingRemove;
+    setPendingRemove(null);
+    if (!announcement) return;
     try {
       await hide(announcement.id);
-      toast('Removed from your feed', {
-        action: { label: 'Undo', onClick: () => void unhide(announcement.id) },
-      });
+      toast('Removed from your feed');
     } catch (err: any) {
       toast.error(err?.message ?? 'Could not remove it from your feed');
     }
@@ -106,7 +108,7 @@ export default function AnnouncementsPage() {
         announcements={announcements}
         isUnread={isUnread}
         onMarkRead={markRead}
-        onHide={configured ? removeFromFeed : undefined}
+        onHide={configured ? setPendingRemove : undefined}
         variant="full"
         canManage={canManage}
         onCompose={canPost ? () => setComposerOpen(true) : undefined}
@@ -138,6 +140,29 @@ export default function AnnouncementsPage() {
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingRemove !== null}
+        onOpenChange={(open) => !open && setPendingRemove(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Remove from your feed?</DialogTitle>
+            <DialogDescription>
+              Once you remove “{pendingRemove?.title}”, you can't get it back in
+              your feed. It stays in News for everyone else.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingRemove(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void confirmRemoveFromFeed()}>
+              Remove
             </Button>
           </DialogFooter>
         </DialogContent>

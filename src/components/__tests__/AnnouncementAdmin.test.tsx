@@ -92,9 +92,11 @@ describe('AnnouncementsPanel admin controls', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /new/i }));
     expect(onCompose).toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /delete/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /pin/i })).toBeNull();
+    // Delete sits behind the post's ⋯ menu.
+    await userEvent.click(screen.getByRole('button', { name: /more options/i }));
+    expect(await screen.findByRole('menuitem', { name: /delete for everyone/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /mark as read/i })).toBeNull();
     expect(screen.queryByPlaceholderText(/search/i)).toBeNull();
   });
