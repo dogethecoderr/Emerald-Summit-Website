@@ -238,7 +238,7 @@ Clicking a note marks it read; **Mark all as read** clears the bell. The rows ar
 
 Personal notices are no longer in News. Until the `notifications` table has loaded once (for example before that SQL is run), News keeps showing each person their own notices, so nothing goes missing. News has no count of its own any more; each post keeps its "New" label until it's opened.
 
-There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Push notifications** switch on Profile saves the account's `notifications_enabled`, the same setting the app's switch changes; it mutes the app's banner (and push, once the app has it) and doesn't affect the bell on either.
+There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Mobile app notifications** switch on Profile (named so it's clear it's about the phone) saves the account's `notifications_enabled`, the same setting the app's switch changes; it mutes the app's banner (and push, once the app has it) and doesn't affect the bell on either.
 
 ---
 

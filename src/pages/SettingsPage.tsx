@@ -202,8 +202,8 @@ function ProfileHub({ profile }: { profile: Profile }) {
           </div>
           <div className="flex items-center gap-3 px-4 py-3.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Bell className="h-4 w-4" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Push notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Next-session reminders and announcements, sent to your phone by the app</span></span>
-            <Switch checked={notifications} aria-label="Push notifications" onCheckedChange={(v) => void toggleNotifications(v)} />
+            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Mobile app notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Alerts on your phone from the Emerald Summit app. The website's bell isn't affected.</span></span>
+            <Switch checked={notifications} aria-label="Mobile app notifications" onCheckedChange={(v) => void toggleNotifications(v)} />
           </div>
           {isVolunteer && <SettingsRow icon={CalendarDays} title="Sessions I'm managing" subtitle="Take attendance for sessions you run" onClick={() => navigate('/volunteer')} />}
           {status.feedbackOpen && roleName === 'expert' && <SettingsRow icon={Award} title="Summit feedback" subtitle="Rate your sessions, the summit and the app" onClick={() => navigate('/follow-up')} />}
