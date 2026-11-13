@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  Phone,
   QrCode,
   RefreshCw,
 } from '@/components/icons';
@@ -233,6 +234,15 @@ export default function QrPassModal({
         <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles className="h-3.5 w-3.5 text-emerald shrink-0" />
           <span>Turn your screen brightness up so the volunteer’s scanner can read it.</span>
+        </div>
+
+        {/* Mobile app note */}
+        <div
+          data-testid="qr-pass-app-note"
+          className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground"
+        >
+          <Phone className="h-3.5 w-3.5 text-emerald shrink-0" />
+          <span>You can also open this QR code in the Emerald Summit mobile app.</span>
         </div>
       </DialogContent>
     </Dialog>

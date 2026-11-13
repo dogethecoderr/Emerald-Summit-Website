@@ -56,6 +56,9 @@ describe('QrPassModal Component Suite (Requirement R1 & R4)', () => {
     // Header & title
     expect(screen.getByText('My QR Pass')).toBeInTheDocument();
     expect(screen.getByText('Emerald Summit Digital Pass')).toBeInTheDocument();
+    expect(screen.getByTestId('qr-pass-app-note')).toHaveTextContent(
+      'You can also open this QR code in the Emerald Summit mobile app.',
+    );
 
     // User details
     expect(screen.getByText('Jordan Lee')).toBeInTheDocument();
