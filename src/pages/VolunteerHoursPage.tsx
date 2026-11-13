@@ -18,6 +18,7 @@ import { useSchedule } from '../context/ScheduleContext';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { localDay, useSummitStatus } from '../services/summitStatus';
 import { toMinutes, useSummitContent } from '../services/summitContent';
+import { TBD, useSiteSwitches } from '../services/siteSwitches';
 import { deleteHourLog, fetchMyHourLogs, logMinutes, saveHourLog, type HourLog } from '../services/organizer';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -65,6 +66,7 @@ export default function VolunteerHoursPage() {
   const { ready, redirect } = useRequireRole(['volunteer', 'ambassador', 'admin']);
   const { volunteerSchedule } = useSchedule();
   const status = useSummitStatus();
+  const { showTimes } = useSiteSwitches();
   const [logs, setLogs] = useState<HourLog[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<HourLog | 'new' | null>(null);
@@ -119,10 +121,10 @@ export default function VolunteerHoursPage() {
                 <li key={s.id} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{s.title}</p>
-                    <p className="text-xs text-muted-foreground">{[s.time, s.disciplineName].filter(Boolean).join(' · ')}</p>
+                    <p className="text-xs text-muted-foreground">{[showTimes ? s.time : `Time ${TBD}`, s.disciplineName].filter(Boolean).join(' · ')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold">{formatMinutes(sessionMinutes(s))}</p>
+                    <p className="text-sm font-semibold">{showTimes ? formatMinutes(sessionMinutes(s)) : TBD}</p>
                     {!counted(s, status.date, now) && <p className="text-xs text-muted-foreground">Not counted yet</p>}
                   </div>
                 </li>

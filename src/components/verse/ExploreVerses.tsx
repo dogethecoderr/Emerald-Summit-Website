@@ -22,6 +22,8 @@ import {
   type TrackEditorTarget,
 } from './ContentEditors';
 import FlowingBorder from './FlowingBorder';
+import { toast } from 'sonner';
+import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../../services/siteSwitches';
 
 export function sessionsFor(id: string): Session[] {
   return MOCK_SESSIONS.filter((s) => s.track === id).sort(
@@ -60,6 +62,7 @@ function VerseCard({
   onOpen: (origin: { x: number; y: number }) => void;
 }) {
   const { theme } = useTheme();
+  const { showTimes } = useSiteSwitches();
   const vibe = vibeFor(discipline.name, theme);
   const sessions = sessionsFor(discipline.name);
   const open = sessions.filter((s) => s.enrolled < s.capacity).length;
@@ -74,7 +77,7 @@ function VerseCard({
           ? `${titles[0]} and ${titles[1]}`
           : `${titles[0]}, ${titles[1]} and ${titles.length - 2} more`;
   const facts = sessions.length
-    ? `From ${sessions[0].time}  ·  ${open} of ${sessions.length} open`
+    ? `${showTimes ? `From ${sessions[0].time}` : `Times ${TBD}`}  ·  ${open} of ${sessions.length} open`
     : '';
 
   return (
@@ -153,6 +156,7 @@ function VerseSessionCard({
   onEdit?: (session: Session) => void;
 }) {
   const left = Math.max(s.capacity - s.enrolled, 0);
+  const { showTimes } = useSiteSwitches();
   return (
     <article
       className="rounded-2xl p-4"
@@ -162,8 +166,14 @@ function VerseSessionCard({
       }}
     >
       <div className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: vibe.accent }}>
-        <span>{s.time}</span>
-        <span style={{ color: vibe.textDim }}>· {s.duration}</span>
+        {showTimes ? (
+          <>
+            <span>{s.time}</span>
+            <span style={{ color: vibe.textDim }}>· {s.duration}</span>
+          </>
+        ) : (
+          <span>Time {TBD}</span>
+        )}
         <span className="ml-auto flex items-center gap-1.5">
           {onEdit && (
             <button
@@ -567,15 +577,24 @@ function AddToScheduleButton({
   full: boolean;
   onClick: () => void;
 }) {
-  const label = full ? 'Session full' : 'Add to schedule';
+  // Greyed out until website_registration_open is set on the backend.
+  // aria-disabled (not disabled) so a tap still explains why.
+  const { registrationOpen } = useSiteSwitches();
+  const closed = !registrationOpen;
+  const label = closed ? REGISTRATION_CLOSED_MESSAGE : full ? 'Session full' : 'Add to schedule';
   return (
     <span className="group relative -my-1">
       <button
         type="button"
         aria-label={label}
-        disabled={full}
-        onClick={onClick}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-deep text-white shadow-sm transition-all hover:scale-110 hover:bg-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-emerald-deep"
+        aria-disabled={closed || undefined}
+        disabled={full && !closed}
+        onClick={closed ? () => toast(REGISTRATION_CLOSED_MESSAGE) : onClick}
+        className={
+          closed
+            ? 'flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-full bg-neutral-400 text-white opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2'
+            : 'flex h-8 w-8 items-center justify-center rounded-full bg-emerald-deep text-white shadow-sm transition-all hover:scale-110 hover:bg-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-emerald-deep'
+        }
       >
         <Plus className="h-4 w-4" strokeWidth={2.6} />
       </button>

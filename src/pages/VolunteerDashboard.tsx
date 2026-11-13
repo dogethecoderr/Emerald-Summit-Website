@@ -7,6 +7,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useSchedule } from '../context/ScheduleContext';
 import { MOCK_SESSIONS } from '../models/sessions';
 import { toMinutes, useSummitContent } from '../services/summitContent';
+import { TBD, useSiteSwitches } from '../services/siteSwitches';
 import { CalendarDays, ChevronRight } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
@@ -17,6 +18,7 @@ export default function VolunteerDashboard() {
   // Like the app, this is a volunteer's own list; admins assign, they aren't assigned.
   const { ready, redirect } = useRequireRole(['volunteer', 'ambassador']);
   const { volunteerSchedule = [] } = useSchedule();
+  const { showTimes } = useSiteSwitches();
   useSummitContent();
 
   if (redirect) return <Navigate to={redirect} replace />;
@@ -49,7 +51,7 @@ export default function VolunteerDashboard() {
                   <CalendarDays className="h-5 w-5 shrink-0 text-emerald" />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{m.title}</p>
-                    <p className="text-xs text-muted-foreground">{[m.time, m.room || 'Unassigned room'].join(' · ')}</p>
+                    <p className="text-xs text-muted-foreground">{[showTimes ? m.time : `Time ${TBD}`, m.room || 'Unassigned room'].join(' · ')}</p>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>

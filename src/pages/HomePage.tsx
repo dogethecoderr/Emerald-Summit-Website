@@ -18,6 +18,7 @@ import { MOCK_SESSIONS, joinParts, type Session } from '../models/sessions';
 import { needsProfileSetup } from '../services/auth';
 import { missingGateField } from '../models/profileFields';
 import { toMinutes, useSummitContent } from '../services/summitContent';
+import { TBD, useSiteSwitches } from '../services/siteSwitches';
 import {
   EVENT_DATE_FALLBACK,
   EVENT_VENUE,
@@ -181,6 +182,7 @@ function StatTile({
 
 function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
   const { session: s, kind } = item;
+  const { showTimes } = useSiteSwitches();
   return (
     <div
       className={cn(
@@ -191,8 +193,8 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
       )}
     >
       <div className="w-16 shrink-0 sm:w-20">
-        <div className="text-[14px] font-semibold tabular-nums">{s.time}</div>
-        <div className="text-[12px] text-muted-foreground">{s.duration}</div>
+        <div className="text-[14px] font-semibold tabular-nums">{showTimes ? s.time : TBD}</div>
+        {showTimes && <div className="text-[12px] text-muted-foreground">{s.duration}</div>}
       </div>
       <span
         className={cn(
@@ -204,7 +206,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-[16px] font-semibold">{s.title}</div>
         <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {joinParts(s.location, kind === 'Session' ? s.duration : kind)}
+          {joinParts(s.location, kind === 'Session' ? (showTimes ? s.duration : undefined) : kind)}
         </div>
       </div>
       <span
@@ -215,7 +217,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
             : 'border border-border text-muted-foreground',
         )}
       >
-        {first ? 'Up next' : s.time}
+        {first ? 'Up next' : showTimes ? s.time : TBD}
       </span>
     </div>
   );
@@ -232,6 +234,8 @@ function CountChip({ count }: { count: number }) {
 export default function HomePage() {
   useSummitContent();
   const { date: summitDate } = useSummitStatus();
+  // While session times are hidden there's no countdown (it counts to the first session).
+  const { showTimes } = useSiteSwitches();
   const { session, profile, loadingProfile } = useAuth();
   const navigate = useNavigate();
   const { listFor, spectating } = useSchedule();
@@ -300,14 +304,14 @@ export default function HomePage() {
   const primaryAction = actions[0];
 
   const heroSub = next
-    ? `You have ${agenda.length} session${agenda.length === 1 ? '' : 's'} on your schedule. First up: ${next.session.title} at ${next.session.time}.`
+    ? `You have ${agenda.length} session${agenda.length === 1 ? '' : 's'} on your schedule. First up: ${next.session.title}${showTimes ? ` at ${next.session.time}` : ''}.`
     : null;
 
   const stats = [
     {
       label: 'Next up',
-      value: next ? next.session.time : 'None yet',
-      sub: next ? joinParts(next.session.location, next.session.duration) : 'Nothing scheduled yet',
+      value: next ? (showTimes ? next.session.time : `Time ${TBD}`) : 'None yet',
+      sub: next ? joinParts(next.session.location, showTimes ? next.session.duration : undefined) : 'Nothing scheduled yet',
       icon: Clock,
     },
     {
@@ -337,7 +341,7 @@ export default function HomePage() {
             <div className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-emerald-300">
               {summitDate ? formatDay(summitDate) : EVENT_DATE_FALLBACK} · {EVENT_VENUE}
             </div>
-            {summitDate && <SummitCountdown date={summitDate} />}
+            {summitDate && showTimes && <SummitCountdown date={summitDate} />}
             <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-[40px] sm:leading-[1.12]">
               {greetingFor(new Date())}, {firstName}.
             </h1>
@@ -376,14 +380,14 @@ export default function HomePage() {
                       Up next · {next.kind}
                     </span>
                     <span className="rounded-full bg-emerald-300 px-2.5 py-0.5 text-[11.5px] font-bold text-[#0B2E22]">
-                      {next.session.time}
+                      {showTimes ? next.session.time : `Time ${TBD}`}
                     </span>
                   </div>
                   <div className="mt-2.5 font-display text-[21px] font-bold leading-snug">
                     {next.session.title}
                   </div>
                   <div className="mt-1 text-[13px] text-white/75">
-                    {joinParts(next.session.location, next.session.duration)}
+                    {joinParts(next.session.location, showTimes ? next.session.duration : undefined)}
                   </div>
                   <div className="mt-4 flex gap-1" aria-hidden>
                     {daySlots.map((t, i) => (

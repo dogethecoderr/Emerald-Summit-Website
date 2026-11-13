@@ -51,6 +51,7 @@ import SessionRoster from '../components/session/SessionRoster';
 import SessionVolunteers from '../components/session/SessionVolunteers';
 import SessionMetrics from '../components/session/SessionMetrics';
 import { SessionEditorDialog } from '../components/verse/ContentEditors';
+import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../services/siteSwitches';
 
 const MODE_TEXT: Record<AddMode, { title: string; blurb: string; icon: typeof Plus }> = {
   participate: { title: 'Participate', blurb: "Join in and take part. You'll tell us about your project first.", icon: User },
@@ -65,8 +66,9 @@ const TYPE_FOR: Record<Exclude<AddMode, 'manage'>, ParticipationType> = {
   expert: 'expert',
 };
 
-/** "9:00 AM – 10:30 AM" from the stored 24-hour times. */
-function timeLabel(s: Session): string {
+/** "9:00 AM – 10:30 AM" from the stored 24-hour times, or "Time TBD" while times are hidden. */
+function timeLabel(s: Session, showTimes: boolean): string {
+  if (!showTimes) return `Time ${TBD}`;
   const show = (hhmm?: string) => {
     if (!hhmm) return '';
     const [h, m] = hhmm.split(':').map(Number);
@@ -85,6 +87,7 @@ export default function SessionPage() {
   const { session: auth, profile, loadingProfile } = useAuth();
   const schedule = useSchedule();
   const { theme } = useTheme();
+  const switches = useSiteSwitches();
   const session = MOCK_SESSIONS.find((s) => s.id === id);
 
   const role = profile?.role as string | undefined;
@@ -137,11 +140,11 @@ export default function SessionPage() {
   // A + on a session card lands here with { add: true }: open the chooser.
   const wantsAdd = (location.state as { add?: boolean } | null)?.add === true;
   useEffect(() => {
-    if (!wantsAdd || !session || schedule.loading || loadingProfile) return;
+    if (!wantsAdd || !session || schedule.loading || loadingProfile || !switches.loaded) return;
     navigate(location.pathname, { replace: true, state: null });
     if (signedIn && !registeredType && !managing && !waitingExpert) void startAdd();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wantsAdd, session, schedule.loading, loadingProfile]);
+  }, [wantsAdd, session, schedule.loading, loadingProfile, switches.loaded]);
 
   if (!session) {
     // The catalog may still be loading from the database.
@@ -156,6 +159,9 @@ export default function SessionPage() {
   const disciplineLabel = s.disciplineName || disciplineByName(s.track)?.label || '';
   const deadline = s.participantDeadline ? new Date(s.participantDeadline) : null;
   const closed = participationClosed(s.participantDeadline);
+  // While times are hidden, a deadline reads "TBD" instead of its date.
+  const showTimes = switches.showTimes;
+  const deadlineText = (d: Date) => (showTimes ? formatDeadline(d) : TBD);
   const left = Math.max(0, s.capacity - s.enrolled);
 
   const guarded = async <T,>(call: () => Promise<T>): Promise<T | null> => {
@@ -216,7 +222,7 @@ export default function SessionPage() {
       case 'participation_closed':
         setBlocked({
           title: 'Participant registration closed',
-          body: `Registration to participate closed${deadline ? ` on ${formatDeadline(deadline)}` : ''}. You can still add this session as a spectator while seats are left.`,
+          body: `Registration to participate closed${deadline && showTimes ? ` on ${formatDeadline(deadline)}` : ''}. You can still add this session as a spectator while seats are left.`,
         });
         break;
     }
@@ -239,6 +245,10 @@ export default function SessionPage() {
   };
 
   async function startAdd() {
+    if (!switches.registrationOpen) {
+      toast(REGISTRATION_CLOSED_MESSAGE);
+      return;
+    }
     if (role === 'attendee') {
       await register('spectator');
       return;
@@ -368,7 +378,7 @@ export default function SessionPage() {
         <img src={s.heroImageUrl} alt="" className="aspect-[16/7] w-full rounded-2xl object-cover" />
       )}
       <div className="space-y-2 text-sm">
-        <p className="flex items-center gap-2"><Clock className="h-4 w-4" style={{ color: accent }} /> {timeLabel(s)}</p>
+        <p className="flex items-center gap-2"><Clock className="h-4 w-4" style={{ color: accent }} /> {timeLabel(s, showTimes)}</p>
         {SESSION_ROOMS_ENABLED && s.room && <p className="flex items-center gap-2"><MapPin className="h-4 w-4" style={{ color: accent }} /> {s.room}</p>}
         {experts.length > 0 && (
           <p className="flex items-center gap-2"><User className="h-4 w-4" style={{ color: accent }} /> {experts.length === 1 ? 'Expert' : 'Experts'}: {experts.join(', ')}</p>
@@ -383,7 +393,9 @@ export default function SessionPage() {
         <div className="rounded-2xl border border-border p-4 text-sm">
           <p className="font-semibold">{closed ? 'Participant registration closed' : 'Participant registration deadline'}</p>
           <p className="mt-1 text-muted-foreground">
-            {closed
+            {!showTimes
+              ? TBD
+              : closed
               ? `Closed ${formatDeadline(deadline)}. You can still spectate while seats are left.`
               : `Register to participate by ${formatDeadline(deadline)}. After that, you can only spectate.`}
           </p>
@@ -436,6 +448,26 @@ export default function SessionPage() {
               <Button variant="destructive" disabled={busy} onClick={() => void removeFromDay()}>Remove from my day</Button>
             </div>
           </>
+        ) : !switches.registrationOpen ? (
+          // Greyed out until website_registration_open is set on the backend.
+          // aria-disabled (not disabled) so a tap still explains why.
+          <span className="group relative inline-block">
+            <Button
+              aria-disabled="true"
+              aria-describedby="registration-closed-tip"
+              onClick={() => toast(REGISTRATION_CLOSED_MESSAGE)}
+              className="cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted"
+            >
+              <Plus className="h-4 w-4" /> Add to my day
+            </Button>
+            <span
+              id="registration-closed-tip"
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-0 mb-2 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1 text-[12px] font-semibold text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            >
+              {REGISTRATION_CLOSED_MESSAGE}
+            </span>
+          </span>
         ) : (
           <Button disabled={busy || schedule.loading} onClick={() => void startAdd()} className="bg-emerald text-white hover:bg-emerald-deep">
             <Plus className="h-4 w-4" /> Add to my day
@@ -506,9 +538,9 @@ export default function SessionPage() {
                     <span className="block font-semibold">{MODE_TEXT[m].title}</span>
                     <span className="block text-sm text-muted-foreground">
                       {disabled && deadline
-                        ? `Registration to participate closed on ${formatDeadline(deadline)}.`
+                        ? showTimes ? `Registration to participate closed on ${formatDeadline(deadline)}.` : 'Registration to participate has closed.'
                         : m === 'participate' && deadline
-                          ? `${MODE_TEXT[m].blurb} Closes ${formatDeadline(deadline)}.`
+                          ? `${MODE_TEXT[m].blurb} Closes ${deadlineText(deadline)}.`
                           : MODE_TEXT[m].blurb}
                     </span>
                   </span>

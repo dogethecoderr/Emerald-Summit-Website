@@ -59,6 +59,7 @@ vi.mock('../../models/sessions', async (importOriginal) => {
 });
 
 import SessionPage from '../SessionPage';
+import { REGISTRATION_CLOSED_MESSAGE, setSiteSwitchesForTests } from '../../services/siteSwitches';
 
 function page() {
   return render(<MemoryRouter initialEntries={['/sessions/s1']}><Routes><Route path="/sessions/:id" element={<SessionPage />} /></Routes></MemoryRouter>);
@@ -73,6 +74,35 @@ beforeEach(() => {
   state.schedule.spectating = [];
   state.project.mockResolvedValue(null);
   state.toggle.mockResolvedValue({ outcome: 'added', teamCode: null });
+  setSiteSwitchesForTests({ registrationOpen: true, showTimes: true });
+});
+
+describe('while registration is closed and times are hidden', () => {
+  beforeEach(() => setSiteSwitchesForTests({ registrationOpen: false, showTimes: false }));
+
+  test('"Add to my day" is greyed out, explains why, and registers nothing', async () => {
+    const user = userEvent.setup();
+    page();
+    const add = screen.getByRole('button', { name: /add to my day/i });
+    expect(add).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tooltip')).toHaveTextContent(REGISTRATION_CLOSED_MESSAGE);
+    await user.click(add);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(state.toggle).not.toHaveBeenCalled();
+  });
+
+  test('the session time reads TBD', () => {
+    page();
+    expect(screen.getByText('Time TBD')).toBeInTheDocument();
+    expect(screen.queryByText(/10:00 AM/)).not.toBeInTheDocument();
+  });
+
+  test('a backend that never answered keeps both off', async () => {
+    setSiteSwitchesForTests(null);
+    const { fetchSiteSwitches } = await import('../../services/siteSwitches');
+    // supabase is mocked as null here, like a failed read.
+    expect(await fetchSiteSwitches()).toEqual({ registrationOpen: false, showTimes: false, loaded: true });
+  });
 });
 
 describe('session page', () => {

@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { projectProblemMessage } from '../models/registration';
 import { toMinutes, useSummitContent } from '../services/summitContent';
+import { TBD, useSiteSwitches } from '../services/siteSwitches';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ function ScheduleBody() {
   const { mySchedule, expertSchedule, volunteerSchedule, spectating, releaseSession, loading, scheduleError } = useSchedule();
   const committed = new Set([...mySchedule, ...expertSchedule, ...volunteerSchedule, ...spectating]);
   const { theme } = useTheme();
+  const { showTimes } = useSiteSwitches();
   const navigate = useNavigate();
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
@@ -96,13 +98,13 @@ function ScheduleBody() {
                 <div className="flex items-start gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-bold" style={{ color: accent }}>{s.time}</span>
+                      <span className="text-sm font-bold" style={{ color: accent }}>{showTimes ? s.time : `Time ${TBD}`}</span>
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold">{label}</span>
                       {justAdded === s.id && <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald"><Check className="h-3 w-3" /> Added</span>}
                     </div>
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {keynote ? <TrackPill track={s.track} /> : <TrackTag verse={s.track} track={s.trackName} />}
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {s.duration}</span>
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {showTimes ? s.duration : TBD}</span>
                     </div>
                     <h2 className="text-base font-semibold"><Link to={`/sessions/${s.id}`} className="text-left hover:underline">{s.title}</Link></h2>
                     {s.speaker && <p className="mt-1 text-xs text-muted-foreground">{s.speaker}</p>}

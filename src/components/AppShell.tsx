@@ -25,6 +25,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { signOut } from '../services/auth';
 import { MOCK_SESSIONS, joinParts } from '../models/sessions';
+import { useSiteSwitches } from '../services/siteSwitches';
 import BrandMark from './BrandMark';
 import QrPassModal from './QrPassModal';
 import { cn } from '@/lib/utils';
@@ -128,6 +129,7 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const { showTimes } = useSiteSwitches();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -159,12 +161,12 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
     ).map((s) => ({
       key: s.id,
       label: s.title,
-      sub: joinParts(s.time, s.location),
+      sub: joinParts(showTimes ? s.time : undefined, s.location),
       to: `/sessions/${s.id}`,
       icon: CalendarDays,
     }));
     return [...pages, ...sessions].slice(0, 7);
-  }, [items, query]);
+  }, [items, query, showTimes]);
 
   const go = (hit: SearchHit) => {
     navigate(hit.to);
