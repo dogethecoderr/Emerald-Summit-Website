@@ -2,6 +2,7 @@
 // the mobile app (lib/backend/supabase/supabase_repositories.dart,
 // SupabaseScheduleRepository and SupabaseExpertsRepository).
 import { supabase } from '../lib/supabase';
+import { REGISTRATION_CLOSED_MESSAGE } from './siteSwitches';
 import {
   myProjectFromRow,
   normalizeTeamCode,
@@ -34,6 +35,11 @@ function isRemovedFromTeam(message: string | undefined) {
   return (message ?? '').includes('removed_from_team');
 }
 
+/** The server refuses every new sign-up while website_registration_open is off. */
+function isRegistrationClosed(message: string | undefined) {
+  return (message ?? '').includes('registration_closed');
+}
+
 /**
  * Adds or removes a session. `add` says what the page showed, so a stale page
  * can't flip the registration the other way on the server.
@@ -62,6 +68,9 @@ export async function toggleRegistration(
   if (error) {
     if (isRemovedFromTeam(error.message)) {
       return { outcome: 'invalid_project', message: projectProblemMessage('removed_from_team')! };
+    }
+    if (isRegistrationClosed(error.message)) {
+      return { outcome: 'invalid_project', message: `${REGISTRATION_CLOSED_MESSAGE}.` };
     }
     throw new Error(error.message);
   }
