@@ -171,6 +171,15 @@ export default function SessionRoster({
   const groups = groupRoster(roster, session.maxTeamSize ?? DEFAULT_MAX_TEAM_SIZE);
   const projectCount = groups.filter((g) => g.isProject).length;
   const prompts = Object.fromEntries((session.questions ?? []).map((q) => [q.id, q.prompt]));
+  // What removing does to their team: deleted when they're the last one on it
+  // (cleanup_empty_team), otherwise an owner's team passes on.
+  const teammates = removing?.teamId
+    ? roster.filter((e) => e.teamId === removing.teamId && e.userId !== removing.userId).length
+    : 0;
+  const teamNote = !removing?.isTeam ? ''
+    : teammates === 0 ? " They're the only one on their team, so the team is deleted too."
+      : removing.isTeamOwner ? ' They own a team, so it passes to the teammate who joined first.'
+        : ' Their teammates will be told they were removed.';
 
   const row = (e: RosterEntry) => {
     const school = canonicalSchoolName(e.details.school);
@@ -275,9 +284,7 @@ export default function SessionRoster({
             <DialogTitle>Remove {removing?.name || removing?.email}?</DialogTitle>
             <DialogDescription>
               They'll be taken off "{session.title}" and get a notice saying an organizer removed them. They can't sign up for it again unless someone allows them back.
-              {removing?.isTeam && (removing.isTeamOwner
-                ? ' They own a team, so it passes to the teammate who joined first.'
-                : ' Their teammates will be told they were removed.')}
+              {teamNote}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

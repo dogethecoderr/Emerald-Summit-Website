@@ -70,6 +70,23 @@ describe('removing someone from a session', () => {
     expect(screen.getByText(/Removed by Sam Lee/)).toBeInTheDocument();
   });
 
+  test('the last one on a team is told the team goes too', async () => {
+    const team = { isTeam: true, teamId: 't1', teamCode: 'ABC', projectName: 'Rover' };
+    api.roster.mockResolvedValue([
+      { ...entry('solo', 'Lone Owner'), ...team, isTeamOwner: true },
+      { ...entry('own', 'Pat Kim'), isTeam: true, teamId: 't2', teamCode: 'XYZ', projectName: 'Kite', isTeamOwner: true },
+      { ...entry('mem', 'Lee Park'), isTeam: true, teamId: 't2', teamCode: 'XYZ', projectName: 'Kite' },
+    ]);
+    const user = userEvent.setup();
+    show();
+    await user.click(await screen.findByRole('button', { name: 'Remove Lone Owner from this session' }));
+    expect(await screen.findByText(/the team is deleted too/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Remove Pat Kim from this session' }));
+    expect(await screen.findByText(/passes to the teammate who joined first/)).toBeInTheDocument();
+  });
+
   test('Allow back lifts the block', async () => {
     api.removals.mockResolvedValue([{
       userId: 'bot', name: 'Totally Real Person', email: 'bot@x.org', type: 'participant', removedBy: null, removedAt: null,
