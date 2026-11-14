@@ -32,9 +32,10 @@ export function notificationFromRow(row: Record<string, unknown>): AppNotificati
 }
 
 /**
- * The bell's stamp next to each note, in the viewer's time zone:
- * "Today, 3:45 PM" for a note from today, "Thu, Nov 12" for an earlier day
- * this year, "Nov 12, 2025" for another year. `timeZone` is for tests.
+ * The bell's stamp next to each note, in the viewer's time zone. A note from
+ * today keeps the app's relative style ("just now", "5m ago", "3h ago"); once
+ * it's from an earlier calendar day it shows the date: "Thu, Nov 12" this
+ * year, "Nov 12, 2025" for another year. `timeZone` is for tests.
  */
 export function notificationStamp(iso: string | undefined, now: Date = new Date(), timeZone?: string): string {
   if (!iso) return '';
@@ -42,7 +43,10 @@ export function notificationStamp(iso: string | undefined, now: Date = new Date(
   if (Number.isNaN(then.getTime())) return '';
   const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   if (day(then) === day(now)) {
-    return `Today, ${new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(then)}`;
+    const minutes = Math.max(0, Math.floor((now.getTime() - then.getTime()) / 60000));
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    return `${Math.floor(minutes / 60)}h ago`;
   }
   const year = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric' }).format(d);
   return year(then) === year(now)

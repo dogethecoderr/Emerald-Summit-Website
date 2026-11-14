@@ -94,12 +94,14 @@ describe('notification rows', () => {
     expect(notificationLink({ ...n, sessionId: undefined })).toBeNull();
   });
 
-  test('the stamp is a time for today and a date for earlier days', () => {
+  test('the stamp is "5m ago" today and a date for earlier days', () => {
     const tz = 'America/Los_Angeles';
     const now = new Date('2026-11-12T20:00:00Z'); // Thu Nov 12, 12:00 PM Pacific
-    expect(notificationStamp('2026-11-12T17:05:00Z', now, tz)).toBe('Today, 9:05 AM');
-    // Same UTC date, but the evening before in Pacific time.
-    expect(notificationStamp('2026-11-12T05:00:00Z', now, tz)).toBe('Wed, Nov 11');
+    expect(notificationStamp('2026-11-12T19:59:40Z', now, tz)).toBe('just now');
+    expect(notificationStamp('2026-11-12T19:55:00Z', now, tz)).toBe('5m ago');
+    expect(notificationStamp('2026-11-12T08:05:00Z', now, tz)).toBe('11h ago'); // 12:05 AM today
+    // 13 hours ago, but the evening before in Pacific time: a date, not "13h ago".
+    expect(notificationStamp('2026-11-12T07:00:00Z', now, tz)).toBe('Wed, Nov 11');
     expect(notificationStamp('2026-10-02T18:00:00Z', now, tz)).toBe('Fri, Oct 2');
     expect(notificationStamp('2025-12-30T18:00:00Z', now, tz)).toBe('Dec 30, 2025');
     expect(notificationStamp(undefined, now, tz)).toBe('');

@@ -186,7 +186,7 @@ Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), porte
   - a session at the same time they manage ("They'll stop managing it.");
   - what happens to their team: an owner's team passes to the teammate who joined first, teammates are told, and a team with no one else is deleted.
 - **Assign and replace** (or **Manage instead** for the admin themself) calls `assign_manager_replacing_conflicts`, which removes those sign-ups and managed sessions and assigns them, all at once. The person gets one notice naming what was taken off their day; the old "You're managing …" notice for a session they stopped managing stays in their feed and bell as a dated record; an admin managing it themself gets none. Removed sign-ups aren't blocked, so they can sign up for those sessions again later.
-- The SQL is the app repo's `volunteer_conflict_override.sql`. **It hasn't been run yet.** Until it is, the preview call fails and the website shows the old refusal, so nothing breaks.
+- The SQL is the app repo's `volunteer_conflict_override.sql`, run on the shared project on Nov 13, 2026. On a backend without it, the preview call fails and the website shows the old refusal, so nothing breaks.
 - The mobile app doesn't do this yet (it's on the app README's website to-do list).
 
 **Removing someone from a session.** Anyone who can see a session's Participants and Experts tabs (admins, the volunteers assigned to it, and session editors for its discipline: `fetch_session_roster`'s gate) can take a person off it, e.g. an account that looks fake. It's in `src/components/session/SessionRoster.tsx`, with calls in `src/services/sessionRemovals.ts`; the SQL is the app repo's `session_participant_removal.sql`.
@@ -279,15 +279,17 @@ The bell at the top right opens **Notifications** (`/notifications`, `src/pages/
 - personal notices (assignments, team changes, expert approval, the admins' sheet and expert-queue notices), which open their session when they have one;
 - "Coming up at 10:30 AM: AI Playground" in the hour before a session you're in or managing.
 
-**Date and time on every note.** Each note shows when it arrived, at the right of its title (`notificationStamp` in `src/models/notifications.ts`), in the viewer's own time zone:
+**When each note arrived.** Each note shows a stamp at the right of its title (`notificationStamp` in `src/models/notifications.ts`), in the viewer's own time zone. Notes from today keep the app's relative style; once a note is from an earlier calendar day, it shows the date instead:
 
 | When it arrived | Stamp |
 |---|---|
-| Today | **Today, 3:45 PM** (the time, so notes from the same day can be told apart) |
+| Today, under a minute ago | **just now** |
+| Today, under an hour ago | **5m ago** |
+| Earlier today | **3h ago** |
 | An earlier day this year | **Thu, Nov 12** |
 | Another year | **Nov 12, 2025** |
 
-"Today" means the viewer's calendar day, not the last 24 hours: a note from 11 PM yesterday says **Wed, Nov 11**, not a time. Hovering the stamp shows the full date and time ("Thursday, November 12, 2026 at 9:05 AM", `notificationFullTime`), and it's a `<time datetime>` element for screen readers. The stamp comes from the note's `created_at`. This replaced the app-style "5m ago" / "2d ago" (`timeAgo`, removed), which never said which day a note was from. The app's bell still shows "5m ago"; matching it is on the app README's to-do list.
+"Today" means the viewer's calendar day, not the last 24 hours: at noon, a note from 12:05 AM says **11h ago**, and a note from 11 PM yesterday says **Wed, Nov 11**, not "13h ago". The app's "2d ago" never happens on the website. Hovering the stamp shows the full date and time ("Thursday, November 12, 2026 at 9:05 AM", `notificationFullTime`), and it's a `<time datetime>` element for screen readers. The stamp comes from the note's `created_at` and is worked out when the list renders, so it doesn't tick on its own while the page sits open. The app's bell still says "2d ago" for older notes; switching those to dates is on the app README's to-do list.
 
 Clicking a note marks it read; **Mark all as read** clears the bell. The rows are the app's `notifications` table, written only by the backend (`notifications_setup.sql` in the app repo); the website reads them (`src/services/notifications.ts`, `src/context/NotificationsContext.tsx`), marks them read (`mark_notifications_read`), keeps them live over Realtime, and every 5 minutes calls `queue_my_session_reminders` (reminders start once the backend's `summit_date` is set; the website's own `SUMMIT_DATE` doesn't count for this).
 
