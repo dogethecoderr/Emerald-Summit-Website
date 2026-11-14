@@ -189,6 +189,13 @@ Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), porte
 - The SQL is the app repo's `volunteer_conflict_override.sql`. **It hasn't been run yet.** Until it is, the preview call fails and the website shows the old refusal, so nothing breaks.
 - The mobile app doesn't do this yet (it's on the app README's website to-do list).
 
+**Removing someone from a session.** Anyone who can see a session's Participants and Experts tabs (admins, the volunteers assigned to it, and session editors for its discipline: `fetch_session_roster`'s gate) can take a person off it, e.g. an account that looks fake. It's in `src/components/session/SessionRoster.tsx`, with calls in `src/services/sessionRemovals.ts`; the SQL is the app repo's `session_participant_removal.sql`.
+
+- Each roster row has a **Remove** button. The confirm dialog says what happens: they're taken off the session, get a "Removed from a session" notice in their feed, and can't sign up for it again. For a team member it adds that their teammates will be told; for a team owner, that the team passes to the teammate who joined first; and for the last one on a team, that the team is deleted too (the existing registration triggers do this, as when someone leaves).
+- `remove_session_registration` deletes the registration (participant, spectator or expert) and records it in `session_removals`. A trigger on `registrations` then refuses a new sign-up with `removed_from_session`, which the session page shows as "An organizer removed you from this session, so you can't sign up for it again." You can't remove yourself.
+- A **Removed** list at the bottom of the tab shows who was removed, by whom and when, with **Allow back**. That deletes the `session_removals` row; it doesn't re-register them.
+- The mobile app doesn't have this yet (it's on the app README's website to-do list). `session_participant_removal.sql` was run on the shared project on Nov 13, 2026, so the buttons are live. The website still hides them whenever `fetch_session_removals` fails.
+
 **8th graders.** Participating is for high schoolers. Each session has a **Let 8th graders participate** box in the editor (`sessions.allow_eighth_graders`, off by default), which admins and the discipline's session editors tick per session. Anyone can spectate any session; the box is only about participating.
 
 - The grade comes from the sign-up answer (`profiles.details.grade`), read by `gradeLabel` in `src/models/metrics.ts` ("8", "8th" and "eighth" all count as 8).
