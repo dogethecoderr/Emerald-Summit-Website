@@ -51,86 +51,6 @@ export function VerseBadge({ vibe, size }: { vibe: VerseVibe; size: number }) {
   );
 }
 
-/** One verse on the dashboard (mobile: Discover's _DisciplineListing). */
-function VerseCard({
-  discipline,
-  mine,
-  onOpen,
-}: {
-  discipline: DisciplineInfo;
-  mine: Set<string>;
-  onOpen: (origin: { x: number; y: number }) => void;
-}) {
-  const { theme } = useTheme();
-  const { showTimes } = useSiteSwitches();
-  const vibe = vibeFor(discipline.name, theme);
-  const sessions = sessionsFor(discipline.name);
-  const open = sessions.filter((s) => s.enrolled < s.capacity).length;
-  const onDay = sessions.filter((s) => mine.has(s.id)).length;
-  const titles = [...new Set(sessions.map((s) => s.title))];
-  const preview =
-    titles.length === 0
-      ? 'No sessions yet.'
-      : titles.length === 1
-        ? titles[0]
-        : titles.length === 2
-          ? `${titles[0]} and ${titles[1]}`
-          : `${titles[0]}, ${titles[1]} and ${titles.length - 2} more`;
-  const facts = sessions.length
-    ? `${showTimes ? `From ${sessions[0].time}` : `Times ${TBD}`}  ·  ${open} of ${sessions.length} open`
-    : '';
-
-  return (
-    <button
-      type="button"
-      onClick={(e) => onOpen(originOf(e))}
-      className="group relative overflow-hidden rounded-[18px] text-left shadow-[0_5px_14px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out active:scale-[0.97]"
-      style={{ background: vibe.background, color: vibe.text }}
-    >
-      <VerseMotif vibe={vibe} compact className="absolute inset-0" />
-      {/* Keep the text side calm so it always reads. */}
-      <span
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(90deg, ${rgba(vibe.background, 0.9)}, ${rgba(vibe.background, 0.62)})`,
-        }}
-        aria-hidden
-      />
-      <span
-        className="pointer-events-none absolute inset-0 rounded-[18px] transition-colors"
-        style={{ border: `1px solid ${rgba(vibe.accent, 0.28)}` }}
-        aria-hidden
-      />
-      <span className="relative flex min-h-[176px] flex-col p-4 pr-3">
-        <span className="flex items-center gap-3">
-          <VerseBadge vibe={vibe} size={40} />
-          <span className="min-w-0 flex-1 truncate font-display text-xl font-extrabold tracking-tight">
-            {discipline.label}
-          </span>
-          <ChevronRight
-            className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-0.5"
-            style={{ color: vibe.textDim }}
-          />
-        </span>
-        <span className="mt-3 line-clamp-2 text-[14px] leading-snug">{preview}</span>
-        <span className="mt-1 truncate text-[12.5px]" style={{ color: vibe.textDim }}>
-          {discipline.description}
-        </span>
-        <span className="mt-auto flex items-center gap-2 pt-3 text-[12px] font-medium">
-          <span className="min-w-0 flex-1 truncate" style={{ color: vibe.textDim }}>
-            {facts}
-          </span>
-          {onDay > 0 && (
-            <span className="inline-flex shrink-0 items-center gap-1 font-bold" style={{ color: vibe.accent }}>
-              <Check className="h-3.5 w-3.5" /> {onDay} on your day
-            </span>
-          )}
-        </span>
-      </span>
-    </button>
-  );
-}
-
 const reducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -825,26 +745,6 @@ export function useOpenVerse(): OpenVerse {
   const open = useContext(VersePortalContext);
   if (!open) throw new Error('useOpenVerse must be used inside VersePortalProvider');
   return open;
-}
-
-/** "Explore the verses": the six disciplines, each opening its own world. */
-export default function ExploreVerses({ mine }: { mine: Set<string> }) {
-  const open = useOpenVerse();
-  return (
-    <section>
-      <h2 className="mb-3 flex items-center gap-2.5 font-display text-xl font-bold tracking-tight sm:text-2xl">
-        Explore the verses
-        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 font-sans text-[13px] font-semibold tabular-nums text-muted-foreground">
-          {USER_DISCIPLINES.length}
-        </span>
-      </h2>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {USER_DISCIPLINES.map((d) => (
-          <VerseCard key={d.name} discipline={d} mine={mine} onOpen={(origin) => open(d.name, origin)} />
-        ))}
-      </div>
-    </section>
-  );
 }
 
 /**

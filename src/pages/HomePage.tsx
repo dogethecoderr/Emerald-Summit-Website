@@ -36,7 +36,6 @@ import PhotoSlideshow from '../components/home/PhotoSlideshow';
 import QuoteCard from '../components/home/QuoteCard';
 import LinksCard from '../components/home/LinksCard';
 import { ExpertDeclinedDialog, ExpertPending, needsExpertApproval } from '../components/ExpertStatus';
-import ExploreVerses, { VersePortalProvider } from '../components/verse/ExploreVerses';
 import { AboutAppCard, SponsorsCard, SupportEafCard } from '../components/home/AboutSections';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -295,7 +294,6 @@ export default function HomePage() {
       (a, b) =>
         toMinutes(a.session.time) - toMinutes(b.session.time),
     );
-  const mine = new Set([...ownIds, ...spectating]);
   const next = agenda[0];
   const daySlots = [...new Set(MOCK_SESSIONS.map((s) => s.time))].sort((a, b) => toMinutes(a) - toMinutes(b));
   const slotIndex = next ? daySlots.indexOf(next.session.time) : -1;
@@ -329,7 +327,6 @@ export default function HomePage() {
   return (
     <AppShell>
       <ExpertDeclinedDialog />
-      <VersePortalProvider mine={mine} canSchedule={canSchedule} canAdd>
       {/* hero */}
       <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
         <div
@@ -514,10 +511,6 @@ export default function HomePage() {
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
-      <ExploreVerses mine={mine} />
-
-      <hr className="my-8 border-t border-border/80" aria-hidden />
-
       <section>
         <h2 className="mb-3 font-display text-xl font-bold tracking-tight sm:text-2xl">
           Quick access
@@ -557,7 +550,6 @@ export default function HomePage() {
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
       <LinksCard />
-      </VersePortalProvider>
     </AppShell>
   );
 }
