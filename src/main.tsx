@@ -10,6 +10,10 @@ import { NotificationsProvider } from './context/NotificationsContext';
 import { Toaster } from '@/components/ui/sonner';
 import App from './App';
 import { loadSummitContent } from './services/summitContent';
+import { installDiagnostics } from './lib/diagnostics';
+
+// Start recording recent pages, errors and failed requests for bug reports.
+installDiagnostics();
 
 // Tracks and sessions come from the database when it's reachable; until then
 // (or without it) the bundled lists in src/models show.

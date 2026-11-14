@@ -11,6 +11,7 @@ import {
   ArrowsLeftRight,
   Bell as PhBell,
   BookOpen as PhBookOpen,
+  Bug as PhBug,
   Buildings,
   CalendarBlank,
   CalendarCheck,
@@ -81,6 +82,7 @@ import {
   SquaresFour,
   Sun as PhSun,
   Trash,
+  Tray,
   User as PhUser,
   UserCheck as PhUserCheck,
   UserCircle,
@@ -131,6 +133,7 @@ export const ArrowLeftRight = duotone(ArrowsLeftRight, 'ArrowLeftRight');
 export const ArrowRight = duotone(PhArrowRight, 'ArrowRight');
 export const Award = duotone(Medal, 'Award');
 export const Bell = duotone(PhBell, 'Bell');
+export const Bug = duotone(PhBug, 'Bug');
 export const BookOpen = duotone(PhBookOpen, 'BookOpen');
 export const BookUser = duotone(AddressBook, 'BookUser');
 export const CalendarCog = duotone(CalendarCheck, 'CalendarCog');
@@ -163,6 +166,7 @@ export const Gavel = duotone(PhGavel, 'Gavel');
 export const GraduationCap = duotone(PhGraduationCap, 'GraduationCap');
 export const HeartHandshake = duotone(HandHeart, 'HeartHandshake');
 export const ImageIcon = duotone(PhImage, 'ImageIcon');
+export const Inbox = duotone(Tray, 'Inbox');
 export const Info = duotone(PhInfo, 'Info');
 export const Keyboard = duotone(PhKeyboard, 'Keyboard');
 export const LayoutDashboard = duotone(SquaresFour, 'LayoutDashboard');

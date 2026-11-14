@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { noteRoute } from '../lib/diagnostics';
 
 /**
  * React Router doesn't reset scroll position between route changes (unlike
@@ -16,6 +17,8 @@ export default function ScrollToTop() {
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
+    // Bug reports list the pages visited before Report was opened.
+    noteRoute(pathname);
   }, [pathname]);
 
   return null;

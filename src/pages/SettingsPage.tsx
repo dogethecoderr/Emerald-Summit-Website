@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeftRight, Award, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
-  Palette, QrCode, ScanLine, ShieldCheck, UserRound, Users,
+  ArrowLeftRight, Award, Bug, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
+  Palette, QrCode, ScanLine, ShieldCheck, UserRound, Users, Inbox,
 } from '@/components/icons';
 import { useSummitStatus } from '../services/summitStatus';
 import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import QrPassModal from '../components/QrPassModal';
+import ReportDialog from '../components/ReportDialog';
 import ThemeToggle from '../components/ThemeToggle';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
@@ -145,6 +146,7 @@ function ProfileHub({ profile }: { profile: Profile }) {
   const roleLabel = roleLabelFor(roleName, profile.volunteer_subtype);
   const [signingOut, setSigningOut] = useState(false);
   const [qrPassOpen, setQrPassOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const canOpenVolunteerHub = ['volunteer', 'ambassador', 'admin'].includes(roleName);
   const isAdmin = roleName === 'admin';
   const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
@@ -179,6 +181,9 @@ function ProfileHub({ profile }: { profile: Profile }) {
         <SettingsRow icon={QrCode} title="My QR Pass" subtitle="Show your pass at the front desk" onClick={() => setQrPassOpen(true)} />
       </section>
       <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/70">
+        <SettingsRow icon={Bug} title="Report a bug or send feedback" subtitle="Something broken or confusing? Tell us, with screenshots" onClick={() => setReportOpen(true)} />
+      </section>
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/70">
         <div className="border-b border-border/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Settings</div>
         <div className="divide-y divide-border/60">
           <SettingsRow icon={UserRound} title="Edit profile" subtitle="Your name and contact details" onClick={() => navigate('/account/edit')} />
@@ -195,6 +200,7 @@ function ProfileHub({ profile }: { profile: Profile }) {
           {canCheckIn && <AppOnlyRow icon={ScanLine} title="Front desk check-in" subtitle="Scanning QR passes needs the phone camera, so check people in from the Emerald Summit app." />}
           {isAdmin && <SettingsRow icon={ChartLine} title="Metrics" subtitle="Who signed up, from which schools, for what" onClick={() => navigate('/admin/metrics')} />}
           {isAdmin && <SettingsRow icon={ShieldCheck} title="Expert approvals" subtitle="Approve or decline expert sign-ups" onClick={() => navigate('/admin/experts')} />}
+          {isAdmin && <SettingsRow icon={Inbox} title="Bug reports and feedback" subtitle="What people reported, with their details" onClick={() => navigate('/admin/reports')} />}
           {isAdmin && <SettingsRow icon={MapPin} title="Manage rooms" subtitle="The rooms sessions can be held in" onClick={() => navigate('/admin/rooms')} />}
           <SettingsRow icon={ArrowLeftRight} title="Change role" subtitle={`Currently ${roleLabel}`} onClick={() => navigate('/roles')} />
         </div>
@@ -203,6 +209,7 @@ function ProfileHub({ profile }: { profile: Profile }) {
         <SettingsRow icon={LogOut} title={signingOut ? 'Signing out…' : 'Sign out'} onClick={handleSignOut} destructive />
       </section>
       <QrPassModal open={qrPassOpen} onOpenChange={setQrPassOpen} profile={profile} />
+      <ReportDialog open={reportOpen} onOpenChange={setReportOpen} defaultName={profile.name ?? ''} email={profile.email} />
     </div>
   );
 }
