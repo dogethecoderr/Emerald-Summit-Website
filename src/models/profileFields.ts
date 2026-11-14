@@ -110,3 +110,18 @@ export function missingGateField(profile: DetailsProfile): 'phone' | 'grade' | n
   if (roleNeedsGrade(profile.role, profile.volunteer_subtype) && blank(details.grade)) return 'grade';
   return null;
 }
+
+/**
+ * A `profiles.details` key's label for the roster, as the app's
+ * roster_person_sheet.dart finds it: the first role's sign-up field with that
+ * key, minus "(optional)"; an unknown key reads as words ("student_id" →
+ * "Student id").
+ */
+export function detailLabel(key: string): string {
+  for (const role of ['participant', 'expert', 'volunteer', 'ambassador', 'attendee', 'admin']) {
+    const field = onboardingFields(role).find((f) => f.key === key);
+    if (field) return field.label.replace(' (optional)', '');
+  }
+  const words = key.replace(/_/g, ' ');
+  return words ? words[0].toUpperCase() + words.slice(1) : key;
+}

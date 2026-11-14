@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Phone, Plus, X } from '@/components/icons';
+import { Plus, X } from '@/components/icons';
+import PhoneActions from '../PhoneActions';
 import type { Session } from '../../models/sessions';
 import { VOLUNTEER_SUBTYPE_LABELS } from '../../models/roles';
 import {
@@ -151,11 +152,7 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
                 <p className="text-xs text-muted-foreground">
                   {[v.subtype ? VOLUNTEER_SUBTYPE_LABELS[v.subtype] : null, v.email].filter(Boolean).join(' · ')}
                 </p>
-                {v.phone && (
-                  <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className="inline-flex items-center gap-1 text-xs text-emerald hover:underline">
-                    <Phone className="h-3 w-3" /> {v.phone}
-                  </a>
-                )}
+                {v.phone && <PhoneActions phone={v.phone} compact className="mt-0.5" />}
               </div>
               {canAssign && (
                 <Button type="button" variant="ghost" size="icon" disabled={busy} aria-label={`Remove ${v.name || v.email}`} onClick={() => void remove(v)}>

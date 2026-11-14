@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Phone, Search, UserRound } from '@/components/icons';
+import { Search, UserRound } from '@/components/icons';
+import PhoneActions from '../components/PhoneActions';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import { useRequireRole } from '../hooks/useRequireProfile';
@@ -46,7 +47,8 @@ export default function DirectoryPage() {
             {filtered.map((person) => (
               <div key={person.id} className="glass rounded-2xl p-5">
                 <div className="flex items-start gap-3"><UserRound className="mt-1 h-5 w-5 shrink-0 text-emerald" /><div className="min-w-0"><h2 className="break-words font-semibold">{person.name}</h2><p className="mt-1 text-xs text-muted-foreground">{roleLabelFor(person.role, person.subtype)}</p></div></div>
-                {person.phone ? <a href={`tel:${person.phone}`} className="mt-4 inline-flex items-center gap-2 text-sm text-emerald"><Phone className="h-4 w-4" />{person.phone}</a> : <p className="mt-4 text-sm text-muted-foreground">No phone number provided</p>}
+                <p className="mt-4 text-xs text-muted-foreground">Mobile number</p>
+                {person.phone ? <PhoneActions phone={person.phone} className="mt-1" /> : <p className="mt-1 text-sm text-muted-foreground">Not provided</p>}
               </div>
             ))}
           </div>

@@ -1,7 +1,7 @@
 // Shared mobile catalog, exposed through the existing website model lists.
 import { useSyncExternalStore } from 'react';
 import { supabase } from '../lib/supabase';
-import { disciplineByName } from '../models/disciplines';
+import { disciplineByName, replaceDisciplines, USER_DISCIPLINES, type DisciplineRow } from '../models/disciplines';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
 import {
   TRACKS,
@@ -54,12 +54,6 @@ function replaceSessions(next: Session[]) {
 // Rows
 // ---------------------------------------------------------------------------
 
-/** The shared mobile backend owns this catalog; there is no separate tracks table. */
-interface DisciplineRow {
-  id: string;
-  name: string;
-  tagline: string;
-}
 
 interface SessionRow {
   id: string;
@@ -179,7 +173,9 @@ export async function loadSummitContent(): Promise<void> {
   }
   const rows = (sessions.data ?? []) as SessionRow[];
   if (rows.length > 0) eighthGradeColumn = 'allow_eighth_graders' in rows[0];
-  const names = new Set(((disciplines.data ?? []) as DisciplineRow[]).map((d) => d.id));
+  const disciplineRows = (disciplines.data ?? []) as DisciplineRow[];
+  replaceDisciplines(disciplineRows);
+  const names = new Set(disciplineRows.map((d) => d.id));
   const mapped = rows.filter((r) => names.has(r.discipline_id)).map(sessionFromRow);
   const tracks = new Map<string, TrackInfo>();
   for (const session of mapped) {
@@ -418,5 +414,16 @@ export async function saveSessionColumns(columns: SessionColumns, id?: string): 
       ? await table.update(columns).eq('id', id).select('id').single()
       : await table.insert({ id: newSessionId(), ...columns }).select('id').single(),
   );
+  await loadSummitContent();
+}
+
+/**
+ * Adds a discipline as the app's editor does (appState.createDiscipline): last
+ * in sort order. Admin-only under RLS; throws on a refusal or a taken id.
+ */
+export async function createDiscipline(row: { id: string; name: string; tagline: string; icon: string }): Promise<void> {
+  if (!supabase) throw new Error('This needs the Summit database.');
+  const { error } = await supabase.from('disciplines').insert({ ...row, sort_order: USER_DISCIPLINES.length + 1 });
+  if (error) throw error;
   await loadSummitContent();
 }

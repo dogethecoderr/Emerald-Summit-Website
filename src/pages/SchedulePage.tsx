@@ -15,6 +15,7 @@ import { projectProblemMessage } from '../models/registration';
 import { toMinutes, useSummitContent } from '../services/summitContent';
 import { TBD, useSiteSwitches } from '../services/siteSwitches';
 import { MOCK_SESSIONS, type Session } from '../models/sessions';
+import { bookedMinutes, formatMinutes, openSessionsThatFit } from '../models/suggested';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -64,13 +65,29 @@ function ScheduleBody() {
   }
 
   const added = MOCK_SESSIONS.filter((s) => committed.has(s.id)).sort((a, b) => startMinutes(a) - startMinutes(b));
+  // The app's DaySummary: time booked in sessions they registered for (not
+  // ones they manage), and how many open sessions still fit around the day.
+  const booked = bookedMinutes(added.filter((s) => !volunteerSchedule.includes(s.id)));
+  const fits = openSessionsThatFit(MOCK_SESSIONS, committed);
 
   return (
     <AppShell>
       <PageHeader label="Emerald High School, Dublin, CA" title="My Day" />
       {scheduleError && <p role="alert" className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">We could not load your saved schedule. Refresh the page to retry.</p>}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{added.length} session{added.length !== 1 ? 's' : ''}{isVolunteer ? ' · Volunteer sessions are assigned by an admin.' : ''}</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[15px]">
+            <span className="font-bold">{added.length} session{added.length !== 1 ? 's' : ''}</span>
+            {showTimes && booked > 0 && <span className="text-muted-foreground">{'  ·  '}{formatMinutes(booked)} booked</span>}
+          </p>
+          {isVolunteer && <p className="text-sm text-muted-foreground">Volunteer sessions are assigned by an admin.</p>}
+          {added.length > 0 && fits > 0 && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {fits} open {fits === 1 ? 'session still fits' : 'sessions still fit'} around these.{' '}
+              <Link to="/disciplines" className="font-semibold text-emerald hover:underline">Find one</Link>
+            </p>
+          )}
+        </div>
         <Link to="/disciplines" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald hover:underline">Browse sessions <ArrowRight className="h-4 w-4" /></Link>
       </div>
       {added.length === 0 && !scheduleError ? (

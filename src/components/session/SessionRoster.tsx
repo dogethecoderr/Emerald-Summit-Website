@@ -15,6 +15,8 @@ import type { Session } from '../../models/sessions';
 import { CHIP_LABEL, DEFAULT_MAX_TEAM_SIZE, type ParticipationType } from '../../models/registration';
 import { gradeLabel, NO_GRADE_LABEL } from '../../models/metrics';
 import { canonicalSchoolName } from '../../models/schools';
+import { detailLabel } from '../../models/profileFields';
+import PhoneActions from '../PhoneActions';
 import { fetchSessionRoster, markSessionAttendance, type RosterEntry } from '../../services/organizer';
 import {
   allowBackToSession,
@@ -188,7 +190,14 @@ export default function SessionRoster({
           {Object.entries(e.answers).map(([id, answer]) => (
             <p key={id} className="text-xs text-muted-foreground">{prompts[id] ?? 'Answer'}: {answer}</p>
           ))}
+          {/* The rest of their sign-up answers, as the app's person sheet lists them. */}
+          {Object.entries(e.details)
+            .filter(([k, v]) => !['school', 'grade', 'phone'].includes(k) && v.trim())
+            .map(([k, v]) => (
+              <p key={k} className="text-xs text-muted-foreground">{detailLabel(k)}: {v}</p>
+            ))}
           {e.email && e.name && <a href={`mailto:${e.email}`} className="text-xs text-emerald hover:underline">{e.email}</a>}
+          {e.details.phone?.trim() && <PhoneActions phone={e.details.phone.trim()} compact className="mt-0.5" />}
         </div>
         {canMarkAttendance && (
           <Switch

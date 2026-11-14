@@ -98,3 +98,25 @@ export async function deleteSessionPhoto(sessionId: string, name: string): Promi
   // Storage answers a delete RLS refused with an empty list, not an error.
   if (!data?.length) throw new Error('Not allowed');
 }
+
+/** The Home slideshow's bucket (the app's AppState.dashboardGalleryBucket). */
+export const HOME_GALLERY_BUCKET = 'gallery_photos';
+
+/**
+ * Every photo in the Home slideshow bucket, as the app's
+ * SupabaseGalleryRepository lists it: the bucket is the curation (admins
+ * upload or delete files in the dashboard). Never throws: [] on any error.
+ */
+export async function fetchHomeGallery(): Promise<SessionPhoto[]> {
+  if (!supabase) return [];
+  try {
+    const store = supabase.storage.from(HOME_GALLERY_BUCKET);
+    const { data, error } = await store.list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } });
+    if (error || !data) return [];
+    return data
+      .filter((o) => o.id != null && !o.name.startsWith('.'))
+      .map((o) => ({ name: o.name, url: store.getPublicUrl(o.name).data.publicUrl }));
+  } catch {
+    return [];
+  }
+}

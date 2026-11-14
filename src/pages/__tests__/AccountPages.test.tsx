@@ -47,7 +47,10 @@ describe('private volunteer contacts', () => {
     state.contacts.mockResolvedValue([{ id: 'other-1', name: 'Team Admin', role: 'admin', subtype: null, phone: '5551239999' }]);
     render(<MemoryRouter><DirectoryPage /></MemoryRouter>);
     expect(await screen.findByText('Team Admin')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '5551239999' })).toHaveAttribute('href', 'tel:5551239999');
+    expect(screen.getByText('5551239999')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:5551239999');
+    expect(screen.getByRole('link', { name: 'Text' })).toHaveAttribute('href', 'sms:5551239999');
+    expect(screen.getByRole('button', { name: 'Copy number' })).toBeInTheDocument();
     expect(screen.queryByText('Email private')).not.toBeInTheDocument();
   });
 });

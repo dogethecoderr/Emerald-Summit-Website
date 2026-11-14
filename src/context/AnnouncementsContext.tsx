@@ -8,6 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
 import { useSchedule } from './ScheduleContext';
 import { useNotifications } from './NotificationsContext';
@@ -31,7 +33,7 @@ import {
   subscribeToAnnouncements,
   type AnnouncementDraft,
 } from '../services/announcements';
-import { postAudiences, type Announcement } from '../models/announcements';
+import { bannerFor, postAudiences, type Announcement } from '../models/announcements';
 
 interface AnnouncementsContextValue {
   announcements: Announcement[];
@@ -115,6 +117,18 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
   }, [storedAnnouncements, hiddenIds, feedUserId, userId, profile, mySchedule, expertSchedule, spectating, contentVersion, bellAvailable]);
   const activeUser = useRef(userId);
   activeUser.current = userId;
+
+  // The app's in-app banner: a post that reaches this person arriving while
+  // the site is open shows as a toast. Ids seen at the last load, per account.
+  const navigate = useNavigate();
+  const known = useRef<{ user: string | undefined; ids: Set<string> } | null>(null);
+  const bannerContext = useRef<{ userId?: string; isAdmin: boolean; reaches: (id: string) => boolean }>({ userId, isAdmin: false, reaches: () => false });
+  bannerContext.current = {
+    userId,
+    isAdmin: profile?.role === 'admin',
+    reaches: (id: string) => canEditVerse(profile, id)
+      || MOCK_SESSIONS.some((s) => s.track === id && [...mySchedule, ...expertSchedule, ...spectating].includes(s.id)),
+  };
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(userId));
   // Seen at all (any announcement_reads row); null until loaded from the database.
   const [seenIds, setSeenIds] = useState<Set<string> | null>(null);
@@ -209,6 +223,19 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
       const remotelyWritable = result.source === 'remote' && !result.error &&
         isBackendConfigured() && (await canPublishRemotely());
       if (activeUser.current !== userId) return;
+      if (!result.error && result.source === 'remote') {
+        const before = known.current;
+        known.current = { user: userId, ids: new Set(result.announcements.map((a) => a.id)) };
+        if (before && before.user === userId) {
+          const banner = bannerFor(result.announcements.filter((a) => !before.ids.has(a.id)), bannerContext.current);
+          if (banner) {
+            toast(banner.title, {
+              description: banner.body.length > 140 ? `${banner.body.slice(0, 139).trimEnd()}…` : banner.body,
+              action: { label: 'Open', onClick: () => navigate(banner.to) },
+            });
+          }
+        }
+      }
       setFeedUserId(userId);
       setAnnouncements(sortAnnouncements(result.announcements));
       setError(result.error ?? null);

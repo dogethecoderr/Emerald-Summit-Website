@@ -90,6 +90,20 @@ import {
   WarningCircle,
   X as PhX,
   XCircle as PhXCircle,
+  Terminal as PhTerminal,
+  Robot,
+  Rocket,
+  MathOperations,
+  Flask,
+  Globe as PhGlobe,
+  Brain,
+  MusicNote,
+  Wrench,
+  Calculator,
+  TrendUp,
+  InstagramLogo,
+  Quotes as PhQuotes,
+  ChatText,
   type Icon,
   type IconProps,
 } from '@phosphor-icons/react';
@@ -195,3 +209,27 @@ export const UserX = duotone(UserMinus, 'UserX');
 export const Users = duotone(PhUsers, 'Users');
 export const X = duotone(PhX, 'X');
 export const XCircle = duotone(PhXCircle, 'XCircle');
+export const Globe = duotone(PhGlobe, 'Globe');
+export const Instagram = duotone(InstagramLogo, 'Instagram');
+export const Quotes = duotone(PhQuotes, 'Quotes');
+export const MessageSquare = duotone(ChatText, 'MessageSquare');
+
+/** The app's discipline icon keys (disciplineIcon() in models.dart), as Phosphor icons. */
+export const DISCIPLINE_ICONS: Record<string, Icon> = {
+  terminal: duotone(PhTerminal, 'Terminal'),
+  precision_manufacturing: duotone(Robot, 'Robot'),
+  biotech: Dna,
+  rocket_launch: duotone(Rocket, 'Rocket'),
+  palette: Palette,
+  functions: duotone(MathOperations, 'MathOperations'),
+  science: duotone(Flask, 'Flask'),
+  public: Globe,
+  psychology: duotone(Brain, 'Brain'),
+  music_note: duotone(MusicNote, 'MusicNote'),
+  engineering: duotone(Wrench, 'Wrench'),
+  calculate: duotone(Calculator, 'Calculator'),
+  gavel: Gavel,
+  lightbulb: Lightbulb,
+  trending_up: duotone(TrendUp, 'TrendUp'),
+  category: LayoutDashboard,
+};

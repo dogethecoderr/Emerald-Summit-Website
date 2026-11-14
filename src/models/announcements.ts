@@ -228,3 +228,38 @@ export function postAudiences(profile: {
     ...disciplines.map((d) => ({ value: d.name, label: d.label })),
   ];
 }
+
+/** What the in-app banner shows for a new post, and where tapping it goes. */
+export interface AnnouncementBanner {
+  title: string;
+  body: string;
+  /** '/notifications' for a personal notice (the bell), '/announcements' for a post. */
+  to: string;
+}
+
+/**
+ * The app's banner rule (AppState._onAnnouncementInserted): nothing for your
+ * own posts, or for posts that don't reach you; admins see who sent a
+ * discipline post where. Picks the newest of [added].
+ */
+export function bannerFor(
+  added: Announcement[],
+  me: {
+    userId?: string;
+    isAdmin: boolean;
+    reaches: (disciplineId: string) => boolean;
+  },
+): AnnouncementBanner | null {
+  const newest = [...added]
+    .filter((a) => !a.authorId || a.authorId !== me.userId)
+    .filter((a) => (a.targetUserId ? a.targetUserId === me.userId : !a.disciplineId || me.reaches(a.disciplineId)))
+    .sort((a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''))[0];
+  if (!newest) return null;
+  if (newest.targetUserId) return { title: newest.title, body: newest.body, to: '/notifications' };
+  if (me.isAdmin && newest.disciplineId) {
+    const who = newest.author || 'Someone';
+    const where = USER_DISCIPLINES.find((d) => d.name === newest.disciplineId)?.label ?? newest.disciplineId;
+    return { title: `${who} sent an announcement to the ${where} discipline`, body: newest.title, to: '/announcements' };
+  }
+  return { title: newest.title, body: newest.body, to: '/announcements' };
+}

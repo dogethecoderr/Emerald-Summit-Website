@@ -32,6 +32,9 @@ import { useAnnouncements } from '../context/AnnouncementsContext';
 import AppShell from '../components/AppShell';
 import RolesPage from './RolesPage';
 import AnnouncementsPanel from '../components/AnnouncementsPanel';
+import PhotoSlideshow from '../components/home/PhotoSlideshow';
+import QuoteCard from '../components/home/QuoteCard';
+import LinksCard from '../components/home/LinksCard';
 import { ExpertDeclinedDialog, ExpertPending, needsExpertApproval } from '../components/ExpertStatus';
 import ExploreVerses, {
   trackCount,
@@ -422,6 +425,12 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* The app's slideshow and quote, under its header. */}
+      <div className="mb-6 flex flex-col gap-5 lg:flex-row">
+        <PhotoSlideshow className="lg:flex-[1.6]" />
+        <QuoteCard className="lg:flex-1" />
+      </div>
+
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="glass flex flex-col rounded-3xl p-4 sm:p-6 xl:min-h-[560px]">
           {showYourDay && (
@@ -562,6 +571,10 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <hr className="my-8 border-t border-border/80" aria-hidden />
+
+      <LinksCard />
       </VersePortalProvider>
     </AppShell>
   );

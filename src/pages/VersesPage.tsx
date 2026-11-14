@@ -1,6 +1,8 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { ArrowRight, Check } from '@/components/icons';
+import { ArrowRight, Check, Plus } from '@/components/icons';
+import { Button } from '@/components/ui/button';
+import NewDisciplineDialog from '../components/verse/NewDisciplineDialog';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import VerseMotif from '../components/verse/VerseMotif';
@@ -15,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { ownScheduleKind, useSchedule } from '../context/ScheduleContext';
 import { useTheme } from '../context/ThemeContext';
 import { useRequireProfile } from '../hooks/useRequireProfile';
-import { USER_DISCIPLINES, type DisciplineInfo } from '../models/disciplines';
+import { countWord, USER_DISCIPLINES, type DisciplineInfo } from '../models/disciplines';
 import { tracksForUniverse } from '../models/tracks';
 import { rgba, vibeFor, type VerseVibe } from '../models/verseVibes';
 import { useSummitContent } from '../services/summitContent';
@@ -36,7 +38,7 @@ function useWideScreen(): boolean {
 }
 
 /**
- * The Disciplines tab: the six disciplines side by side, each a panel in its own
+ * The Disciplines tab: every discipline (from the database) side by side, each a panel in its own
  * colors and live motif. On wide screens they sit in a row and the one under
  * the pointer (or keyboard focus) opens up to show its tracks; on phones they
  * stack. Each opens its discipline page, and each track chip opens that track's page.
@@ -58,9 +60,12 @@ export default function VersesPage() {
 
 function VersesBody({ mine }: { mine: Set<string> }) {
   useSummitContent();
+  const { profile } = useAuth();
   const { ready, redirect } = useRequireProfile();
   const wide = useWideScreen();
   const [active, setActive] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const count = countWord(USER_DISCIPLINES.length);
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) {
@@ -95,9 +100,15 @@ function VersesBody({ mine }: { mine: Set<string> }) {
     <AppShell>
       <PageHeader
         label="Emerald Summit 2027"
-        title="The six disciplines"
-        sub="Every track at the Summit lives in one of six disciplines. Open one to see its tracks and sessions."
+        title={`The ${count} disciplines`}
+        sub={`Every track at the Summit lives in one of ${count} disciplines. Open one to see its tracks and sessions.`}
+        actions={profile?.role === 'admin' ? (
+          <Button onClick={() => setCreating(true)} className="bg-emerald-deep text-white hover:bg-emerald">
+            <Plus className="h-4 w-4" /> New discipline
+          </Button>
+        ) : undefined}
       />
+      {profile?.role === 'admin' && <NewDisciplineDialog open={creating} onOpenChange={setCreating} />}
 
       {wide ? (
         <div

@@ -10,6 +10,7 @@ import {
   Paintbrush,
   Scale,
   Sparkles,
+  DISCIPLINE_ICONS,
   type LucideIcon,
 } from '@/components/icons';
 import { USER_DISCIPLINES, type DisciplineInfo } from './disciplines';
@@ -220,7 +221,9 @@ const LIGHT_INK = {
 
 export function vibeFor(id: string | undefined | null, theme: 'light' | 'dark' = 'dark'): VerseVibe {
   const key = id?.toLowerCase();
-  const dark = (key && VERSE_VIBES[key]) || EMERALD_VIBE;
+  // A discipline added after the six gets the emerald world with its own icon.
+  const added = key && !VERSE_VIBES[key] ? USER_DISCIPLINES.find((d) => d.name === key) : undefined;
+  const dark = (key && VERSE_VIBES[key]) || (added ? { ...EMERALD_VIBE, icon: DISCIPLINE_ICONS[added.icon ?? ''] ?? EMERALD_VIBE.icon } : EMERALD_VIBE);
   if (theme === 'dark') return dark;
   const light = (key && LIGHT[key]) || EMERALD_LIGHT;
   return { ...dark, ...light, ...LIGHT_INK, highlight: light.accent2 };
