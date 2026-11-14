@@ -16,6 +16,14 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 
 import PhotoSlideshow from '../home/PhotoSlideshow';
 import LinksCard from '../home/LinksCard';
+import {
+  AboutAppCard,
+  EAF_DONATE_URL,
+  SPONSOR_EMAIL,
+  SPONSOR_TIERS,
+  SponsorsCard,
+  SupportEafCard,
+} from '../home/AboutSections';
 import NewDisciplineDialog from '../verse/NewDisciplineDialog';
 
 beforeEach(() => vi.clearAllMocks());
@@ -47,6 +55,28 @@ describe('Home links', () => {
     expect(screen.getByRole('link', { name: /Summit website/ })).toHaveAttribute('href', 'https://sites.google.com/view/ehs-academic-foundation/programs/emerald-summit');
     expect(screen.getByRole('link', { name: /Instagram/ })).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /Contact/ })).toHaveAttribute('href', 'mailto:president@ehsacademics.org');
+  });
+});
+
+describe('About, Support EAF and Sponsors', () => {
+  test('Support EAF links to the donate and volunteer pages', () => {
+    render(<SupportEafCard />);
+    expect(screen.getByRole('region', { name: 'Support EAF' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Donate/ })).toHaveAttribute('href', EAF_DONATE_URL);
+    expect(screen.getByRole('link', { name: /Volunteer with EAF/ })).toHaveAttribute('target', '_blank');
+  });
+
+  test('Sponsors shows every tier and an email to sign on', () => {
+    render(<SponsorsCard />);
+    for (const t of SPONSOR_TIERS) expect(screen.getByText(t.name)).toBeInTheDocument();
+    const email = screen.getByRole('link', { name: /Become a sponsor/ });
+    expect(email).toHaveAttribute('href', `mailto:${SPONSOR_EMAIL}`);
+    expect(email).not.toHaveAttribute('target');
+  });
+
+  test('About the app has a heading', () => {
+    render(<AboutAppCard />);
+    expect(screen.getByRole('region', { name: 'About the app' })).toBeInTheDocument();
   });
 });
 

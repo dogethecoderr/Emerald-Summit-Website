@@ -36,7 +36,7 @@ export default function PhotoSlideshow({ className }: { className?: string }) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className={cn('relative aspect-video overflow-hidden rounded-3xl bg-muted', className)}
+      className={cn('relative aspect-[2/1] overflow-hidden rounded-3xl bg-muted', className)}
     >
       {photos.map((p, i) => (i === active || i === next) && (
         <img

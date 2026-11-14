@@ -848,55 +848,6 @@ export default function ExploreVerses({ mine }: { mine: Set<string> }) {
 }
 
 /**
- * The summit's tracks (areas within each verse, as in the app: Genetics, Mock
- * Trial, CADathon...), each in its verse's colors. Opens that verse's page.
- */
-export function VerseTracks() {
-  const open = useOpenVerse();
-  const { theme } = useTheme();
-  const tracks = USER_DISCIPLINES.flatMap((d) =>
-    tracksForUniverse(d.name).map((name) => ({ name, verse: d })),
-  );
-  return (
-    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 [mask-image:linear-gradient(to_right,black_90%,transparent)]">
-      {tracks.map(({ name, verse }) => {
-        const vibe = vibeFor(verse.name, theme);
-        const Icon = vibe.icon;
-        return (
-          <button
-            key={`${verse.name}-${name}`}
-            type="button"
-            onClick={(e) => open(verse.name, originOf(e), name)}
-            className="group relative flex h-[118px] w-[200px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl p-3.5 text-left transition-transform duration-150 active:scale-[0.97]"
-            style={{
-              background: `radial-gradient(120% 90% at 100% 0%, ${rgba(vibe.accent, 0.22)}, transparent 60%), ${vibe.background}`,
-              border: `1px solid ${rgba(vibe.accent, 0.28)}`,
-              color: vibe.text,
-            }}
-          >
-            <span className="flex items-center justify-between">
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ background: vibe.accent, boxShadow: `0 0 10px ${rgba(vibe.accent, 0.7)}` }}
-                aria-hidden
-              />
-              <Icon className="h-4 w-4 opacity-70" style={{ color: vibe.accent }} />
-            </span>
-            <span className="mt-auto font-display text-[16px] font-bold leading-tight tracking-tight">
-              {name}
-            </span>
-            <span className="mt-1 flex items-center gap-1 text-[12px]" style={{ color: vibe.textDim }}>
-              {verse.label}
-              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
  * A session's track as a tag in its verse's colors (the verse's icon, then
  * the track). Opens the track's page, or the verse's when there's no track.
  */
@@ -923,11 +874,4 @@ export function TrackTag({ verse, track }: { verse: string; track?: string }) {
       <ChevronRight className="-ml-0.5 h-3 w-3 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
-}
-
-/** Count of every track across the verses, for headings. */
-// eslint-disable-next-line react-refresh/only-export-components
-/** How many tracks there are across the verses (they can be edited). */
-export function trackCount(): number {
-  return USER_DISCIPLINES.reduce((n, d) => n + tracksForUniverse(d.name).length, 0);
 }

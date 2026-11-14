@@ -36,11 +36,8 @@ import PhotoSlideshow from '../components/home/PhotoSlideshow';
 import QuoteCard from '../components/home/QuoteCard';
 import LinksCard from '../components/home/LinksCard';
 import { ExpertDeclinedDialog, ExpertPending, needsExpertApproval } from '../components/ExpertStatus';
-import ExploreVerses, {
-  trackCount,
-  VersePortalProvider,
-  VerseTracks,
-} from '../components/verse/ExploreVerses';
+import ExploreVerses, { VersePortalProvider } from '../components/verse/ExploreVerses';
+import { AboutAppCard, SponsorsCard, SupportEafCard } from '../components/home/AboutSections';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -427,14 +424,13 @@ export default function HomePage() {
 
       {/* The app's slideshow and quote, under its header. */}
       <div className="mb-6 flex flex-col gap-5 lg:flex-row">
-        <PhotoSlideshow className="lg:flex-[1.6]" />
+        <PhotoSlideshow className="lg:flex-[1.25]" />
         <QuoteCard className="lg:flex-1" />
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="glass flex flex-col rounded-3xl p-4 sm:p-6 xl:min-h-[560px]">
-          {showYourDay && (
-            <>
+      <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-6', showYourDay && 'xl:grid-cols-[minmax(0,1fr)_380px]')}>
+        {showYourDay && (
+          <section className="glass flex flex-col rounded-3xl p-4 sm:p-6 xl:min-h-[480px]">
               <div className="mb-4 flex items-start gap-3 px-1">
                 <div className="min-w-0 flex-1">
                   <h2 className="flex items-center gap-2.5 font-display text-2xl font-bold tracking-tight sm:text-[28px]">
@@ -481,35 +477,10 @@ export default function HomePage() {
                   ))}
                 </div>
               )}
-            </>
-          )}
+          </section>
+        )}
 
-          <div className={cn(showYourDay && 'mt-6 border-t border-border/70 pt-5')}>
-            <div className="mb-3 flex flex-wrap items-center gap-3 px-1">
-              <div className="min-w-0 flex-1">
-                <h3 className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight sm:text-xl">
-                  Tracks
-                  <CountChip count={trackCount()} />
-                </h3>
-                <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                  Explore this year's tracks and sessions.
-                </p>
-              </div>
-              {canSchedule && agenda.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/disciplines')}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-emerald px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-deep"
-                >
-                  {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            <VerseTracks />
-          </div>
-        </section>
-
-        <div className="flex flex-col gap-6 xl:h-0 xl:min-h-full">
+        <div className={cn('flex flex-col gap-6', showYourDay && 'xl:h-0 xl:min-h-full')}>
           {showYourDay && (
             <div className="grid grid-cols-2 gap-3">
               {stats.map((s) => (
@@ -571,6 +542,17 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <hr className="my-8 border-t border-border/80" aria-hidden />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AboutAppCard />
+        <SupportEafCard />
+      </div>
+
+      <hr className="my-8 border-t border-border/80" aria-hidden />
+
+      <SponsorsCard />
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
