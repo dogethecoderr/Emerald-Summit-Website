@@ -86,26 +86,37 @@ function mount({ stage, svg, read }, value) {
   });
   bag.add(B.unregister);
 
-  // hit bands: halfway between the screen heights of neighbouring terraces' top centres, at rest. They never move.
-  const mid = tiers.map((t) => P(CX(t.k), CY(t.k), BASEZ[t.k] + TH[t.k])[1]);
-  const bandTop = mid.map((y, k) => (k < N - 1 ? (y + mid[k + 1]) / 2 : y));
+  // hit bands, at rest; they never move. A terrace's band at the pointer's x runs
+  // from the front edge of its own footprint up to the front edge of the terrace
+  // on top of it, so the band covers what you see of it there: its front step and
+  // the ledge the next terrace leaves bare. The footprint's front edge is a V
+  // (left corner, front corner, right corner), level past the side corners.
   const bandFoot = P(CX(0) + SIDE[0] / 2, CY(0) + SIDE[0] / 2, 0)[1], peakY = P(CX(N - 1), CY(N - 1), BASEZ[N - 1] + TH[N - 1] + POLE)[1];
+  const foot = tiers.map((t) => {
+    const z = BASEZ[t.k];
+    return [P(CX(t.k) - t.h, CY(t.k) + t.h, z), P(CX(t.k) + t.h, CY(t.k) + t.h, z), P(CX(t.k) + t.h, CY(t.k) - t.h, z)];
+  });
+  const edge = (k, x) => {
+    const [L, F, R] = foot[k];
+    if (x <= L[0]) return L[1];
+    if (x >= R[0]) return R[1];
+    const [a, b] = x < F[0] ? [L, F] : [F, R];
+    return a[1] + ((b[1] - a[1]) * (x - a[0])) / (b[0] - a[0]);
+  };
+  const lowerOf = (k, x) => (k === 0 ? bandFoot : edge(k, x)), upperOf = (k, x) => (k === N - 1 ? peakY : edge(k + 1, x));
   const xs = tiers[0].ring.map((q) => P(q.u, q.v, 0)[0]), xL = Math.min(...xs), xR = Math.max(...xs);
+  // How far past its band's edges the terrace already out keeps the pointer, in
+  // viewBox units. Fixed rather than a share of the band, so the tall bottom and
+  // top bands can't reach over the whole of a neighbour.
+  const HOLD = 7;
 
   /** The terrace whose band holds the pointer's height; -1 off the mountain. */
   function hit([x, y]) {
     if (x < xL || x > xR) return -1;
     // The terrace already out keeps the pointer a little past its band's edges,
     // so a pointer resting on a boundary never flickers between two terraces.
-    if (act >= 0) {
-      const lower = act === 0 ? bandFoot : bandTop[act - 1], upper = act === N - 1 ? peakY : bandTop[act];
-      const m = (lower - upper) * 0.35;
-      if (y <= lower + m && y > upper - m) return act;
-    }
-    for (let k = 0; k < N; k++) {
-      const lower = k === 0 ? bandFoot : bandTop[k - 1], upper = k === N - 1 ? peakY : bandTop[k];
-      if (y <= lower && y > upper) return k;
-    }
+    if (act >= 0 && y <= lowerOf(act, x) + HOLD && y > upperOf(act, x) - HOLD) return act;
+    for (let k = 0; k < N; k++) if (y <= lowerOf(k, x) && y > upperOf(k, x)) return k;
     return -1;
   }
 
@@ -156,6 +167,6 @@ hairline({
   means: "The day as a climb: six terraces, check-in down to the landing, and the one at the pointer's height slides out as the gaps open.",
   rules: [1, 2, 5, 8],
   range: [8, 16, 26],
-  tour: [[193, 143], [197, 192], [200, 228], null],
+  tour: [[193, 173], [197, 231], [200, 295], null],
   mount,
 });

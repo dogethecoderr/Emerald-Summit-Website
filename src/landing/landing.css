@@ -159,7 +159,9 @@
 .lp-day { border-top: 1px solid var(--color-rule); }
 .lp-day__inner { align-items: center; row-gap: var(--space-xl); }
 .lp-day__head { grid-column: 1 / -1; }
-.lp-day__figure { grid-column: 1 / span 6; margin: 0; }
+/* Pinned to the top of its row, not centred: a taller panel would otherwise shift the
+   figure under a still pointer, pick another terrace, and bounce between the two. */
+.lp-day__figure { grid-column: 1 / span 6; margin: 0; align-self: start; }
 .lp-day__hint { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-muted); text-align: center; }
 .lp-day__panel { grid-column: 8 / span 5; display: grid; gap: var(--space-md); align-content: start; min-height: 560px; }
 .lp-day__photo { aspect-ratio: 3 / 2; margin: 0 0 var(--space-xs); border-radius: var(--radius-card); }
