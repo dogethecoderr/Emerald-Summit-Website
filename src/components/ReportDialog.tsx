@@ -1,5 +1,7 @@
-// "Report a bug or send feedback", opened from Profile. Name and description
-// are required; screenshots (picked, dropped or pasted) and an emailed copy
+// "Report a bug" and "Send feedback", opened from their own rows on Profile.
+// They're two categories of ticket (bug_reports.kind); the switch at the top
+// moves a ticket between them before it's sent. Name and description are
+// required; screenshots (picked, dropped or pasted) and an emailed copy
 // are optional. Everything else in the report is attached automatically
 // (src/services/bugReports.ts), and the form says what.
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
@@ -26,13 +28,15 @@ const ATTACHED = [
   'Your browser, screen size, theme and the version of the site',
 ];
 
-export default function ReportDialog({ open, onOpenChange, defaultName, email }: {
+export default function ReportDialog({ open, onOpenChange, kind: initialKind = 'bug', defaultName, email }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which row opened it: a bug report or feedback. */
+  kind?: ReportKind;
   defaultName: string;
   email: string;
 }) {
-  const [kind, setKind] = useState<ReportKind>('bug');
+  const [kind, setKind] = useState<ReportKind>(initialKind);
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState('');
   const [shots, setShots] = useState<Shot[]>([]);
@@ -47,6 +51,7 @@ export default function ReportDialog({ open, onOpenChange, defaultName, email }:
   shotsRef.current = shots;
 
   useEffect(() => { if (!name) setName(defaultName); }, [defaultName]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) setKind(initialKind); }, [open, initialKind]);
   useEffect(() => () => shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url)), []);
 
   const addFiles = (files: File[]) => {
@@ -94,7 +99,6 @@ export default function ReportDialog({ open, onOpenChange, defaultName, email }:
     shots.forEach((s) => URL.revokeObjectURL(s.url));
     setShots([]);
     setDescription('');
-    setKind('bug');
     setProblem(null);
     setResult(null);
     setShowAttached(false);
@@ -128,8 +132,8 @@ export default function ReportDialog({ open, onOpenChange, defaultName, email }:
           <div className="space-y-4 py-2 text-center" role="status">
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald" />
             <DialogHeader className="text-center sm:text-center">
-              <DialogTitle>Thanks, we got it</DialogTitle>
-              <DialogDescription>Your ticket number is #{result.ticketNo}.</DialogDescription>
+              <DialogTitle>{kind === 'bug' ? 'Thanks, we got your bug report' : 'Thanks for the feedback'}</DialogTitle>
+              <DialogDescription>Your ticket is {kind === 'bug' ? 'Bug' : 'Feedback'} #{result.ticketNo}.</DialogDescription>
             </DialogHeader>
             {result.emailed === true && <p className="text-sm text-muted-foreground">We emailed a copy to {email}, with everything that was sent.</p>}
             {result.emailed === false && <p className="text-sm text-muted-foreground">Your report was saved, but we couldn't email your copy.</p>}
@@ -138,12 +142,16 @@ export default function ReportDialog({ open, onOpenChange, defaultName, email }:
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Report a bug or send feedback</DialogTitle>
-              <DialogDescription>Tell us what happened. We'll attach the details we need to fix it.</DialogDescription>
+              <DialogTitle>{kind === 'bug' ? 'Report a bug' : 'Send feedback'}</DialogTitle>
+              <DialogDescription>
+                {kind === 'bug'
+                  ? "Tell us what happened. We'll attach the details we need to fix it."
+                  : 'Tell us what works, what doesn\'t, or what you\'d add.'}
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Type">
-              {([['bug', 'Bug', Bug], ['feedback', 'Feedback', MessageSquare]] as const).map(([value, label, Icon]) => (
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Category">
+              {([['bug', 'Bug report', Bug], ['feedback', 'Feedback', MessageSquare]] as const).map(([value, label, Icon]) => (
                 <button
                   key={value}
                   type="button"
@@ -259,7 +267,7 @@ export default function ReportDialog({ open, onOpenChange, defaultName, email }:
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => close(false)} disabled={sending}>Cancel</Button>
               <Button type="button" onClick={send} disabled={sending} className="bg-emerald text-white hover:bg-emerald-deep">
-                {sending ? 'Sending…' : 'Send report'}
+                {sending ? 'Sending…' : kind === 'bug' ? 'Send bug report' : 'Send feedback'}
               </Button>
             </DialogFooter>
           </>

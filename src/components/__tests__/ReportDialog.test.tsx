@@ -28,16 +28,27 @@ describe('ReportDialog', () => {
     expect(screen.getByRole('checkbox', { name: 'Email me a copy' })).toHaveAttribute('data-state', 'checked');
     expect(screen.getByText('To ada@example.com, including everything listed above.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Send report' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Please describe the bug.');
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  test('opens as Report a bug or Send feedback, depending on the Profile row', () => {
+    const { unmount } = open();
+    expect(screen.getByRole('heading', { name: 'Report a bug' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Bug report/ })).toHaveAttribute('aria-checked', 'true');
+    unmount();
+    render(<ReportDialog open kind="feedback" onOpenChange={() => {}} defaultName="Ada" email="ada@example.com" />);
+    expect(screen.getByRole('heading', { name: 'Send feedback' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Feedback/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'Send feedback' })).toBeInTheDocument();
   });
 
   test('requires a name', async () => {
     open();
     await userEvent.clear(screen.getByLabelText('Your name'));
     await userEvent.type(screen.getByLabelText('What went wrong?'), 'Broken');
-    await userEvent.click(screen.getByRole('button', { name: 'Send report' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Please add your name.');
   });
 
@@ -45,14 +56,15 @@ describe('ReportDialog', () => {
     submit.mockResolvedValue({ ticketNo: 12, emailed: true });
     open();
     await userEvent.click(screen.getByRole('radio', { name: /Feedback/ }));
+    expect(screen.getByRole('heading', { name: 'Send feedback' })).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Your feedback'), 'Love it');
     const shot = new File(['x'], 'a.png', { type: 'image/png' });
     await userEvent.upload(screen.getByTestId('report-file-input'), shot);
     expect(screen.getByAltText('Screenshot 1')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('checkbox', { name: 'Email me a copy' }));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Send report' }));
-    await waitFor(() => expect(screen.getByText('Your ticket number is #12.')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    await waitFor(() => expect(screen.getByText('Your ticket is Feedback #12.')).toBeInTheDocument());
     expect(submit).toHaveBeenCalledWith({ kind: 'feedback', name: 'Ada Lovelace', description: 'Love it', screenshots: [shot], emailCopy: false });
   });
 
@@ -67,7 +79,7 @@ describe('ReportDialog', () => {
     submit.mockRejectedValue({ message: 'too_many_reports' });
     open();
     await userEvent.type(screen.getByLabelText('What went wrong?'), 'Again');
-    await userEvent.click(screen.getByRole('button', { name: 'Send report' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/last hour/));
   });
 });

@@ -1,4 +1,5 @@
-// Admins: every bug report and piece of feedback (README: Bug reports).
+// Admins: every bug report and piece of feedback (README: Bug reports), in
+// two categories, Bugs and Feedback, each filtered by open / resolved.
 // "Copy as Markdown" puts the whole ticket, attached data included, on the
 // clipboard, ready to paste to whoever fixes it.
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { useRequireRole } from '../hooks/useRequireProfile';
 import {
   fetchReports, reportAsMarkdown, screenshotUrls, setReportStatus,
-  type BugReport, type ReportStatus,
+  type BugReport, type ReportKind, type ReportStatus,
 } from '../services/bugReports';
 
 type Filter = ReportStatus | 'all';
@@ -121,6 +122,10 @@ export default function BugReportsPage() {
   const [reports, setReports] = useState<BugReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('open');
+  const ticket = Number(params.get('ticket'));
+  const linked = (reports ?? []).find((r) => r.ticket_no === ticket) ?? null;
+  // A linked ticket (from the team email) opens its own category.
+  const category: ReportKind = linked?.kind ?? (params.get('category') === 'feedback' ? 'feedback' : 'bug');
 
   const load = useCallback(() => {
     setError(null);
@@ -128,9 +133,9 @@ export default function BugReportsPage() {
   }, []);
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
-  const shown = useMemo(() => (reports ?? []).filter((r) => filter === 'all' || r.status === filter), [reports, filter]);
-  const ticket = Number(params.get('ticket'));
-  const selected = (reports ?? []).find((r) => r.ticket_no === ticket) ?? shown[0] ?? null;
+  const inCategory = useMemo(() => (reports ?? []).filter((r) => r.kind === category), [reports, category]);
+  const shown = useMemo(() => inCategory.filter((r) => filter === 'all' || r.status === filter || r.id === linked?.id), [inCategory, filter, linked]);
+  const selected = linked ?? shown[0] ?? null;
 
   if (redirect) return <Navigate to={redirect} replace />;
   if (!ready) return <div className="mx-auto max-w-3xl space-y-4 px-6 py-16"><Skeleton className="h-10 w-64" /><Skeleton className="h-64 w-full rounded-2xl" /></div>;
@@ -145,22 +150,38 @@ export default function BugReportsPage() {
     }
   };
 
-  const counts = { open: 0, resolved: 0, all: reports?.length ?? 0 };
-  for (const r of reports ?? []) counts[r.status] += 1;
+  const counts = { open: 0, resolved: 0, all: inCategory.length };
+  for (const r of inCategory) counts[r.status] += 1;
+  const openIn = (kind: ReportKind) => (reports ?? []).filter((r) => r.kind === kind && r.status === 'open').length;
 
   return (
     <AppShell>
       <PageHeader label="Admin" title="Bug reports and feedback" actions={
         <Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       } />
-      <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Filter reports">
+      <div className="mb-4 grid max-w-md grid-cols-2 gap-2" role="tablist" aria-label="Category">
+        {([['bug', 'Bugs', Bug], ['feedback', 'Feedback', MessageSquare]] as const).map(([kind, label, Icon]) => (
+          <button
+            key={kind}
+            type="button"
+            role="tab"
+            aria-selected={category === kind}
+            onClick={() => setParams({ category: kind }, { replace: true })}
+            className={cn('flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors', category === kind ? 'border-emerald bg-emerald/10 text-foreground' : 'border-border text-muted-foreground hover:bg-accent/50')}
+          >
+            <Icon className="h-4 w-4" /> {label}
+            {reports && <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[11px]">{openIn(kind)} open</span>}
+          </button>
+        ))}
+      </div>
+      <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Status">
         {(['open', 'resolved', 'all'] as const).map((f) => (
           <button
             key={f}
             type="button"
             role="tab"
             aria-selected={filter === f}
-            onClick={() => { setFilter(f); setParams({}, { replace: true }); }}
+            onClick={() => { setFilter(f); setParams({ category }, { replace: true }); }}
             className={cn('rounded-full border px-3.5 py-1.5 text-sm font-medium capitalize transition-colors', filter === f ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:bg-accent/50')}
           >
             {f} <span className="opacity-70">{counts[f]}</span>
@@ -172,7 +193,7 @@ export default function BugReportsPage() {
       {!reports && !error && <Skeleton className="h-64 w-full rounded-2xl" />}
       {reports && shown.length === 0 && (
         <p className="rounded-2xl border border-border/70 bg-card/70 p-8 text-center text-sm text-muted-foreground">
-          {filter === 'open' ? 'No open reports.' : 'Nothing here yet.'}
+          {filter === 'open' ? (category === 'bug' ? 'No open bugs.' : 'No open feedback.') : 'Nothing here yet.'}
         </p>
       )}
       {reports && shown.length > 0 && (
@@ -184,7 +205,7 @@ export default function BugReportsPage() {
                 <li key={r.id}>
                   <button
                     type="button"
-                    onClick={() => setParams({ ticket: String(r.ticket_no) }, { replace: true })}
+                    onClick={() => setParams({ category, ticket: String(r.ticket_no) }, { replace: true })}
                     aria-current={selected?.id === r.id}
                     className={cn('w-full rounded-xl border p-3 text-left transition-colors', selected?.id === r.id ? 'border-emerald bg-emerald/10' : 'border-border/70 bg-card/70 hover:bg-accent/50')}
                   >
