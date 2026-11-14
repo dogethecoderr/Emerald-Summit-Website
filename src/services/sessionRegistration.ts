@@ -3,6 +3,7 @@
 // SupabaseScheduleRepository and SupabaseExpertsRepository).
 import { supabase } from '../lib/supabase';
 import { REGISTRATION_CLOSED_MESSAGE } from './siteSwitches';
+import { isRemovedFromSession, REMOVED_FROM_SESSION_MESSAGE } from './sessionRemovals';
 import {
   GRADE_BLOCK_MESSAGE,
   gradeBlockFromError,
@@ -73,6 +74,9 @@ export async function toggleRegistration(
     }
     if (isRegistrationClosed(error.message)) {
       return { outcome: 'invalid_project', message: `${REGISTRATION_CLOSED_MESSAGE}.` };
+    }
+    if (isRemovedFromSession(error.message)) {
+      return { outcome: 'invalid_project', message: REMOVED_FROM_SESSION_MESSAGE };
     }
     const gradeBlock = gradeBlockFromError(error.message);
     if (gradeBlock) return { outcome: 'invalid_project', message: GRADE_BLOCK_MESSAGE[gradeBlock] };

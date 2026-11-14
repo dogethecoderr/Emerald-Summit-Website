@@ -2,16 +2,26 @@
 // session_roster_screen.dart: teams (owner first), then solo projects, then
 // participants who haven't shared a project, then spectators and experts.
 // Admins and the session's managers mark attendance; editors only look.
+// Everyone who can see the roster can also remove someone from the session
+// (e.g. an account that looks fake). A removed person can't sign up again
+// until someone taps Allow back in the Removed list at the bottom.
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Session } from '../../models/sessions';
 import { CHIP_LABEL, DEFAULT_MAX_TEAM_SIZE, type ParticipationType } from '../../models/registration';
 import { gradeLabel, NO_GRADE_LABEL } from '../../models/metrics';
 import { canonicalSchoolName } from '../../models/schools';
 import { fetchSessionRoster, markSessionAttendance, type RosterEntry } from '../../services/organizer';
+import {
+  allowBackToSession,
+  fetchSessionRemovals,
+  removeFromSession,
+  type SessionRemoval,
+} from '../../services/sessionRemovals';
 
 interface Group {
   title: string;
@@ -77,12 +87,25 @@ export default function SessionRoster({
 }) {
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Null until loaded, and while the backend has no removals (the SQL hasn't
+  // been run): the Remove buttons stay hidden then.
+  const [removals, setRemovals] = useState<SessionRemoval[] | null>(null);
+  const [removing, setRemoving] = useState<RosterEntry | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadRemovals = useCallback(() => {
+    fetchSessionRemovals(session.id)
+      .then((all) => setRemovals(all && all.filter((r) => r.type == null || types.includes(r.type))))
+      .catch(() => setRemovals(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
 
   const load = useCallback(() => {
     setError(null);
     fetchSessionRoster(session.id)
       .then((all) => setRoster(all.filter((e) => types.includes(e.type))))
       .catch(() => setError("Couldn't load this session's people. Try again."));
+    loadRemovals();
     // types is a fixed list per tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);
@@ -95,6 +118,40 @@ export default function SessionRoster({
     } catch {
       setRoster((r) => r?.map((e) => (e.userId === entry.userId ? { ...e, attended: !attended } : e)) ?? r);
       toast.error('Could not save attendance.');
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!removing) return;
+    const who = removing.name || removing.email;
+    setBusy(true);
+    try {
+      const outcome = await removeFromSession(session.id, removing.userId);
+      if (outcome === 'cannot_remove_self') {
+        toast.error("You can't remove yourself. Remove the session from your day instead.");
+      } else {
+        toast.success(outcome === 'removed' ? `Removed ${who} from this session` : `${who} had already left this session`);
+        setRemoving(null);
+        load();
+      }
+    } catch {
+      toast.error(`Couldn't remove ${who}. Try again.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const allowBack = async (r: SessionRemoval) => {
+    const who = r.name || r.email || 'They';
+    setBusy(true);
+    try {
+      await allowBackToSession(session.id, r.userId);
+      toast.success(`${who} can sign up for this session again`);
+      loadRemovals();
+    } catch {
+      toast.error(`Couldn't allow ${who} back. Try again.`);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -140,6 +197,18 @@ export default function SessionRoster({
             onCheckedChange={(v) => void toggle(e, v)}
           />
         )}
+        {removals != null && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-my-1 h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+            aria-label={`Remove ${e.name || e.email} from this session`}
+            onClick={() => setRemoving(e)}
+          >
+            Remove
+          </Button>
+        )}
       </li>
     );
   };
@@ -170,6 +239,44 @@ export default function SessionRoster({
           </section>
         ))
       )}
+      {removals != null && removals.length > 0 && (
+        <section className="rounded-2xl border border-dashed border-border px-4 py-3">
+          <h3 className="font-semibold">Removed</h3>
+          <p className="text-xs text-muted-foreground">Taken off this session by an organizer. They can't sign up again unless you allow them back.</p>
+          <ul className="mt-1 divide-y divide-border">
+            {removals.map((r) => (
+              <li key={r.userId} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{r.name || r.email || 'Deleted account'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[r.type ? CHIP_LABEL[r.type] : null, r.removedBy ? `Removed by ${r.removedBy}` : null, r.removedAt ? new Date(r.removedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null].filter(Boolean).join(' · ')}
+                  </p>
+                  {r.email && r.name && <p className="text-xs text-muted-foreground">{r.email}</p>}
+                </div>
+                <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void allowBack(r)}>Allow back</Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Dialog open={removing != null} onOpenChange={(o) => !o && !busy && setRemoving(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove {removing?.name || removing?.email}?</DialogTitle>
+            <DialogDescription>
+              They'll be taken off "{session.title}" and get a notice saying an organizer removed them. They can't sign up for it again unless someone allows them back.
+              {removing?.isTeam && (removing.isTeamOwner
+                ? ' They own a team, so it passes to the teammate who joined first.'
+                : ' Their teammates will be told they were removed.')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setRemoving(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={busy} onClick={() => void confirmRemove()}>{busy ? 'Removing…' : 'Remove'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
