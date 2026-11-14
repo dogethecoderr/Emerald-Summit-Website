@@ -558,14 +558,6 @@ export async function saveProfileDetails(
   if (error || !data) throw error ?? new Error(LOAD_FAILED_MESSAGE);
 }
 
-/** The app's push-notification switch, stored on the profile so it follows the account. */
-export async function setNotificationsEnabled(on: boolean): Promise<void> {
-  const session = await requireRealSession();
-  const { error } = await requireSupabase().from('profiles')
-    .update({ notifications_enabled: on }).eq('id', session.user.id);
-  if (error) throw error;
-}
-
 export async function saveProfile(input: SaveProfileInput): Promise<void> {
   await writeProfile(input, true);
 }

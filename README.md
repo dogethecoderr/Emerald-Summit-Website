@@ -268,7 +268,7 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a new or deleted post reaches every connected profile without a refresh.
 
-**New-post banner.** Like the app's in-app banner, a post that reaches you and arrives while the site is open shows as a toast with its title, the start of the message and an **Open** button (Announcements, or the bell's list for a personal notice). The rule is the app's (`bannerFor` in `src/models/announcements.ts`): nothing for your own posts or for a discipline you're not in, and admins see "Ms. Lee sent an announcement to the TechVerse discipline" for discipline posts. Posts already there when the page loaded never banner. The app also skips it while its notifications switch is off; the website doesn't, since that switch is labelled for the mobile app.
+**New-post banner.** Like the app's in-app banner, a post that reaches you and arrives while the site is open shows as a toast with its title, the start of the message and an **Open** button (Announcements, or the bell's list for a personal notice). The rule is the app's (`bannerFor` in `src/models/announcements.ts`): nothing for your own posts or for a discipline you're not in, and admins see "Ms. Lee sent an announcement to the TechVerse discipline" for discipline posts. Posts already there when the page loaded never banner. Nothing mutes it, here or in the app: there's no notification setting on either (see **Notifications**).
 
 **Unread.** Unread posts are tinted red with a "New" label and counted in an "N unread" chip on the panel. The sidebar's Announcements link has no count: the bell counts new posts (see **Notifications**). Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening Announcements marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
 
@@ -303,7 +303,7 @@ Clicking a note marks it read; **Mark all as read** clears the bell. The rows ar
 
 Personal notices are no longer in Announcements. Until the `notifications` table has loaded once (for example before that SQL is run), Announcements keeps showing each person their own notices, so nothing goes missing. Announcements has no count of its own any more; each post keeps its "New" label until it's opened.
 
-There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Mobile app notifications** switch on Profile (named so it's clear it's about the phone) saves the account's `notifications_enabled`, the same setting the app's switch changes; it mutes the app's banner (and push, once the app has it) and doesn't affect the bell on either.
+There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. So Profile has no notification setting at all. The app has none either: its banner always shows, and push (once built) is turned off in the phone's own Settings, which the app's Profile opens. The old **Mobile app notifications** switch was removed on Nov 13, 2026; `profiles.notifications_enabled` stays in the table, unused.
 
 ---
 

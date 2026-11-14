@@ -21,7 +21,6 @@ vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ profile: state.p
 vi.mock('../../services/volunteerContacts', () => ({ fetchVolunteerContacts: () => state.contacts() }));
 vi.mock('../../services/auth', () => ({
   saveProfileDetails: (...args: unknown[]) => state.save(...args),
-  setNotificationsEnabled: vi.fn(),
   signOut: vi.fn(),
 }));
 vi.mock('../../services/summitStatus', () => ({ useSummitStatus: () => ({ date: null, feedbackOpen: false }) }));

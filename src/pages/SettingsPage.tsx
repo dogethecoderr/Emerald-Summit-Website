@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeftRight, Award, Bell, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
+  ArrowLeftRight, Award, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
   Palette, QrCode, ScanLine, ShieldCheck, UserRound, Users,
 } from '@/components/icons';
-import { Switch } from '@/components/ui/switch';
 import { useSummitStatus } from '../services/summitStatus';
 import { toast } from 'sonner';
 import AppShell from '../components/AppShell';
@@ -14,7 +13,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useAuth } from '../context/AuthContext';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
-import { saveProfileDetails, setNotificationsEnabled, signOut, type Profile } from '../services/auth';
+import { saveProfileDetails, signOut, type Profile } from '../services/auth';
 import { formFields } from '../models/profileFields';
 import ProfileFieldInput from '../components/ProfileFieldInput';
 import { Button } from '@/components/ui/button';
@@ -151,18 +150,6 @@ function ProfileHub({ profile }: { profile: Profile }) {
   const isVolunteer = roleName === 'volunteer' || roleName === 'ambassador';
   const canCheckIn = isAdmin || profile.can_check_in_front_desk === true;
   const status = useSummitStatus();
-  const { refreshProfile } = useAuth();
-  const [notifications, setNotifications] = useState(profile.notifications_enabled !== false);
-  const toggleNotifications = async (on: boolean) => {
-    setNotifications(on);
-    try {
-      await setNotificationsEnabled(on);
-      await refreshProfile();
-    } catch {
-      setNotifications(!on);
-      toast.error("Couldn't save that. Try again.");
-    }
-  };
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -199,11 +186,6 @@ function ProfileHub({ profile }: { profile: Profile }) {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Palette className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Appearance</span><span className="mt-0.5 block text-[12px] text-muted-foreground">System is dark from 7 PM to 7 AM</span></span>
             <ThemeToggle labels />
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Bell className="h-4 w-4" /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Mobile app notifications</span><span className="mt-0.5 block text-[12px] text-muted-foreground">Alerts on your phone from the Emerald Summit app. The website's bell isn't affected.</span></span>
-            <Switch checked={notifications} aria-label="Mobile app notifications" onCheckedChange={(v) => void toggleNotifications(v)} />
           </div>
           {isVolunteer && <SettingsRow icon={CalendarDays} title="Sessions I'm managing" subtitle="Take attendance for sessions you run" onClick={() => navigate('/volunteer')} />}
           {status.feedbackOpen && roleName === 'expert' && <SettingsRow icon={Award} title="Summit feedback" subtitle="Rate your sessions, the summit and the app" onClick={() => navigate('/follow-up')} />}
