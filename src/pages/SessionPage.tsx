@@ -53,6 +53,9 @@ import SessionRoster from '../components/session/SessionRoster';
 import SessionVolunteers from '../components/session/SessionVolunteers';
 import SessionMetrics from '../components/session/SessionMetrics';
 import { SessionEditorDialog } from '../components/verse/ContentEditors';
+import { fetchSessionPhotos, splitHero, type SessionPhoto } from '../services/sessionPhotos';
+import { suggestedSessions } from '../models/suggested';
+import SuggestedSessionCard from '../components/session/SuggestedSessionCard';
 import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../services/siteSwitches';
 
 /** Why Participate is greyed out for a middle schooler, in the chooser. */
@@ -122,6 +125,7 @@ export default function SessionPage() {
   const [leaving, setLeaving] = useState<null | { name: string; error: string | null }>(null);
   const [removing, setRemoving] = useState<TeamMember | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [photoSet, setPhotoSet] = useState<{ sessionId: string; photos: SessionPhoto[] } | null>(null);
 
   const sessionId = session?.id;
   const loadProject = useCallback(async () => {
@@ -144,6 +148,15 @@ export default function SessionPage() {
     fetchSessionExperts(sessionId).then(setExperts).catch(() => setExperts([]));
   }, [sessionId]);
   useEffect(loadExperts, [loadExperts]);
+
+  // The session's photos, reloaded when the editor closes since it may have
+  // added or removed some.
+  useEffect(() => {
+    if (!sessionId || editorOpen) return;
+    let live = true;
+    fetchSessionPhotos(sessionId).then((photos) => { if (live) setPhotoSet({ sessionId, photos }); });
+    return () => { live = false; };
+  }, [sessionId, editorOpen]);
 
   // A + on a session card lands here with { add: true }: open the chooser.
   const wantsAdd = (location.state as { add?: boolean } | null)?.add === true;
@@ -174,6 +187,15 @@ export default function SessionPage() {
   const showTimes = switches.showTimes;
   const deadlineText = (d: Date) => (showTimes ? formatDeadline(d) : TBD);
   const left = Math.max(0, s.capacity - s.enrolled);
+  // The explicit hero, or the first photo when none was set, as in the app.
+  const photos = photoSet?.sessionId === s.id ? photoSet.photos : [];
+  const { hero, gallery } = splitHero(s.heroImageUrl, photos);
+  // More sessions in this discipline that fit an open slot on their day.
+  const suggested = signedIn
+    ? suggestedSessions(s, MOCK_SESSIONS, new Set([
+      ...schedule.mySchedule, ...schedule.expertSchedule, ...schedule.spectating, ...schedule.volunteerSchedule,
+    ]))
+    : [];
 
   const guarded = async <T,>(call: () => Promise<T>): Promise<T | null> => {
     if (busy) return null;
@@ -385,8 +407,8 @@ export default function SessionPage() {
 
   const about = (
     <div className="space-y-6">
-      {s.heroImageUrl && (
-        <img src={s.heroImageUrl} alt="" className="aspect-[16/7] w-full rounded-2xl object-cover" />
+      {hero && (
+        <img src={hero} alt="" width={1200} height={525} className="aspect-[16/7] w-full rounded-2xl bg-muted object-cover" />
       )}
       <div className="space-y-2 text-sm">
         <p className="flex items-center gap-2"><Clock className="h-4 w-4" style={{ color: accent }} /> {timeLabel(s, showTimes)}</p>
@@ -423,6 +445,18 @@ export default function SessionPage() {
           {b.body.trim() && <p className="whitespace-pre-line leading-relaxed">{b.body}</p>}
         </section>
       ))}
+      {gallery.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-semibold">Gallery</h2>
+          <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            {gallery.map((p) => (
+              <li key={p.name} className="shrink-0 snap-start">
+                <img src={p.url} alt="" width={220} height={160} loading="lazy" className="h-40 w-56 rounded-xl bg-muted object-cover" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {s.sponsor && <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm">{s.sponsor}</p>}
 
       <div className="space-y-3">
@@ -491,6 +525,23 @@ export default function SessionPage() {
           <p role="alert" className="text-sm text-destructive">We could not load your saved schedule. Refresh the page to retry.</p>
         )}
       </div>
+
+      {suggested.length > 0 && (
+        <section className="border-t border-border pt-6">
+          <h2 className="font-semibold">Sessions similar to this</h2>
+          <p className="mt-1 text-xs text-muted-foreground">More in {disciplineLabel || 'this discipline'} that fit an open slot on your schedule.</p>
+          <div className="-mx-1 mt-3 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            {suggested.map((x) => (
+              <SuggestedSessionCard
+                key={x.id}
+                session={x}
+                time={timeLabel(x, showTimes)}
+                onAdd={() => navigate(`/sessions/${x.id}`, { state: { add: true } })}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 

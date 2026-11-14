@@ -1,7 +1,8 @@
 // The session editor against the shared database, matching the app's
 // session_editor_screen.dart: start and end times, seats, team size, the
 // participant deadline, the project question's wording, the session's own
-// questions and page sections, and whether 8th graders may participate. Rooms stay locked and the old free-text
+// questions, page sections, hero photo and gallery, and whether 8th graders
+// may participate. Rooms stay locked and the old free-text
 // expert line is gone, as in the app. A time change that clashes with
 // people's schedules is confirmed first and they're told after saving.
 import { useEffect, useState, type FormEvent } from 'react';
@@ -33,6 +34,7 @@ import {
   toMinutes,
 } from '../../services/summitContent';
 import { fetchSessionRoster } from '../../services/organizer';
+import SessionPhotosEditor from '../session/SessionPhotosEditor';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const hhmm = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
@@ -66,6 +68,8 @@ export default function SharedSessionForm({
   const [deadline, setDeadline] = useState(s?.participantDeadline ? localInput(new Date(s.participantDeadline)) : '');
   const [projectPrompt, setProjectPrompt] = useState(s?.customProjectPrompt ?? DEFAULT_QUESTIONS.projectName);
   const [description, setDescription] = useState(s?.description ?? '');
+  const [hero, setHero] = useState<string | null>(s?.heroImageUrl ?? null);
+  const [photosBusy, setPhotosBusy] = useState(false);
   const [blocks, setBlocks] = useState((s?.pageBlocks ?? []).map((b) => ({ ...b, key: crypto.randomUUID() })));
   const [questions, setQuestions] = useState(s?.questions ?? []);
   const [teamSizes, setTeamSizes] = useState<number[]>([]);
@@ -122,6 +126,7 @@ export default function SharedSessionForm({
       ...(eighthGradeReady ? { allow_eighth_graders: allowEighth } : {}),
       project_prompt: !prompt || prompt === DEFAULT_QUESTIONS.projectName ? null : prompt,
       description: description.trim(),
+      hero_image_url: hero,
       page_blocks: blocks.filter((b) => b.title.trim() || b.body.trim()).map((b) => ({ title: b.title.trim(), body: b.body.trim() })),
       participant_questions: questions.filter((q) => q.prompt.trim()).map((q) => ({ id: q.id, prompt: q.prompt.trim() })),
     };
@@ -281,7 +286,12 @@ export default function SharedSessionForm({
           </section>
 
           <section className="space-y-3 rounded-xl border border-border p-3">
-            <p className="text-sm font-semibold">Content sections</p>
+            <div>
+              <p className="text-sm font-semibold">Session page</p>
+              <p className="mt-1 text-xs text-muted-foreground">The hero photo, gallery, and sections below are what participants see on this session.</p>
+            </div>
+            <SessionPhotosEditor sessionId={s?.id} hero={hero} onHeroChange={setHero} onBusyChange={setPhotosBusy} />
+            <p className="pt-1 text-sm font-medium">Content sections</p>
             {blocks.map((b, i) => (
               <div key={b.key} className="space-y-2 rounded-lg bg-muted/40 p-2">
                 <div className="flex items-center gap-2">
@@ -292,7 +302,6 @@ export default function SharedSessionForm({
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" onClick={() => setBlocks((list) => [...list, { title: '', body: '', key: crypto.randomUUID() }])}><Plus className="h-4 w-4" /> Add section</Button>
-            <p className="text-xs text-muted-foreground">Photos are added in the app for now.</p>
           </section>
 
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -311,7 +320,7 @@ export default function SharedSessionForm({
                 <Button type="button" variant="ghost" className="text-destructive sm:mr-auto" onClick={() => setConfirmDelete(true)}>Delete session</Button>
               )}
               <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-              <Button type="submit" disabled={busy} className="bg-emerald-deep text-white hover:bg-emerald">
+              <Button type="submit" disabled={busy || photosBusy} className="bg-emerald-deep text-white hover:bg-emerald">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : s ? 'Save' : 'Add session'}
               </Button>
             </DialogFooter>

@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   },
   toggle: vi.fn(),
   project: vi.fn(),
+  photos: vi.fn(),
 }));
 
 vi.mock('../../lib/supabase', () => ({ supabase: null, isSupabaseConfigured: false }));
@@ -46,6 +47,10 @@ vi.mock('../../services/sessionRegistration', async (importOriginal) => ({
   fetchSessionExperts: vi.fn().mockResolvedValue([]),
   fetchMyAnswers: vi.fn().mockResolvedValue({}),
 }));
+vi.mock('../../services/sessionPhotos', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../services/sessionPhotos')>(),
+  fetchSessionPhotos: (...args: unknown[]) => state.photos(...args),
+}));
 vi.mock('../../models/sessions', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../models/sessions')>();
   return {
@@ -57,6 +62,12 @@ vi.mock('../../models/sessions', async (importOriginal) => {
       volunteerCapacity: 0, volunteersEnrolled: 0, disciplineName: 'TechVerse', maxTeamSize: 4,
       questions: [{ id: 'q1', prompt: 'What will you bring?' }],
       get allowEighthGraders() { return state.allowEighth; },
+    }, {
+      id: 's2', title: 'Drone Lab', track: 'techverse', trackName: 'Drones', speaker: '', time: '1:00 PM',
+      start: '13:00', end: '14:00', location: 'Lab', room: 'Lab', duration: '60 min', description: 'Fly drones.',
+      capacity: 20, enrolled: 5, expertCapacity: 20, expertsEnrolled: 0, spectatorCap: 20, spectators: 0,
+      volunteerCapacity: 0, volunteersEnrolled: 0, disciplineName: 'TechVerse', maxTeamSize: 4,
+      heroImageUrl: 'https://cdn/s2/hero.jpg',
     }],
   };
 });
@@ -78,6 +89,7 @@ beforeEach(() => {
   state.schedule.expertSchedule = [];
   state.schedule.spectating = [];
   state.project.mockResolvedValue(null);
+  state.photos.mockResolvedValue([]);
   state.toggle.mockResolvedValue({ outcome: 'added', teamCode: null });
   setSiteSwitchesForTests({ registrationOpen: true, showTimes: true });
 });
@@ -111,6 +123,42 @@ describe('while registration is closed and times are hidden', () => {
 });
 
 describe('session page', () => {
+  test('suggests another session in the discipline that fits, with its photo', async () => {
+    const { container } = page();
+    expect(screen.getByRole('heading', { name: 'Sessions similar to this' })).toBeInTheDocument();
+    expect(screen.getByText('More in TechVerse that fit an open slot on your schedule.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Drone Lab' })).toBeInTheDocument();
+    expect(screen.getByText('1:00 PM – 2:00 PM · 15 seats left')).toBeInTheDocument();
+    expect(container.querySelector('img[src="https://cdn/s2/hero.jpg"]')).not.toBeNull();
+  });
+
+  test("doesn't suggest a session that's already on my day", () => {
+    state.schedule.mySchedule = ['s2'];
+    page();
+    expect(screen.queryByRole('heading', { name: 'Sessions similar to this' })).not.toBeInTheDocument();
+  });
+
+  test("with no hero set, the first photo is the banner and the rest are the gallery", async () => {
+    state.photos.mockResolvedValue([
+      { name: 'p_1.jpg', url: 'https://cdn/s1/p_1.jpg' },
+      { name: 'p_2.jpg', url: 'https://cdn/s1/p_2.jpg' },
+    ]);
+    state.schedule.mySchedule = ['s2'];
+    const { container } = page();
+    expect(await screen.findByRole('heading', { name: 'Gallery' })).toBeInTheDocument();
+    expect(state.photos).toHaveBeenCalledWith('s1');
+    expect([...container.querySelectorAll('img')].map((i) => i.getAttribute('src')))
+      .toEqual(['https://cdn/s1/p_1.jpg', 'https://cdn/s1/p_2.jpg']);
+  });
+
+  test('a session without photos has no banner and no gallery', async () => {
+    state.schedule.mySchedule = ['s2'];
+    const { container } = page();
+    await waitFor(() => expect(state.photos).toHaveBeenCalled());
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Gallery' })).not.toBeInTheDocument();
+  });
+
   test('participating asks the project question and the session\'s questions first', async () => {
     const user = userEvent.setup();
     page();

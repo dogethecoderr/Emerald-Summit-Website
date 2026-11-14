@@ -388,6 +388,8 @@ export interface SessionColumns {
   allow_eighth_graders?: boolean;
   project_prompt: string | null;
   description: string;
+  /** The session page's top photo, a public session_photos URL. */
+  hero_image_url: string | null;
   page_blocks: { title: string; body: string }[];
   participant_questions: { id: string; prompt: string }[];
 }
