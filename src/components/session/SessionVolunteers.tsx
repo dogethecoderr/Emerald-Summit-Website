@@ -2,7 +2,9 @@
 // Organizers and editors see the list with numbers; only admins assign and
 // remove, through RPCs that refuse anyone else and any schedule clash. When
 // someone is busy at that time, the admin sees what assigning them would take
-// off their day and can go ahead: managing replaces it.
+// off their day and can go ahead: managing replaces it. Admins also see the
+// volunteers who are signed up for this session and can make one its manager,
+// which takes them off the roster.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -12,17 +14,27 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, X } from '@/components/icons';
 import PhoneActions from '../PhoneActions';
 import ReplaceScheduleDialog, { type ReplaceRequest } from './ReplaceScheduleDialog';
+import MakeManagerDialog, { type MakeManagerRequest } from './MakeManagerDialog';
 import type { Session } from '../../models/sessions';
+import type { ParticipationType } from '../../models/registration';
 import { VOLUNTEER_SUBTYPE_LABELS } from '../../models/roles';
 import {
   assignManagerReplacingConflicts,
   assignVolunteer,
+  fetchSessionRoster,
   fetchSessionVolunteers,
   fetchVolunteers,
   previewManagerAssignment,
   unassignVolunteer,
+  type RosterEntry,
   type VolunteerRef,
 } from '../../services/organizer';
+
+const SIGNED_UP_AS: Record<ParticipationType, string> = {
+  participant: 'Signed up as participant',
+  spectator: 'Signed up as spectator',
+  expert: 'Signed up as expert',
+};
 
 export default function SessionVolunteers({ session, canAssign }: { session: Session; canAssign: boolean }) {
   const [list, setList] = useState<VolunteerRef[] | null>(null);
@@ -33,6 +45,10 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
   const [blocked, setBlocked] = useState<string | null>(null);
   // A clash the admin can resolve by replacing what the person was doing.
   const [replacing, setReplacing] = useState<(ReplaceRequest & { volunteer: VolunteerRef }) | null>(null);
+  // A signed-up volunteer the admin is making this session's manager.
+  const [converting, setConverting] = useState<(MakeManagerRequest & { userId: string }) | null>(null);
+  // Admins only: volunteers on this session's roster (participant, spectator or expert).
+  const [signedUp, setSignedUp] = useState<RosterEntry[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -40,8 +56,47 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
     fetchSessionVolunteers(session.id)
       .then(setList)
       .catch(() => setError("Couldn't load this session's volunteers. Try again."));
-  }, [session.id]);
+    if (canAssign) {
+      fetchSessionRoster(session.id)
+        .then((roster) => setSignedUp(roster.filter((r) => r.role === 'volunteer')))
+        .catch(() => setSignedUp([]));
+    }
+  }, [session.id, canAssign]);
   useEffect(load, [load]);
+
+  const signedUpType = useMemo(() => new Map(signedUp.map((r) => [r.userId, r.type])), [signedUp]);
+
+  const startConvert = async (userId: string, personName: string, type: ParticipationType) => {
+    setPicking(null);
+    setBusy(true);
+    try {
+      const items = await previewManagerAssignment(session.id, userId);
+      if (items) {
+        setConverting({ userId, personName, type, items });
+      } else {
+        // Backend without volunteer_conflict_override.sql: the old refusal.
+        setBlocked(`${personName} is signed up for this session, so they can't manage it. They need to remove it from their day first.`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmConvert = async () => {
+    if (!converting) return;
+    const { userId, personName } = converting;
+    setBusy(true);
+    try {
+      await assignManagerReplacingConflicts(session.id, userId);
+      setConverting(null);
+      toast.success(`${personName} now manages this session and is off its roster. They've been told.`);
+      load();
+    } catch {
+      toast.error('Could not make them a manager. Admins only.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const openPicker = async () => {
     try {
@@ -60,6 +115,8 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
   };
 
   const assign = async (v: VolunteerRef) => {
+    const type = signedUpType.get(v.id);
+    if (type) return startConvert(v.id, v.name || v.email, type);
     setPicking(null);
     setBusy(true);
     try {
@@ -117,8 +174,14 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (picking ?? []).filter((v) => !q || `${v.name} ${v.email}`.toLowerCase().includes(q));
-  }, [picking, query]);
+    // Volunteers already signed up for this session come first.
+    return (picking ?? [])
+      .filter((v) => !q || `${v.name} ${v.email}`.toLowerCase().includes(q))
+      .sort((a, b) => Number(signedUpType.has(b.id)) - Number(signedUpType.has(a.id)));
+  }, [picking, query, signedUpType]);
+
+  const managerIds = new Set((list ?? []).map((v) => v.id));
+  const convertible = signedUp.filter((r) => !managerIds.has(r.userId));
 
   if (error) {
     return (
@@ -167,6 +230,32 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
         </ul>
       )}
 
+      {canAssign && convertible.length > 0 && (
+        <section aria-labelledby="signed-up-volunteers" className="space-y-2 pt-2">
+          <h3 id="signed-up-volunteers" className="text-sm font-semibold">Volunteers signed up for this session</h3>
+          <p className="text-sm text-muted-foreground">
+            They're on the roster. Make one a manager to move them from taking part to running it.
+          </p>
+          <ul className="divide-y divide-border rounded-2xl border border-border px-4">
+            {convertible.map((r) => (
+              <li key={r.userId} className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{r.name || r.email}</p>
+                  <p className="text-xs text-muted-foreground">{[SIGNED_UP_AS[r.type], r.email].filter(Boolean).join(' · ')}</p>
+                </div>
+                <Button
+                  type="button" size="sm" variant="outline" disabled={busy}
+                  aria-label={`Make ${r.name || r.email} a manager`}
+                  onClick={() => void startConvert(r.userId, r.name || r.email, r.type)}
+                >
+                  Make manager
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <Dialog open={picking != null} onOpenChange={(o) => !o && setPicking(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
@@ -180,6 +269,11 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
                 <button type="button" className="w-full py-2.5 text-left hover:bg-accent/50" onClick={() => void assign(v)}>
                   <p className="font-medium">{v.name || v.email}</p>
                   <p className="text-xs text-muted-foreground">{v.email}</p>
+                  {signedUpType.has(v.id) && (
+                    <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                      {SIGNED_UP_AS[signedUpType.get(v.id)!]}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -197,6 +291,13 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
           <DialogFooter><Button onClick={() => setBlocked(null)}>Got it</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MakeManagerDialog
+        request={converting}
+        busy={busy}
+        onConfirm={() => void confirmConvert()}
+        onCancel={() => setConverting(null)}
+      />
 
       <ReplaceScheduleDialog
         request={replacing}

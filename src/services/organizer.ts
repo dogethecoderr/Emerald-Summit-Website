@@ -204,12 +204,17 @@ export function describeReplacement(item: ReplacedItem, who: 'they' | 'you'): st
   } else {
     line = `"${item.title}", where ${they ? "they're" : "you're"} signed up to ${doing}.`;
   }
-  if (item.teamName) {
-    if (item.teammates === 0) line += ` ${they ? 'Their' : 'Your'} team "${item.teamName}" has no one else, so it's deleted.`;
-    else if (item.teamOwner) line += ` ${they ? 'They own' : 'You own'} "${item.teamName}"; it passes to the teammate who joined first.`;
-    else line += ` ${they ? 'Their' : 'Your'} teammates on "${item.teamName}" are told.`;
-  }
-  return line;
+  const team = describeTeamEffect(item, who);
+  return team ? `${line} ${team}` : line;
+}
+
+/** What leaving a sign-up does to its team, or null when it has none. */
+export function describeTeamEffect(item: ReplacedItem, who: 'they' | 'you'): string | null {
+  if (!item.teamName) return null;
+  const they = who === 'they';
+  if (item.teammates === 0) return `${they ? 'Their' : 'Your'} team "${item.teamName}" has no one else, so it's deleted.`;
+  if (item.teamOwner) return `${they ? 'They own' : 'You own'} "${item.teamName}"; it passes to the teammate who joined first.`;
+  return `${they ? 'Their' : 'Your'} teammates on "${item.teamName}" are told.`;
 }
 
 /** Admin only. Also sends the volunteer a personal notice. */

@@ -8,12 +8,14 @@ const api = vi.hoisted(() => ({
   assign: vi.fn(),
   preview: vi.fn(),
   replace: vi.fn(),
+  roster: vi.fn(),
 }));
 
 vi.mock('../../services/organizer', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/organizer')>(),
   fetchSessionVolunteers: (...a: unknown[]) => api.list(...a),
   fetchVolunteers: () => api.all(),
+  fetchSessionRoster: (...a: unknown[]) => api.roster(...a),
   assignVolunteer: (...a: unknown[]) => api.assign(...a),
   previewManagerAssignment: (...a: unknown[]) => api.preview(...a),
   assignManagerReplacingConflicts: (...a: unknown[]) => api.replace(...a),
@@ -35,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.list.mockResolvedValue([]);
   api.all.mockResolvedValue([sam]);
+  api.roster.mockResolvedValue([]);
 });
 
 async function pickSam() {
@@ -88,6 +91,69 @@ describe('assigning someone who is busy at that time', () => {
     await pickSam();
     await waitFor(() => expect(api.assign).toHaveBeenCalledWith('s1', 'sam'));
     expect(api.preview).not.toHaveBeenCalled();
+  });
+});
+
+describe('volunteers signed up for this session', () => {
+  const samOnRoster = (type = 'participant') => ({
+    userId: 'sam', name: 'Sam Lee', email: 'sam@x.org', attended: false, type, answers: {},
+    isTeam: null, projectName: null, teamId: null, teamCode: null, isTeamOwner: false, role: 'volunteer', details: {},
+  });
+  const here = (over: Partial<ReplacedItem> = {}) =>
+    item({ kind: 'registered_this', sessionId: 's1', title: 'Robot Showcase', ...over });
+
+  test('admins see them listed and can make one a manager', async () => {
+    api.roster.mockResolvedValue([
+      samOnRoster(),
+      { ...samOnRoster(), userId: 'kid', name: 'Kid Student', role: 'participant' },
+    ]);
+    api.preview.mockResolvedValue([here({ teamName: 'Rover', teamOwner: true, teammates: 2 })]);
+    api.replace.mockResolvedValue([here()]);
+    const user = userEvent.setup();
+    render(<SessionVolunteers session={session} canAssign />);
+
+    expect(await screen.findByText('Volunteers signed up for this session')).toBeInTheDocument();
+    expect(screen.getByText(/Signed up as participant/)).toBeInTheDocument();
+    expect(screen.queryByText('Kid Student')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Make Sam Lee a manager' }));
+    expect(await screen.findByText('Make Sam Lee a manager?')).toBeInTheDocument();
+    expect(screen.getByText(
+      'This will make them a manager of this session, and they will no longer be a participant of this session.',
+    )).toBeInTheDocument();
+    expect(screen.getByText(/They own "Rover"; it passes to the teammate who joined first./)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Make manager' }));
+    await waitFor(() => expect(api.replace).toHaveBeenCalledWith('s1', 'sam'));
+    expect(api.assign).not.toHaveBeenCalled();
+  });
+
+  test('a spectator is told they will no longer be a spectator', async () => {
+    api.roster.mockResolvedValue([samOnRoster('spectator')]);
+    api.preview.mockResolvedValue([here({ participationType: 'spectator' })]);
+    const user = userEvent.setup();
+    render(<SessionVolunteers session={session} canAssign />);
+    await user.click(await screen.findByRole('button', { name: 'Make Sam Lee a manager' }));
+    expect(await screen.findByText(/they will no longer be a spectator of this session/)).toBeInTheDocument();
+  });
+
+  test('the picker tags them and goes straight to Make manager', async () => {
+    api.roster.mockResolvedValue([samOnRoster()]);
+    api.preview.mockResolvedValue([here()]);
+    const user = userEvent.setup();
+    render(<SessionVolunteers session={session} canAssign />);
+    await screen.findByText('Volunteers signed up for this session');
+    await user.click(screen.getByRole('button', { name: /Assign volunteer/ }));
+    const row = await screen.findByRole('button', { name: /Sam Lee.*Signed up as participant/ });
+    await user.click(row);
+    expect(await screen.findByText('Make Sam Lee a manager?')).toBeInTheDocument();
+    expect(api.assign).not.toHaveBeenCalled();
+  });
+
+  test('people who only view the tab never load the roster', async () => {
+    render(<SessionVolunteers session={session} canAssign={false} />);
+    await screen.findByText(/No one has been assigned/);
+    expect(api.roster).not.toHaveBeenCalled();
   });
 });
 
