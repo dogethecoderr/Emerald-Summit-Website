@@ -33,7 +33,7 @@ export default function MakeManagerDialog({ request, busy, onConfirm, onCancel }
     <Dialog open={request != null} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Make {request?.personName} a manager?</DialogTitle>
+          <DialogTitle>Assign {request?.personName} to be a manager instead?</DialogTitle>
           <DialogDescription>
             This will make them a manager of this session, and they will no longer be
             {' '}{AS[request?.type ?? 'participant']} of this session.
@@ -52,7 +52,7 @@ export default function MakeManagerDialog({ request, busy, onConfirm, onCancel }
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button disabled={busy} onClick={onConfirm} className="bg-emerald text-white hover:bg-emerald-deep">
-            Make manager
+            Assign to be a manager instead
           </Button>
         </DialogFooter>
       </DialogContent>

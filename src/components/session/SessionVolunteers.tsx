@@ -1,4 +1,4 @@
-// Who's organizing a session (the app's session_volunteers_screen.dart).
+// Who's managing a session (the app's session_volunteers_screen.dart).
 // Organizers and editors see the list with numbers; only admins assign and
 // remove, through RPCs that refuse anyone else and any schedule clash. When
 // someone is busy at that time, the admin sees what assigning them would take
@@ -196,18 +196,25 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
   return (
     <div className="space-y-4 py-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">The people organizing this session.</p>
+        <p className="text-sm text-muted-foreground">The people managing this session.</p>
         {canAssign && (
           <Button type="button" size="sm" disabled={busy} onClick={() => void openPicker()} className="bg-emerald text-white hover:bg-emerald-deep">
-            <Plus className="h-4 w-4" /> Assign volunteer
+            <Plus className="h-4 w-4" /> Assign a volunteer to manage
           </Button>
         )}
       </div>
+      {canAssign && (
+        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          Managers can see everyone signed up for this session (participants, spectators and experts) with their
+          contact details, mark attendance, and remove someone from the session. They can't edit the session's
+          details, like its description, time, room or photos.
+        </p>
+      )}
       {list.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           {canAssign
-            ? "No volunteers assigned yet. Assign volunteers so they can see this session's roster and mark attendance."
-            : 'No one has been assigned to organize this session yet.'}
+            ? 'No volunteers assigned yet. Assign volunteers so they can manage this session.'
+            : 'No one has been assigned to manage this session yet.'}
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border px-4">
@@ -234,7 +241,7 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
         <section aria-labelledby="signed-up-volunteers" className="space-y-2 pt-2">
           <h3 id="signed-up-volunteers" className="text-sm font-semibold">Volunteers signed up for this session</h3>
           <p className="text-sm text-muted-foreground">
-            They're on the roster. Make one a manager to move them from taking part to running it.
+            They're on the roster. Assigning one to be a manager takes them off the roster so they can run the session instead.
           </p>
           <ul className="divide-y divide-border rounded-2xl border border-border px-4">
             {convertible.map((r) => (
@@ -245,10 +252,10 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
                 </div>
                 <Button
                   type="button" size="sm" variant="outline" disabled={busy}
-                  aria-label={`Make ${r.name || r.email} a manager`}
+                  aria-label={`Assign ${r.name || r.email} to be a manager instead`}
                   onClick={() => void startConvert(r.userId, r.name || r.email, r.type)}
                 >
-                  Make manager
+                  Assign to be a manager instead
                 </Button>
               </li>
             ))}
@@ -259,7 +266,7 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
       <Dialog open={picking != null} onOpenChange={(o) => !o && setPicking(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign volunteer</DialogTitle>
+            <DialogTitle>Assign a volunteer to manage</DialogTitle>
             <DialogDescription>{session.title}</DialogDescription>
           </DialogHeader>
           <Input placeholder="Search volunteers" aria-label="Search volunteers" value={query} onChange={(e) => setQuery(e.target.value)} />
