@@ -1,5 +1,6 @@
 // The website uses the same registrations and assignment RPCs as the mobile app.
 import { supabase } from '../lib/supabase';
+import { GRADE_BLOCK_MESSAGE, gradeBlockFromError } from '../models/registration';
 
 export type ReservationKind = 'competing' | 'spectating' | 'judging' | 'volunteering';
 
@@ -69,7 +70,10 @@ export async function reserve(sessionId: string, kind: ReservationKind): Promise
   const { data, error } = await supabase!.rpc('register_for_session', {
     p_session_id: sessionId, p_participation_type: type, p_answers: {}, p_intent: 'add',
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    const gradeBlock = gradeBlockFromError(error.message);
+    throw new Error(gradeBlock ? GRADE_BLOCK_MESSAGE[gradeBlock] : error.message);
+  }
   checkOutcome(data, 'added');
 }
 

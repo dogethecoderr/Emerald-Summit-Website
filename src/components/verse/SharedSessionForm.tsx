@@ -1,13 +1,14 @@
 // The session editor against the shared database, matching the app's
 // session_editor_screen.dart: start and end times, seats, team size, the
 // participant deadline, the project question's wording, the session's own
-// questions and page sections. Rooms stay locked and the old free-text
+// questions and page sections, and whether 8th graders may participate. Rooms stay locked and the old free-text
 // expert line is gone, as in the app. A time change that clashes with
 // people's schedules is confirmed first and they're told after saving.
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -25,6 +26,7 @@ import {
 } from '../../models/registration';
 import {
   deleteSession,
+  hasEighthGradeColumn,
   notifyTimeConflicts,
   previewTimeConflicts,
   saveSessionColumns,
@@ -59,6 +61,8 @@ export default function SharedSessionForm({
   const [end, setEnd] = useState(hhmm(endMin));
   const [capacity, setCapacity] = useState(String(s?.capacity ?? 30));
   const [maxTeamSize, setMaxTeamSize] = useState(s?.maxTeamSize ?? DEFAULT_MAX_TEAM_SIZE);
+  const [allowEighth, setAllowEighth] = useState(s?.allowEighthGraders === true);
+  const eighthGradeReady = hasEighthGradeColumn();
   const [deadline, setDeadline] = useState(s?.participantDeadline ? localInput(new Date(s.participantDeadline)) : '');
   const [projectPrompt, setProjectPrompt] = useState(s?.customProjectPrompt ?? DEFAULT_QUESTIONS.projectName);
   const [description, setDescription] = useState(s?.description ?? '');
@@ -115,6 +119,7 @@ export default function SharedSessionForm({
       capacity: cap,
       max_team_size: maxTeamSize,
       participant_deadline: deadline ? new Date(deadline).toISOString() : null,
+      ...(eighthGradeReady ? { allow_eighth_graders: allowEighth } : {}),
       project_prompt: !prompt || prompt === DEFAULT_QUESTIONS.projectName ? null : prompt,
       description: description.trim(),
       page_blocks: blocks.filter((b) => b.title.trim() || b.body.trim()).map((b) => ({ title: b.title.trim(), body: b.body.trim() })),
@@ -203,6 +208,30 @@ export default function SharedSessionForm({
             <p className="text-xs text-muted-foreground">
               {deadlineDate ? `Participating closes ${formatDeadline(deadlineDate)}. After that, people can still spectate.` : 'With no deadline, people can register to participate until the session is full.'}
             </p>
+          </div>
+
+          <div className="rounded-xl border border-border p-3">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="ss-eighth"
+                className="mt-0.5"
+                checked={allowEighth}
+                disabled={!eighthGradeReady}
+                onCheckedChange={(v) => setAllowEighth(v === true)}
+                aria-describedby="ss-eighth-help"
+              />
+              <div>
+                <Label htmlFor="ss-eighth" className="cursor-pointer">Let 8th graders participate</Label>
+                <p id="ss-eighth-help" className="mt-1 text-xs text-muted-foreground">
+                  {!eighthGradeReady
+                    ? 'Available once the Summit database is updated. Until then, 8th graders can only spectate.'
+                    : allowEighth
+                      ? '8th graders can register to participate, the same as high schoolers.'
+                      : 'Only high schoolers can participate. Anyone can spectate, 8th graders included.'}
+                  {eighthGradeReady && s?.allowEighthGraders && !allowEighth && " 8th graders who already registered stay registered."}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1.5">

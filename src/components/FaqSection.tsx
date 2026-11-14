@@ -10,7 +10,7 @@ interface FaqItem {
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Who can attend Emerald Summit?',
-    a: 'Any Tri-Valley high schooler. Last year’s Summit drew 225+ signups from six schools. Bring a project or an idea to share, or come to look around as a spectator.',
+    a: 'Any Tri-Valley high schooler can participate, and 8th graders can in some sessions. Last year’s Summit drew 225+ signups from six schools. Bring a project or an idea to share, or come to look around as a spectator: curious minds of all ages are welcome. Middle schoolers and younger need a parent with them.',
   },
   {
     q: 'When and where is the next Summit?',

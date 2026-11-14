@@ -28,8 +28,10 @@ import {
   mustHandOff,
   normalizeTeamCode,
   participationClosed,
+  participationGradeBlock,
   STATUS_LABEL,
   type AddMode,
+  type GradeBlock,
   type MyProject,
   type ParticipationType,
   type TeamMember,
@@ -52,6 +54,12 @@ import SessionVolunteers from '../components/session/SessionVolunteers';
 import SessionMetrics from '../components/session/SessionMetrics';
 import { SessionEditorDialog } from '../components/verse/ContentEditors';
 import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../services/siteSwitches';
+
+/** Why Participate is greyed out for a middle schooler, in the chooser. */
+const GRADE_BLOCK_CHOICE_TEXT: Record<GradeBlock, string> = {
+  eighth_grade_not_allowed: "This session isn't open to 8th graders. You can spectate it.",
+  middle_school_not_allowed: 'Participating is for high schoolers. You can spectate.',
+};
 
 const MODE_TEXT: Record<AddMode, { title: string; blurb: string; icon: typeof Plus }> = {
   participate: { title: 'Participate', blurb: "Join in and take part. You'll tell us about your project first.", icon: User },
@@ -159,6 +167,9 @@ export default function SessionPage() {
   const disciplineLabel = s.disciplineName || disciplineByName(s.track)?.label || '';
   const deadline = s.participantDeadline ? new Date(s.participantDeadline) : null;
   const closed = participationClosed(s.participantDeadline);
+  // Middle schoolers can always spectate; 8th graders participate only where
+  // the leads allowed it. The server refuses it too (register_for_session).
+  const gradeBlock = participationGradeBlock(profile?.details?.grade, s.allowEighthGraders);
   // While times are hidden, a deadline reads "TBD" instead of its date.
   const showTimes = switches.showTimes;
   const deadlineText = (d: Date) => (showTimes ? formatDeadline(d) : TBD);
@@ -524,7 +535,8 @@ export default function SessionPage() {
           <div className="space-y-2">
             {addModesForRole(role).map((m) => {
               const Icon = MODE_TEXT[m].icon;
-              const disabled = m === 'participate' && closed;
+              const gradeBlocked = m === 'participate' && gradeBlock != null;
+              const disabled = m === 'participate' && (closed || gradeBlocked);
               return (
                 <button
                   key={m}
@@ -537,7 +549,9 @@ export default function SessionPage() {
                   <span>
                     <span className="block font-semibold">{MODE_TEXT[m].title}</span>
                     <span className="block text-sm text-muted-foreground">
-                      {disabled && deadline
+                      {gradeBlocked
+                        ? GRADE_BLOCK_CHOICE_TEXT[gradeBlock!]
+                        : disabled && deadline
                         ? showTimes ? `Registration to participate closed on ${formatDeadline(deadline)}.` : 'Registration to participate has closed.'
                         : m === 'participate' && deadline
                           ? `${MODE_TEXT[m].blurb} Closes ${deadlineText(deadline)}.`

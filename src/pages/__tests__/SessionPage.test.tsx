@@ -6,6 +6,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const state = vi.hoisted(() => ({
   role: 'participant',
+  grade: '11',
+  allowEighth: false,
   schedule: {
     mySchedule: [] as string[],
     expertSchedule: [] as string[],
@@ -22,7 +24,7 @@ const state = vi.hoisted(() => ({
 vi.mock('../../lib/supabase', () => ({ supabase: null, isSupabaseConfigured: false }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({
   session: { user: { id: 'me' } },
-  profile: { id: 'me', role: state.role, profile_setup_complete: true, expert_status: 'approved' },
+  profile: { id: 'me', role: state.role, profile_setup_complete: true, expert_status: 'approved', details: { grade: state.grade } },
   loadingProfile: false,
 }) }));
 vi.mock('../../context/ScheduleContext', () => ({ useSchedule: () => state.schedule }));
@@ -54,6 +56,7 @@ vi.mock('../../models/sessions', async (importOriginal) => {
       capacity: 30, enrolled: 3, expertCapacity: 30, expertsEnrolled: 3, spectatorCap: 30, spectators: 3,
       volunteerCapacity: 0, volunteersEnrolled: 0, disciplineName: 'TechVerse', maxTeamSize: 4,
       questions: [{ id: 'q1', prompt: 'What will you bring?' }],
+      get allowEighthGraders() { return state.allowEighth; },
     }],
   };
 });
@@ -68,6 +71,8 @@ function page() {
 beforeEach(() => {
   vi.clearAllMocks();
   state.role = 'participant';
+  state.grade = '11';
+  state.allowEighth = false;
   state.schedule.mySchedule = [];
   state.schedule.volunteerSchedule = [];
   state.schedule.expertSchedule = [];
@@ -171,5 +176,40 @@ describe('session page', () => {
     for (const name of ['Session', 'Participants', 'Experts', 'Volunteers', 'Metrics']) {
       expect(screen.getByRole('tab', { name })).toBeInTheDocument();
     }
+  });
+});
+
+describe('8th graders', () => {
+  test("can only spectate a session that isn't open to them", async () => {
+    state.grade = '8th';
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    const participate = screen.getByRole('button', { name: /Participate/ });
+    expect(participate).toBeDisabled();
+    expect(participate).toHaveTextContent("This session isn't open to 8th graders. You can spectate it.");
+    await user.click(screen.getByRole('button', { name: /Spectate/ }));
+    await waitFor(() => expect(state.toggle).toHaveBeenCalledWith('s1', expect.objectContaining({ add: true, type: 'spectator' })));
+  });
+
+  test('participate like anyone else where the leads allowed it', async () => {
+    state.grade = '8';
+    state.allowEighth = true;
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    const participate = screen.getByRole('button', { name: /Participate/ });
+    expect(participate).toBeEnabled();
+    expect(participate).not.toHaveTextContent(/8th/);
+  });
+
+  test('younger students can spectate but not participate, even where 8th graders can', async () => {
+    state.grade = '7';
+    state.allowEighth = true;
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    expect(screen.getByRole('button', { name: /Participate/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Spectate/ })).toBeEnabled();
   });
 });

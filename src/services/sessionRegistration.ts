@@ -4,6 +4,8 @@
 import { supabase } from '../lib/supabase';
 import { REGISTRATION_CLOSED_MESSAGE } from './siteSwitches';
 import {
+  GRADE_BLOCK_MESSAGE,
+  gradeBlockFromError,
   myProjectFromRow,
   normalizeTeamCode,
   projectModeId,
@@ -72,6 +74,8 @@ export async function toggleRegistration(
     if (isRegistrationClosed(error.message)) {
       return { outcome: 'invalid_project', message: `${REGISTRATION_CLOSED_MESSAGE}.` };
     }
+    const gradeBlock = gradeBlockFromError(error.message);
+    if (gradeBlock) return { outcome: 'invalid_project', message: GRADE_BLOCK_MESSAGE[gradeBlock] };
     throw new Error(error.message);
   }
   return registrationResultFrom(data as Record<string, unknown> | null);

@@ -43,6 +43,8 @@ export interface Session {
   customProjectPrompt?: string | null;
   /** When registering to participate closes (ISO), or null for no deadline. */
   participantDeadline?: string | null;
+  /** Whether 8th graders may participate (anyone may spectate). Off unless the leads tick it. */
+  allowEighthGraders?: boolean;
   pageBlocks?: SessionPageBlock[];
   heroImageUrl?: string | null;
   sponsor?: string | null;

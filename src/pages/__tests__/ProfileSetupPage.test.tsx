@@ -68,3 +68,17 @@ test('experts give their area of expertise and a one-line bio', () => {
   expect(screen.getByLabelText('Area of expertise')).toBeRequired();
   expect(screen.getByLabelText('One-line bio')).toBeRequired();
 });
+
+test('the grade question says middle schoolers come with an adult', () => {
+  state.role = 'participant';
+  render(<MemoryRouter><ProfileSetupPage /></MemoryRouter>);
+  expect(screen.getByLabelText('Grade')).toHaveAccessibleDescription(
+    '8th graders can participate in some sessions and spectate any of them. Middle schoolers must come with an adult.',
+  );
+});
+
+test('spectators are told all ages are welcome, with a parent for middle schoolers', () => {
+  state.role = 'attendee';
+  render(<MemoryRouter><ProfileSetupPage /></MemoryRouter>);
+  expect(screen.getByText('Curious minds of all ages are welcome. Middle schoolers and younger need a parent with them.')).toBeInTheDocument();
+});

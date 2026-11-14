@@ -1,12 +1,14 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import {
   addModesForRole,
   conflictMessage,
+  gradeBlockFromError,
   myProjectFromRow,
   mustHandOff,
   normalizeTeamCode,
   parseQuestions,
   participationClosed,
+  participationGradeBlock,
   registrationResultFrom,
   teamCodePrefix,
   teamLookupFrom,
@@ -104,5 +106,32 @@ describe('attachment links', () => {
     expect(safeAttachmentUrl('javascript:alert(1)', 'Link')).toBeUndefined();
     expect(safeAttachmentUrl('http://example.com/a', 'Link')).toBeUndefined();
     expect(safeAttachmentUrl('https://forms.example.com/a', 'Link')).toBe('https://forms.example.com/a');
+  });
+});
+
+describe('participationGradeBlock', () => {
+  it('lets high schoolers and blank grades participate anywhere', () => {
+    for (const g of ['9', '12th', 'Junior', '', null, undefined]) {
+      expect(participationGradeBlock(g, false)).toBeNull();
+    }
+  });
+
+  it('lets 8th graders participate only where the session allows it', () => {
+    for (const g of ['8', '8th', 'Eighth grade', 8]) {
+      expect(participationGradeBlock(g, false)).toBe('eighth_grade_not_allowed');
+      expect(participationGradeBlock(g, undefined)).toBe('eighth_grade_not_allowed');
+      expect(participationGradeBlock(g, true)).toBeNull();
+    }
+  });
+
+  it('keeps younger students to spectating, even where 8th graders are allowed', () => {
+    expect(participationGradeBlock('7', true)).toBe('middle_school_not_allowed');
+    expect(participationGradeBlock('6th', false)).toBe('middle_school_not_allowed');
+  });
+
+  it("reads the server's refusal", () => {
+    expect(gradeBlockFromError('eighth_grade_not_allowed')).toBe('eighth_grade_not_allowed');
+    expect(gradeBlockFromError('middle_school_not_allowed')).toBe('middle_school_not_allowed');
+    expect(gradeBlockFromError('registration_closed')).toBeNull();
   });
 });

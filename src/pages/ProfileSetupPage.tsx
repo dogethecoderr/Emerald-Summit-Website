@@ -6,14 +6,14 @@
 // - after Change role, the new role's questions are asked again, prefilled.
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Mail, User } from '@/components/icons';
+import { Info, Mail, User } from '@/components/icons';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { needsProfileSetup, saveProfileDetails, signOut } from '../services/auth';
 import AuthLayout, { AUTH_ENTER, authStagger } from '../components/AuthLayout';
 import ProfileFieldInput from '../components/ProfileFieldInput';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
-import { formFields, missingGateField, VOLUNTEER_GRADE_FIELD, type ProfileField } from '../models/profileFields';
+import { formFields, missingGateField, SPECTATOR_AGES_NOTE, VOLUNTEER_GRADE_FIELD, type ProfileField } from '../models/profileFields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -121,6 +121,12 @@ export default function ProfileSetupPage() {
       <div style={authStagger(1)} className={AUTH_ENTER}>
         <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{intro}</p>
+        {roleName === 'attendee' && !gateOnly && (
+          <p className="mt-4 flex gap-2 rounded-xl bg-secondary/60 px-3.5 py-3 text-sm">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald" />
+            {SPECTATOR_AGES_NOTE}
+          </p>
+        )}
       </div>
 
       <form

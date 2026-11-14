@@ -20,6 +20,9 @@ const PHONE_PRIVACY_NOTE = "Your number won't be shown publicly.";
 const VOLUNTEER_PHONE_NOTE = 'Your phone number will be visible to other volunteers the day of for communication with them.';
 const ADMIN_PHONE_NOTE = 'Your phone number will be visible to volunteers and other admins the day of for communication with them.';
 const GRADE_NOTE = 'Goes on your volunteer hours record.';
+const STUDENT_GRADE_NOTE = '8th graders can participate in some sessions and spectate any of them. Middle schoolers must come with an adult.';
+/** Shown to parents and spectators when they sign up. */
+export const SPECTATOR_AGES_NOTE = 'Curious minds of all ages are welcome. Middle schoolers and younger need a parent with them.';
 const STUDENT_ID_NOTE = 'If you have one, it goes on your volunteer hours record.';
 
 export const EXPERT_BIO_HINTS = [
@@ -62,7 +65,7 @@ export function onboardingFields(role: string | undefined): ProfileField[] {
     default:
       return [
         { key: 'school', label: 'School', required: true, schoolPicker: true },
-        { key: 'grade', label: 'Grade', required: true, hint: 'e.g. 11' },
+        { key: 'grade', label: 'Grade', required: true, hint: 'e.g. 11', helper: STUDENT_GRADE_NOTE },
         { key: 'phone', label: 'Mobile number (optional)', helper: PHONE_PRIVACY_NOTE, type: 'tel' },
       ];
   }

@@ -78,9 +78,20 @@ interface SessionRow {
   max_team_size?: number | null;
   project_prompt?: string | null;
   participant_deadline?: string | null;
+  allow_eighth_graders?: boolean | null;
   page_blocks?: unknown;
   hero_image_url?: string | null;
   sponsor?: string | null;
+}
+
+/**
+ * Whether the shared sessions have the allow_eighth_graders column yet
+ * (eighth_grade_participation.sql in the app repo). Until then the editor
+ * can't save the box, and 8th graders are kept to spectating.
+ */
+let eighthGradeColumn = false;
+export function hasEighthGradeColumn(): boolean {
+  return eighthGradeColumn;
 }
 
 export function usesSharedBackend(): boolean {
@@ -138,6 +149,7 @@ const sessionFromRow = (r: SessionRow): Session => ({
   maxTeamSize: typeof r.max_team_size === 'number' ? r.max_team_size : DEFAULT_MAX_TEAM_SIZE,
   customProjectPrompt: r.project_prompt?.trim() || null,
   participantDeadline: r.participant_deadline ?? null,
+  allowEighthGraders: r.allow_eighth_graders === true,
   pageBlocks: parsePageBlocks(r.page_blocks),
   heroImageUrl: r.hero_image_url?.trim() || null,
   sponsor: r.sponsor?.trim() || null,
@@ -166,6 +178,7 @@ export async function loadSummitContent(): Promise<void> {
     return;
   }
   const rows = (sessions.data ?? []) as SessionRow[];
+  if (rows.length > 0) eighthGradeColumn = 'allow_eighth_graders' in rows[0];
   const names = new Set(((disciplines.data ?? []) as DisciplineRow[]).map((d) => d.id));
   const mapped = rows.filter((r) => names.has(r.discipline_id)).map(sessionFromRow);
   const tracks = new Map<string, TrackInfo>();
@@ -371,6 +384,8 @@ export interface SessionColumns {
   capacity: number;
   max_team_size: number;
   participant_deadline: string | null;
+  /** Left out until the column exists on the shared backend. */
+  allow_eighth_graders?: boolean;
   project_prompt: string | null;
   description: string;
   page_blocks: { title: string; body: string }[];

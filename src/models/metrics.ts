@@ -10,7 +10,7 @@ export const NO_GRADE_LABEL = 'No grade given';
 export function gradeLabel(raw: string | number | null | undefined): string {
   const s = raw == null ? '' : String(raw).trim().toLowerCase();
   if (!s) return NO_GRADE_LABEL;
-  const words: Record<string, string> = { freshman: '9', sophomore: '10', junior: '11', senior: '12' };
+  const words: Record<string, string> = { freshman: '9', sophomore: '10', junior: '11', senior: '12', eighth: '8' };
   for (const [word, grade] of Object.entries(words)) if (s.includes(word)) return grade;
   const n = Number(/\d+/.exec(s)?.[0]);
   if (Number.isInteger(n) && n >= 1 && n <= 12) return String(n);

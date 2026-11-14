@@ -4,6 +4,8 @@
 // every rule; this file only reads its results and words them the way the
 // app does.
 
+import { gradeLabel } from './metrics';
+
 /** How someone joined a session (`registrations.participation_type`). */
 export type ParticipationType = 'participant' | 'spectator' | 'expert';
 
@@ -321,4 +323,32 @@ export function addModesForRole(role: string | undefined): AddMode[] {
     case 'attendee': return ['spectate'];
     default: return ['participate', 'spectate'];
   }
+}
+
+/**
+ * Why a grade can't participate in a session, or null if it can. Matches
+ * register_for_session (eighth_grade_participation.sql in the app repo):
+ * 8th graders participate only where the leads allowed it, younger students
+ * only spectate, and a blank grade isn't blocked. Anyone may spectate.
+ */
+export type GradeBlock = 'eighth_grade_not_allowed' | 'middle_school_not_allowed';
+
+export function participationGradeBlock(grade: unknown, allowEighthGraders: boolean | undefined): GradeBlock | null {
+  const n = Number(gradeLabel(grade as string | number | null | undefined));
+  if (!Number.isInteger(n) || n >= 9) return null;
+  if (n === 8) return allowEighthGraders ? null : 'eighth_grade_not_allowed';
+  return 'middle_school_not_allowed';
+}
+
+export const GRADE_BLOCK_MESSAGE: Record<GradeBlock, string> = {
+  eighth_grade_not_allowed: "This session isn't open to 8th graders for participating. You can still add it as a spectator.",
+  middle_school_not_allowed: 'Participating is for high schoolers, and 8th graders in some sessions. You can still add this session as a spectator.',
+};
+
+/** The grade refusal named in a server error, if there is one. */
+export function gradeBlockFromError(message: string | undefined): GradeBlock | null {
+  const m = message ?? '';
+  if (m.includes('eighth_grade_not_allowed')) return 'eighth_grade_not_allowed';
+  if (m.includes('middle_school_not_allowed')) return 'middle_school_not_allowed';
+  return null;
 }
