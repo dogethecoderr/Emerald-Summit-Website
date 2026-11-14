@@ -51,6 +51,7 @@ import RegistrationForm, { projectPromptOf, type RegistrationFormResult } from '
 import ProjectCard, { TeamCodeChip } from '../components/session/ProjectCard';
 import SessionRoster from '../components/session/SessionRoster';
 import SessionVolunteers from '../components/session/SessionVolunteers';
+import { assignVolunteerOverridingConflict, fetchConflictOverrides } from '../services/organizer';
 import SessionMetrics from '../components/session/SessionMetrics';
 import { SessionEditorDialog } from '../components/verse/ContentEditors';
 import { fetchSessionPhotos, splitHero, type SessionPhoto } from '../services/sessionPhotos';
@@ -88,7 +89,8 @@ function timeLabel(s: Session, showTimes: boolean): string {
   return s.start && s.end ? `${show(s.start)} – ${show(s.end)}` : s.time;
 }
 
-type Blocked = { title: string; body: string };
+// `action` adds a second button, e.g. an admin's "Manage anyway".
+type Blocked = { title: string; body: string; action?: { label: string; run: () => void } };
 
 export default function SessionPage() {
   useSummitContent();
@@ -265,16 +267,34 @@ export default function SessionPage() {
     const result = await guarded(() => setSessionManage(s.id, manage));
     if (!result) return;
     if (result.outcome === 'conflict') {
+      const clash = `Managing this overlaps with "${result.conflictingTitle ?? 'another session'}", which is already on your schedule.`;
+      // Offer the override only once the backend has it (volunteer_conflict_override.sql).
+      const canOverride = result.conflictKind !== 'registered_this' && auth != null
+        && (await fetchConflictOverrides(s.id)) != null;
       setBlocked({
         title: 'Time conflict',
         body: result.conflictKind === 'registered_this'
           ? "You're signed up for this session. Remove it from your day first to manage it."
-          : `Managing this overlaps with "${result.conflictingTitle ?? 'another session'}", which is already on your schedule.`,
+          : canOverride ? `${clash} You can manage it anyway if you'll cover both.` : clash,
+        action: canOverride && auth ? { label: 'Manage anyway', run: () => void manageOverClash(auth.user.id) } : undefined,
       });
       return;
     }
     await afterChange();
     toast.success(manage ? `You're now managing "${s.title}"` : `Stopped managing "${s.title}"`);
+  };
+
+  // Admin only: manage this session over a time clash (volunteer_conflict_override.sql).
+  const manageOverClash = async (userId: string) => {
+    setBlocked(null);
+    const result = await guarded(() => assignVolunteerOverridingConflict(s.id, userId));
+    if (!result) return;
+    if (result.outcome === 'conflict') {
+      setBlocked({ title: 'Time conflict', body: "You're signed up for this session. Remove it from your day first to manage it." });
+      return;
+    }
+    await afterChange();
+    toast.success(`You're now managing "${s.title}"`);
   };
 
   async function startAdd() {
@@ -642,7 +662,18 @@ export default function SessionPage() {
             <DialogTitle>{blocked?.title}</DialogTitle>
             <DialogDescription>{blocked?.body}</DialogDescription>
           </DialogHeader>
-          <DialogFooter><Button onClick={() => setBlocked(null)}>Got it</Button></DialogFooter>
+          <DialogFooter>
+            {blocked?.action ? (
+              <>
+                <Button variant="outline" onClick={() => setBlocked(null)}>Cancel</Button>
+                <Button disabled={busy} onClick={blocked.action.run} className="bg-emerald text-white hover:bg-emerald-deep">
+                  {blocked.action.label}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setBlocked(null)}>Got it</Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

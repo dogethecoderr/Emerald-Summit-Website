@@ -18,6 +18,9 @@ const state = vi.hoisted(() => ({
     reload: vi.fn().mockResolvedValue(undefined),
   },
   toggle: vi.fn(),
+  manage: vi.fn(),
+  override: vi.fn(),
+  overrides: vi.fn(),
   project: vi.fn(),
   photos: vi.fn(),
 }));
@@ -43,9 +46,15 @@ vi.mock('../../services/summitContent', async (importOriginal) => ({
 vi.mock('../../services/sessionRegistration', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/sessionRegistration')>(),
   toggleRegistration: (...args: unknown[]) => state.toggle(...args),
+  setSessionManage: (...args: unknown[]) => state.manage(...args),
   fetchMyProject: () => state.project(),
   fetchSessionExperts: vi.fn().mockResolvedValue([]),
   fetchMyAnswers: vi.fn().mockResolvedValue({}),
+}));
+vi.mock('../../services/organizer', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../services/organizer')>(),
+  assignVolunteerOverridingConflict: (...args: unknown[]) => state.override(...args),
+  fetchConflictOverrides: (...args: unknown[]) => state.overrides(...args),
 }));
 vi.mock('../../services/sessionPhotos', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/sessionPhotos')>(),
@@ -224,6 +233,46 @@ describe('session page', () => {
     for (const name of ['Session', 'Participants', 'Experts', 'Volunteers', 'Metrics']) {
       expect(screen.getByRole('tab', { name })).toBeInTheDocument();
     }
+  });
+});
+
+describe('an admin managing over a time clash', () => {
+  beforeEach(() => {
+    state.role = 'admin';
+    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'managing' });
+    state.override.mockResolvedValue({ outcome: 'assigned' });
+    state.overrides.mockResolvedValue(new Set());
+  });
+
+  test('"Manage anyway" assigns them over the clash', async () => {
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    await user.click(screen.getByRole('button', { name: /Manage this session/ }));
+    expect(await screen.findByText(/overlaps with "Bio Lab"/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Manage anyway' }));
+    await waitFor(() => expect(state.override).toHaveBeenCalledWith('s1', 'me'));
+    expect(state.schedule.reload).toHaveBeenCalled();
+  });
+
+  test('no "Manage anyway" before the SQL is run', async () => {
+    state.overrides.mockResolvedValue(null);
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    await user.click(screen.getByRole('button', { name: /Manage this session/ }));
+    expect(await screen.findByText(/overlaps with "Bio Lab"/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage anyway' })).not.toBeInTheDocument();
+  });
+
+  test("a sign-up for this same session can't be overridden", async () => {
+    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Robot Showcase', conflictKind: 'registered_this' });
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    await user.click(screen.getByRole('button', { name: /Manage this session/ }));
+    expect(await screen.findByText(/Remove it from your day first/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage anyway' })).not.toBeInTheDocument();
   });
 });
 

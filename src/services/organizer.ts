@@ -126,6 +126,39 @@ export async function assignVolunteer(sessionId: string, userId: string): Promis
   return { outcome: 'assigned' };
 }
 
+/**
+ * Admin only: assign anyway over a time clash with another session the person
+ * manages or is signed up for (volunteer_conflict_override.sql). Pass your own
+ * id to manage a session yourself. Still refuses someone signed up for this
+ * session ('registered_this').
+ */
+export async function assignVolunteerOverridingConflict(sessionId: string, userId: string): Promise<AssignResult> {
+  const row = await rpc<Record<string, unknown> | null>('assign_volunteer_overriding_conflict', {
+    p_session_id: sessionId,
+    p_user_id: userId,
+  });
+  if (row?.outcome === 'conflict') {
+    return {
+      outcome: 'conflict',
+      conflictingTitle: typeof row.conflicting_title === 'string' ? row.conflicting_title : null,
+      conflictKind: conflictKindFrom(row.conflict_kind),
+    };
+  }
+  return { outcome: 'assigned' };
+}
+
+/**
+ * Admin only: who on this session was assigned over a time clash. Null when
+ * the read fails, e.g. before volunteer_conflict_override.sql has been run,
+ * so callers hide the override.
+ */
+export async function fetchConflictOverrides(sessionId: string): Promise<Set<string> | null> {
+  const { data, error } = await client().from('session_volunteers')
+    .select('user_id').eq('session_id', sessionId).eq('conflict_override', true);
+  if (error) return null;
+  return new Set(((data ?? []) as Record<string, unknown>[]).map((r) => String(r.user_id)));
+}
+
 /** Admin only. Also sends the volunteer a personal notice. */
 export async function unassignVolunteer(sessionId: string, userId: string): Promise<void> {
   await rpc('unassign_volunteer_from_session', { p_session_id: sessionId, p_user_id: userId });
