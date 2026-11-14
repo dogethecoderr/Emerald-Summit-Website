@@ -148,7 +148,7 @@ export default function AnnouncementComposer({
           </DialogTitle>
           <DialogDescription>
             {live
-              ? 'Posts appear in News straight away for the audience you pick.'
+              ? 'Posts appear in Announcements straight away for the audience you pick.'
               : 'This post will stay in this browser.'}
           </DialogDescription>
         </DialogHeader>
@@ -214,7 +214,7 @@ export default function AnnouncementComposer({
                 Pin to top
               </Label>
               <p className="text-xs text-muted-foreground">
-                Pinned posts stay at the top of News.
+                Pinned posts stay at the top of Announcements.
               </p>
             </div>
             <Switch

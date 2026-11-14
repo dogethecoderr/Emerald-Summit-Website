@@ -103,7 +103,7 @@ interface AgendaItem {
 
 const QUICK_LINKS: QuickAction[] = [
   { to: '/resources', label: 'Resources', sub: 'Rubrics, guides, files', icon: FolderOpen },
-  { to: '/announcements', label: 'News', sub: 'Updates and schedule changes', icon: Megaphone },
+  { to: '/announcements', label: 'Announcements', sub: 'Updates and schedule changes', icon: Megaphone },
   { to: '/account', label: 'Profile', sub: 'QR pass & preferences', icon: Settings },
 ];
 
@@ -369,7 +369,7 @@ export default function HomePage() {
                 onClick={() => navigate('/announcements')}
                 className="inline-flex items-center gap-2 rounded-[10px] border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20"
               >
-                Latest news <ArrowRight className="h-4 w-4" />
+                Latest announcements <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </div>

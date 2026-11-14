@@ -36,7 +36,7 @@ export default function AnnouncementsPage() {
     configured,
   } = useAnnouncements();
 
-  // Opening News marks every post seen (clears the badge), as in the app.
+  // Opening Announcements marks every post seen (clears the badge), as in the app.
   // Each post's dot stays until that post is opened.
   // markAllRead changes once read state loads or new posts arrive; once
   // everything is seen it does nothing, so this settles.
@@ -88,7 +88,7 @@ export default function AnnouncementsPage() {
     <AppShell>
       <PageHeader
         label="Live Updates"
-        title="News"
+        title="Announcements"
       />
       {canManage && error && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200">
@@ -154,7 +154,7 @@ export default function AnnouncementsPage() {
             <DialogTitle className="font-display">Remove from your feed?</DialogTitle>
             <DialogDescription>
               Once you remove “{pendingRemove?.title}”, you can't get it back in
-              your feed. It stays in News for everyone else.
+              your feed. It stays in Announcements for everyone else.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

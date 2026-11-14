@@ -1,6 +1,6 @@
 // The bell's Notifications list, the app's AppNotification
 // (notifications_setup.sql in the app repo): short notes about the signed-in
-// person, separate from News.
+// person, separate from Announcements.
 
 export type NotificationKind = 'announcement' | 'notice' | 'reminder';
 
@@ -31,20 +31,36 @@ export function notificationFromRow(row: Record<string, unknown>): AppNotificati
   };
 }
 
-/** "just now", "5m ago", "3h ago", "2d ago", like the app. */
-export function timeAgo(iso: string | undefined, now: number = Date.now()): string {
+/**
+ * The bell's stamp next to each note, in the viewer's time zone:
+ * "Today, 3:45 PM" for a note from today, "Thu, Nov 12" for an earlier day
+ * this year, "Nov 12, 2025" for another year. `timeZone` is for tests.
+ */
+export function notificationStamp(iso: string | undefined, now: Date = new Date(), timeZone?: string): string {
   if (!iso) return '';
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return '';
-  const minutes = Math.floor((now - then) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '';
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  if (day(then) === day(now)) {
+    return `Today, ${new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(then)}`;
+  }
+  const year = (d: Date) => new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric' }).format(d);
+  return year(then) === year(now)
+    ? new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric' }).format(then)
+    : new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', year: 'numeric' }).format(then);
 }
 
-/** Where tapping a note goes: the post in News, its session, or nowhere. */
+/** The full date and time, for the stamp's hover text. */
+export function notificationFullTime(iso: string | undefined, timeZone?: string): string {
+  if (!iso) return '';
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(then);
+}
+
+/** Where tapping a note goes: the post in Announcements, its session, or nowhere. */
 export function notificationLink(n: AppNotification): string | null {
   if (n.kind === 'announcement' && n.announcementId) return '/announcements';
   if (n.sessionId) return `/sessions/${n.sessionId}`;

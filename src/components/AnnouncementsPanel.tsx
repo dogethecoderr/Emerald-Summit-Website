@@ -200,7 +200,7 @@ export default function AnnouncementsPanel({
 }: {
   announcements: Announcement[];
   /** 'compact' = top-3 preview with a "View all" link (Dashboard use).
-   *  'full' = the whole feed (News), like the app's News tab. */
+   *  'full' = the whole feed (Announcements), like the app's News tab. */
   variant?: 'compact' | 'full';
   onViewAll?: () => void;
 } & AnnouncementAdminProps &
@@ -229,7 +229,7 @@ export default function AnnouncementsPanel({
           !isFull && 'border-b border-border pb-4',
         )}
       >
-        <h2 className="font-display text-base font-semibold">News</h2>
+        <h2 className="font-display text-base font-semibold">Announcements</h2>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-1 text-[11px] font-bold text-white">

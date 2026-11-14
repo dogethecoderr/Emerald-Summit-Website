@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import NotificationsPage from '../NotificationsPage';
 import type { AppNotification } from '../../models/notifications';
-import { notificationFromRow, notificationLink, timeAgo } from '../../models/notifications';
+import { notificationFromRow, notificationFullTime, notificationLink, notificationStamp } from '../../models/notifications';
 
 const state = vi.hoisted(() => ({
   notifications: [] as AppNotification[],
@@ -33,7 +33,7 @@ const renderPage = () =>
     <MemoryRouter initialEntries={['/notifications']}>
       <Routes>
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/announcements" element={<div>News page</div>} />
+        <Route path="/announcements" element={<div>Announcements page</div>} />
         <Route path="/sessions/:id" element={<div>Session page</div>} />
       </Routes>
     </MemoryRouter>,
@@ -57,12 +57,12 @@ describe('Notifications', () => {
     expect(state.markAllRead).toHaveBeenCalled();
   });
 
-  test('a note about a post marks it read, opens the post and goes to News', async () => {
+  test('a note about a post marks it read, opens the post and goes to Announcements', async () => {
     renderPage();
     await userEvent.click(screen.getByText('Summit Admin posted to TechVerse'));
     expect(state.markRead).toHaveBeenCalledWith('n1');
     expect(state.openPost).toHaveBeenCalledWith('post-1');
-    expect(screen.getByText('News page')).toBeInTheDocument();
+    expect(screen.getByText('Announcements page')).toBeInTheDocument();
   });
 
   test('a reminder opens its session', async () => {
@@ -94,11 +94,15 @@ describe('notification rows', () => {
     expect(notificationLink({ ...n, sessionId: undefined })).toBeNull();
   });
 
-  test('time ago matches the app', () => {
-    const now = Date.parse('2026-11-12T12:00:00Z');
-    expect(timeAgo('2026-11-12T11:59:40Z', now)).toBe('just now');
-    expect(timeAgo('2026-11-12T11:55:00Z', now)).toBe('5m ago');
-    expect(timeAgo('2026-11-12T09:00:00Z', now)).toBe('3h ago');
-    expect(timeAgo('2026-11-10T12:00:00Z', now)).toBe('2d ago');
+  test('the stamp is a time for today and a date for earlier days', () => {
+    const tz = 'America/Los_Angeles';
+    const now = new Date('2026-11-12T20:00:00Z'); // Thu Nov 12, 12:00 PM Pacific
+    expect(notificationStamp('2026-11-12T17:05:00Z', now, tz)).toBe('Today, 9:05 AM');
+    // Same UTC date, but the evening before in Pacific time.
+    expect(notificationStamp('2026-11-12T05:00:00Z', now, tz)).toBe('Wed, Nov 11');
+    expect(notificationStamp('2026-10-02T18:00:00Z', now, tz)).toBe('Fri, Oct 2');
+    expect(notificationStamp('2025-12-30T18:00:00Z', now, tz)).toBe('Dec 30, 2025');
+    expect(notificationStamp(undefined, now, tz)).toBe('');
+    expect(notificationFullTime('2026-11-12T17:05:00Z', tz)).toBe('Thursday, November 12, 2026 at 9:05 AM');
   });
 });

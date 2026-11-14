@@ -1,6 +1,6 @@
 // The bell's Notifications list, like the app's notifications_screen.dart:
 // short notes about you (a new post that reaches you, a personal notice, a
-// session starting within the hour), separate from News. Tapping a note marks
+// session starting within the hour), separate from Announcements. Tapping a note marks
 // it read and opens what it's about; "Mark all as read" clears the bell.
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Clock, Megaphone, UserRound } from '@/components/icons';
@@ -9,7 +9,7 @@ import PageHeader from '../components/PageHeader';
 import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAnnouncements } from '../context/AnnouncementsContext';
-import { notificationLink, timeAgo, type AppNotification } from '../models/notifications';
+import { notificationFullTime, notificationLink, notificationStamp, type AppNotification } from '../models/notifications';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,7 @@ export default function NotificationsPage() {
 
   const open = (n: AppNotification) => {
     markRead(n.id);
-    // Opening a note about a post opens the post, which clears its dot in News.
+    // Opening a note about a post opens the post, which clears its dot in Announcements.
     if (n.kind === 'announcement' && n.announcementId) openPost(n.announcementId);
     const to = notificationLink(n);
     if (to) navigate(to);
@@ -79,9 +79,19 @@ export default function NotificationsPage() {
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className={cn('block text-[14px]', unread ? 'font-bold' : 'font-medium text-foreground/85')}>{n.title}</span>
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className={cn('min-w-0 text-[14px]', unread ? 'font-bold' : 'font-medium text-foreground/85')}>{n.title}</span>
+                        {n.createdAt && (
+                          <time
+                            dateTime={n.createdAt}
+                            title={notificationFullTime(n.createdAt)}
+                            className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground"
+                          >
+                            {notificationStamp(n.createdAt)}
+                          </time>
+                        )}
+                      </span>
                       {n.body && <span className="mt-0.5 block text-[13px] text-muted-foreground">{n.body}</span>}
-                      <span className="mt-0.5 block text-[11.5px] text-muted-foreground">{timeAgo(n.createdAt)}</span>
                     </span>
                     {unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-rose-600" aria-label="Unread" />}
                   </button>

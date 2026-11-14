@@ -163,9 +163,9 @@ function draftToRow(draft: AnnouncementDraft, author?: AnnouncementAuthor) {
 
 /**
  * Match the mobile feed's audience rules in addition to database RLS. Personal
- * notices (target_user_id) aren't News: they're in the bell's Notifications
+ * notices (target_user_id) aren't Announcements: they're in the bell's Notifications
  * list, as in the app. Until that list is available (bellAvailable false),
- * News keeps showing the recipient their own notices.
+ * Announcements keeps showing the recipient their own notices.
  */
 export function announcementsForUser(
   list: Announcement[],

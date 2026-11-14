@@ -18,7 +18,7 @@ interface NotificationsContextValue {
   error: string | null;
   /**
    * True once the list has loaded from the backend. Until then (signed out, or
-   * notifications_setup.sql not run yet) News keeps showing personal notices,
+   * notifications_setup.sql not run yet) Announcements keeps showing personal notices,
    * so they're never out of sight.
    */
   available: boolean;

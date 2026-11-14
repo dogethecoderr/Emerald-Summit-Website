@@ -42,7 +42,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // Same names and order as the app's tabs: Home · Schedule · Discover · News · Archie.
+  // Same order as the app's tabs: Home · Schedule · Discover · Announcements · Archie.
+  // The app still calls the fourth tab News (renamed on the website Nov 13, 2026).
   { to: '/home', label: 'Home', icon: House, group: 'My Summit' },
   {
     to: '/schedule',
@@ -52,7 +53,7 @@ const NAV_ITEMS: NavItem[] = [
     roles: ['participant', 'attendee', 'expert', 'volunteer', 'ambassador', 'admin'],
   },
   { to: '/disciplines', label: 'Discover', icon: Compass, group: 'My Summit' },
-  { to: '/announcements', label: 'News', icon: Megaphone, group: 'My Summit' },
+  { to: '/announcements', label: 'Announcements', icon: Megaphone, group: 'My Summit' },
   { to: '/archie', label: 'Archie', icon: Sparkles, group: 'My Summit' },
   { to: '/resources', label: 'Resources', icon: FolderOpen, group: 'Event' },
   { to: '/account', label: 'Profile', icon: UserRound, group: 'Account' },
@@ -67,8 +68,8 @@ export function navItemsForRole(roleName: string): NavItem[] {
 function NavBadge({ to }: { to: string }) {
   const { profile } = useAuth();
   const { mySchedule, expertSchedule, spectating } = useSchedule();
-  // News has no count: the bell counts new posts, so a post isn't counted
-  // twice. Each post keeps its own "New" label in News.
+  // Announcements has no count: the bell counts new posts, so a post isn't
+  // counted twice. Each post keeps its own "New" label there.
   if (to === '/schedule') {
     const scheduleCount =
       profile?.role === 'expert'
@@ -264,7 +265,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const roleLabel = roleLabelFor(roleName, profile?.volunteer_subtype);
   const items = navItemsForRole(roleName);
   // On a phone, the bottom bar is the app's tab bar: Home · Schedule ·
-  // Discover · News · Archie. Profile is the avatar in the top bar, as on the
+  // Discover · Announcements · Archie. Profile is the avatar in the top bar, as on the
   // app's Home.
   const MOBILE_TABS = ['/home', '/schedule', '/disciplines', '/announcements', '/archie'];
   const mobileItems = MOBILE_TABS

@@ -120,7 +120,7 @@ function duotone(Base: Icon, name: string): Icon {
   return Wrapped as Icon;
 }
 
-// Same thing, same icon as the app: tabs are Home, Schedule, Discover, News.
+// Same thing, same icon as the app: tabs are Home, Schedule, Discover, Announcements (News in the app).
 export const House = duotone(PhHouse, 'House');
 export const Notepad = duotone(PhNotepad, 'Notepad');
 export const Compass = duotone(PhCompass, 'Compass');

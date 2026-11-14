@@ -128,7 +128,7 @@ Tests never reach a real Supabase project: any test that renders a check-in path
 src/
 ├── main.tsx              # App entry point
 ├── App.tsx               # Routes (React Router)
-├── pages/                # Route-level pages (Home, Schedule, Discover, News, Archie, session pages, admin tools, …)
+├── pages/                # Route-level pages (Home, Schedule, Discover, Announcements, Archie, session pages, admin tools, …)
 ├── components/           # Shared UI, including shadcn/ui primitives in components/ui
 ├── context/              # React context providers (Auth, Schedule, Announcements)
 ├── hooks/                # Reusable hooks (e.g. useRequireProfile)
@@ -185,7 +185,7 @@ Every session has a page at `/sessions/:id` (`src/pages/SessionPage.tsx`), porte
   - a session at the same time they're signed up for, as a participant, spectator or expert;
   - a session at the same time they manage ("They'll stop managing it.");
   - what happens to their team: an owner's team passes to the teammate who joined first, teammates are told, and a team with no one else is deleted.
-- **Assign and replace** (or **Manage instead** for the admin themself) calls `assign_manager_replacing_conflicts`, which removes those sign-ups and managed sessions and assigns them, all at once. The person gets one notice naming what was taken off their day; an admin managing it themself gets none. Removed sign-ups aren't blocked, so they can sign up for those sessions again later.
+- **Assign and replace** (or **Manage instead** for the admin themself) calls `assign_manager_replacing_conflicts`, which removes those sign-ups and managed sessions and assigns them, all at once. The person gets one notice naming what was taken off their day; the old "You're managing …" notice for a session they stopped managing stays in their feed and bell as a dated record; an admin managing it themself gets none. Removed sign-ups aren't blocked, so they can sign up for those sessions again later.
 - The SQL is the app repo's `volunteer_conflict_override.sql`. **It hasn't been run yet.** Until it is, the preview call fails and the website shows the old refusal, so nothing breaks.
 - The mobile app doesn't do this yet (it's on the app README's website to-do list).
 
@@ -242,6 +242,8 @@ Relevant files: `src/services/auth.ts` (`getCurrentProfile`), `src/models/roles.
 
 ## Announcements
 
+**The tab is called Announcements.** It was **News**, the app's name for it, until Nov 13, 2026. The website now says Announcements everywhere: the sidebar and the phone's bottom bar (`NAV_ITEMS` in `src/components/AppShell.tsx`; it fits in full on a 320 px-wide phone), the page title (`src/pages/AnnouncementsPage.tsx`), the dashboard panel's heading (`src/components/AnnouncementsPanel.tsx`), the Home shortcut and its **Latest announcements** button, the composer's hints ("Posts appear in Announcements straight away…", "Pinned posts stay at the top of Announcements."), the remove-from-feed warning, and the header search, which finds pages by these labels. The address is still `/announcements` and nothing in the backend changed. The mobile app still says News; renaming it there is on the app README's to-do list.
+
 Admins author the announcements every other role reads. The feed is one live list shared by the Announcements tab, the dashboard panel, and the sidebar's pinned badge. It starts empty ("No announcements yet."); `MOCK_ANNOUNCEMENTS` holds sample posts that no page shows. Posts are the app's `announcements` rows (`audience`, `pinned`, `discipline_id`, `target_user_id`, `created_by`, `attachments`), so a post from either side shows on both. The browser's offline copy uses the key `local_announcements_v2`.
 
 **Posting.** Same rules as the app's composer: admins post to Everyone or one discipline; volunteers with `can_post_announcements` post to the disciplines they manage (`discipline_id` set), never to Everyone. A post has a subject, a message, an audience, an optional pin-to-top, and photos and files. Like the app, a post can't be edited, re-pinned or given a link after it's posted; admins can delete it. Photos and files come in by drag-and-drop or a file picker:
@@ -258,11 +260,11 @@ Files upload to the shared `announcement_attachments` bucket under the poster's 
 
 **Live across profiles.** The client subscribes to Postgres changes on `announcements`, so a new or deleted post reaches every connected profile without a refresh.
 
-**New-post banner.** Like the app's in-app banner, a post that reaches you and arrives while the site is open shows as a toast with its title, the start of the message and an **Open** button (News, or the bell's list for a personal notice). The rule is the app's (`bannerFor` in `src/models/announcements.ts`): nothing for your own posts or for a discipline you're not in, and admins see "Ms. Lee sent an announcement to the TechVerse discipline" for discipline posts. Posts already there when the page loaded never banner. The app also skips it while its notifications switch is off; the website doesn't, since that switch is labelled for the mobile app.
+**New-post banner.** Like the app's in-app banner, a post that reaches you and arrives while the site is open shows as a toast with its title, the start of the message and an **Open** button (Announcements, or the bell's list for a personal notice). The rule is the app's (`bannerFor` in `src/models/announcements.ts`): nothing for your own posts or for a discipline you're not in, and admins see "Ms. Lee sent an announcement to the TechVerse discipline" for discipline posts. Posts already there when the page loaded never banner. The app also skips it while its notifications switch is off; the website doesn't, since that switch is labelled for the mobile app.
 
-**Unread.** Unread posts are tinted red with a "New" label and counted in an "N unread" chip on the panel. The sidebar's News link has no count: the bell counts new posts (see **Notifications**). Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening News marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
+**Unread.** Unread posts are tinted red with a "New" label and counted in an "N unread" chip on the panel. The sidebar's Announcements link has no count: the bell counts new posts (see **Notifications**). Clicking one marks it read, like opening it in the app. Read state is the app's `announcement_reads` table, used the same way: opening Announcements marks every post seen (a row with no `opened_at`), which clears the red count, and each post's dot stays until that post is opened (`opened_at` set). Reading a post on the website clears it on the phone and the reverse.
 
-**Remove from my feed.** Kept out of sight on purpose, as in the app: each post has a **⋯** button, and its menu has **Remove this announcement from my feed**. That asks first ("Once you remove … you can't get it back in your feed. It stays in News for everyone else."), because there's no undo. It hides the post for this account only (`announcement_dismissals`). Admins get **Delete for everyone** in the same menu, which also asks first.
+**Remove from my feed.** Kept out of sight on purpose, as in the app: each post has a **⋯** button, and its menu has **Remove this announcement from my feed**. That asks first ("Once you remove … you can't get it back in your feed. It stays in Announcements for everyone else."), because there's no undo. It hides the post for this account only (`announcement_dismissals`). Admins get **Delete for everyone** in the same menu, which also asks first.
 
 **No backend.** With no Supabase keys at all (tests, offline work), posts and read state are kept in the browser's own storage and the page says so. Admins see a banner when the backend is configured but unreachable, quoting the error instead of silently showing stale content.
 
@@ -271,15 +273,25 @@ Relevant files: `src/services/announcements.ts`, `src/context/AnnouncementsConte
 
 ## Notifications (the bell)
 
-The bell at the top right opens **Notifications** (`/notifications`, `src/pages/NotificationsPage.tsx`), the same list as the app's bell, with a red count of unread notes. It holds short notes about you, separate from News:
+The bell at the top right opens **Notifications** (`/notifications`, `src/pages/NotificationsPage.tsx`), the same list as the app's bell, with a red count of unread notes. It holds short notes about you, separate from Announcements:
 
-- a new post that reaches you ("Priya Shah posted to TechVerse"), which opens News and marks that post opened;
+- a new post that reaches you ("Priya Shah posted to TechVerse"), which opens Announcements and marks that post opened;
 - personal notices (assignments, team changes, expert approval, the admins' sheet and expert-queue notices), which open their session when they have one;
 - "Coming up at 10:30 AM: AI Playground" in the hour before a session you're in or managing.
 
+**Date and time on every note.** Each note shows when it arrived, at the right of its title (`notificationStamp` in `src/models/notifications.ts`), in the viewer's own time zone:
+
+| When it arrived | Stamp |
+|---|---|
+| Today | **Today, 3:45 PM** (the time, so notes from the same day can be told apart) |
+| An earlier day this year | **Thu, Nov 12** |
+| Another year | **Nov 12, 2025** |
+
+"Today" means the viewer's calendar day, not the last 24 hours: a note from 11 PM yesterday says **Wed, Nov 11**, not a time. Hovering the stamp shows the full date and time ("Thursday, November 12, 2026 at 9:05 AM", `notificationFullTime`), and it's a `<time datetime>` element for screen readers. The stamp comes from the note's `created_at`. This replaced the app-style "5m ago" / "2d ago" (`timeAgo`, removed), which never said which day a note was from. The app's bell still shows "5m ago"; matching it is on the app README's to-do list.
+
 Clicking a note marks it read; **Mark all as read** clears the bell. The rows are the app's `notifications` table, written only by the backend (`notifications_setup.sql` in the app repo); the website reads them (`src/services/notifications.ts`, `src/context/NotificationsContext.tsx`), marks them read (`mark_notifications_read`), keeps them live over Realtime, and every 5 minutes calls `queue_my_session_reminders` (reminders start once the backend's `summit_date` is set; the website's own `SUMMIT_DATE` doesn't count for this).
 
-Personal notices are no longer in News. Until the `notifications` table has loaded once (for example before that SQL is run), News keeps showing each person their own notices, so nothing goes missing. News has no count of its own any more; each post keeps its "New" label until it's opened.
+Personal notices are no longer in Announcements. Until the `notifications` table has loaded once (for example before that SQL is run), Announcements keeps showing each person their own notices, so nothing goes missing. Announcements has no count of its own any more; each post keeps its "New" label until it's opened.
 
 There's no browser push and there won't be: it needs a service worker and a permission prompt, and iPhones only allow it for sites added to the home screen. The **Mobile app notifications** switch on Profile (named so it's clear it's about the phone) saves the account's `notifications_enabled`, the same setting the app's switch changes; it mutes the app's banner (and push, once the app has it) and doesn't affect the bell on either.
 
@@ -349,9 +361,9 @@ Small screens drop the aside and show the logo above the form.
 
 Every signed-in page sits inside one portal shell (`src/components/AppShell.tsx`):
 
-- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, News, Archie: the app's tab names and order), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
+- **Navy sidebar** with the Summit logo, an event card, and navigation grouped into *My Summit* (Home, Schedule, Discover, Announcements, Archie: the app's tab order; the app calls the fourth tab News), *Event* (Resources), and *Account* (Profile), filtered by role. Participants get a "My QR Pass" card above their profile. The profile card at the bottom opens the roles page while staying signed in. Its ⇆ icon shows a "Switch role" label above it on hover or keyboard focus. Beside it, a red sign-out button shows just an icon and expands to "Sign out" on hover or keyboard focus. Settings has sign out too.
 - **Top bar** with a breadcrumb, a global search, a chip naming the viewer's role, and the bell, which opens **Notifications** and shows a red count of unread notes (see **Notifications**). The search (⌘K / Ctrl+K) finds pages the viewer can open plus sessions by title, track, room, or discipline, the fields the app's Discover search uses.
-- **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The bottom bar is the app's five tabs: Home, Schedule, Discover, News, Archie. Profile is the round avatar (your initials) at the right of the top bar, beside the bell, as on the app's Home. Change role and sign out are on Profile.
+- **Mobile** uses the same navy for a compact top bar and a bottom tab bar. The bottom bar is the app's five tabs: Home, Schedule, Discover, Announcements (News in the app), Archie. Profile is the round avatar (your initials) at the right of the top bar, beside the bell, as on the app's Home. Change role and sign out are on Profile.
 - **Look.** The portal shares the landing page's look: a flat background, solid cards on a hairline border (`.glass` in `src/index.css`, which no longer blurs or glows), pill-shaped buttons (`src/components/ui/button.tsx`), and page labels as plain small text above a bold title (`src/components/PageHeader.tsx`).
 
 **Roles page** (`/roles`, `src/pages/RolesPage.tsx`). A navy panel beside a list of roles, shown at `/home` when signed out and reachable from the sidebar when signed in. Each role is a row with a solid role-colored icon tile, and the current role is a navy row. Signed in, your current role continues straight to the dashboard ("Continue as …"). Any other role opens its sign-in page, which offers **Change role to …** (`src/components/ChangeRolePanel.tsx`): it first calls `preview_role_change` and lists what happens to each of your sessions, in the app's words, then saves the role and re-reads what the server kept. A gated role that isn't on the allowlist is refused with "You aren't eligible to sign up as …". A first sign-in with a picked role goes through `getCurrentProfile` (`src/services/auth.ts`), which throws `SignInRefusedError` when the server keeps a different role; `AuthContext` then signs out and shows the message as `signInError`. A failed Google sign-in is shown the same way (see **Google sign-in**). If the account can't be loaded at all, you're signed out with "We couldn't load your account."
