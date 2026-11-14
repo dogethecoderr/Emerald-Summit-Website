@@ -17,6 +17,18 @@ const FAQ_ITEMS: FaqItem[] = [
     a: 'Saturday, January 23, 2027, at Emerald High School, 3600 Central Pkwy, Dublin, CA.',
   },
   {
+    q: 'Why is the Summit so early, in January?',
+    a: 'So you have time to use what you learn. The feedback you get at the Summit leaves room to improve your research or project before Capstone, PLTW, and the competitions in March and April.',
+  },
+  {
+    q: 'Does my project or research need to be perfect?',
+    a: 'No. Do the best you can. Present your idea or project, where it stands so far, and your next steps toward the final goal, then get feedback and advice from experts. Use it as a stepping stone for Capstone, PLTW, or the March and April competitions, or put what you learn toward a passion project.',
+  },
+  {
+    q: 'Why doesn’t the Summit give out awards?',
+    a: 'Awards would only tell you who won. You’d lose the raw feedback: what you did well, where you can improve, and whether your roadmap needs a pivot. The Summit is about learning, picking up knowledge, and meeting experts and peers, so collaborate, share ideas, and grow. Every participant does receive a certificate of participation.',
+  },
+  {
     q: 'What are the six universes?',
     a: 'TechVerse, BioSphere, NovaSphere, ImagineX, VentureVerse, and CivicVerse, with 20+ tracks and 30+ visiting experts across them.',
   },

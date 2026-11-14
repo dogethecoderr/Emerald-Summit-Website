@@ -24,25 +24,25 @@ export const USER_DISCIPLINES: DisciplineInfo[] = [
   {
     name: 'imaginex',
     label: 'ImagineX',
-    description: 'Arts, Design & Media',
+    description: 'Arts, Literature, Music, Drama & Improv',
     color: '#E11D48',
   },
   {
     name: 'novasphere',
     label: 'NovaSphere',
-    description: 'Math, Physics & Space',
+    description: 'Core Sciences, Climate Change & Sustainability',
     color: '#7C3AED',
   },
   {
     name: 'ventureverse',
     label: 'VentureVerse',
-    description: 'Business & Entrepreneurship',
+    description: 'Entrepreneurship & Marketing',
     color: '#F59E0B',
   },
   {
     name: 'civicverse',
     label: 'CivicVerse',
-    description: 'Civics, Policy & Leadership',
+    description: 'Mock Trial, Government Policy & Rights',
     color: '#F97316',
   },
 ];
