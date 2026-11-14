@@ -126,37 +126,90 @@ export async function assignVolunteer(sessionId: string, userId: string): Promis
   return { outcome: 'assigned' };
 }
 
-/**
- * Admin only: assign anyway over a time clash with another session the person
- * manages or is signed up for (volunteer_conflict_override.sql). Pass your own
- * id to manage a session yourself. Still refuses someone signed up for this
- * session ('registered_this').
- */
-export async function assignVolunteerOverridingConflict(sessionId: string, userId: string): Promise<AssignResult> {
-  const row = await rpc<Record<string, unknown> | null>('assign_volunteer_overriding_conflict', {
-    p_session_id: sessionId,
-    p_user_id: userId,
-  });
-  if (row?.outcome === 'conflict') {
-    return {
-      outcome: 'conflict',
-      conflictingTitle: typeof row.conflicting_title === 'string' ? row.conflicting_title : null,
-      conflictKind: conflictKindFrom(row.conflict_kind),
-    };
-  }
-  return { outcome: 'assigned' };
+// ---------------------------------------------------------------------------
+// Managing replaces a clash (volunteer_conflict_override.sql). A person does one
+// thing at a time, so an admin who assigns them over a clash takes the clashing
+// sign-ups and managed sessions off their day.
+// ---------------------------------------------------------------------------
+
+export interface ReplacedItem {
+  sessionId: string;
+  title: string;
+  /** registered_this: signed up for this same session; they'll run it instead. */
+  kind: 'registered_this' | 'registered' | 'managing';
+  participationType: ParticipationType | null;
+  teamName: string | null;
+  teamOwner: boolean;
+  teammates: number;
+}
+
+function replacedItemsFrom(raw: unknown): ReplacedItem[] {
+  return (Array.isArray(raw) ? raw : []).map((r: Record<string, unknown>) => ({
+    sessionId: String(r.session_id),
+    title: typeof r.title === 'string' ? r.title : 'a session',
+    kind: r.kind === 'registered_this' || r.kind === 'managing' ? r.kind : 'registered',
+    participationType: r.participation_type === 'participant' || r.participation_type === 'spectator' || r.participation_type === 'expert'
+      ? r.participation_type : null,
+    teamName: typeof r.team_name === 'string' && r.team_name ? r.team_name : null,
+    teamOwner: r.team_owner === true,
+    teammates: typeof r.teammates === 'number' ? r.teammates : 0,
+  }));
 }
 
 /**
- * Admin only: who on this session was assigned over a time clash. Null when
- * the read fails, e.g. before volunteer_conflict_override.sql has been run,
- * so callers hide the override.
+ * Admin only: what assigning this person to manage the session would take off
+ * their day. Null when the backend doesn't have it yet, so callers keep the
+ * old refusal.
  */
-export async function fetchConflictOverrides(sessionId: string): Promise<Set<string> | null> {
-  const { data, error } = await client().from('session_volunteers')
-    .select('user_id').eq('session_id', sessionId).eq('conflict_override', true);
-  if (error) return null;
-  return new Set(((data ?? []) as Record<string, unknown>[]).map((r) => String(r.user_id)));
+export async function previewManagerAssignment(sessionId: string, userId: string): Promise<ReplacedItem[] | null> {
+  try {
+    const row = await rpc<Record<string, unknown> | null>('preview_manager_assignment', {
+      p_session_id: sessionId,
+      p_user_id: userId,
+    });
+    return replacedItemsFrom(row?.replaces);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Admin only: assign them to manage the session, removing their sign-up for it
+ * and anything that overlaps it. Pass your own id to manage it yourself.
+ * Returns what was replaced.
+ */
+export async function assignManagerReplacingConflicts(sessionId: string, userId: string): Promise<ReplacedItem[]> {
+  const row = await rpc<Record<string, unknown> | null>('assign_manager_replacing_conflicts', {
+    p_session_id: sessionId,
+    p_user_id: userId,
+  });
+  return replacedItemsFrom(row?.replaced);
+}
+
+const DOING: Record<ParticipationType, string> = {
+  participant: 'participate',
+  spectator: 'spectate',
+  expert: 'serve as an expert',
+};
+
+/** One line of the replace dialog, about someone else ('they') or the admin ('you'). */
+export function describeReplacement(item: ReplacedItem, who: 'they' | 'you'): string {
+  const they = who === 'they';
+  const doing = DOING[item.participationType ?? 'participant'];
+  let line: string;
+  if (item.kind === 'managing') {
+    line = `"${item.title}", which ${they ? 'they manage' : 'you manage'}. ${they ? 'They' : 'You'}'ll stop managing it.`;
+  } else if (item.kind === 'registered_this') {
+    line = `${they ? 'Their' : 'Your'} sign-up to ${doing} in this session. ${they ? "They'll" : "You'll"} manage it instead.`;
+  } else {
+    line = `"${item.title}", where ${they ? "they're" : "you're"} signed up to ${doing}.`;
+  }
+  if (item.teamName) {
+    if (item.teammates === 0) line += ` ${they ? 'Their' : 'Your'} team "${item.teamName}" has no one else, so it's deleted.`;
+    else if (item.teamOwner) line += ` ${they ? 'They own' : 'You own'} "${item.teamName}"; it passes to the teammate who joined first.`;
+    else line += ` ${they ? 'Their' : 'Your'} teammates on "${item.teamName}" are told.`;
+  }
+  return line;
 }
 
 /** Admin only. Also sends the volunteer a personal notice. */

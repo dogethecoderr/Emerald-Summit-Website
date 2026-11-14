@@ -6,30 +6,35 @@ const api = vi.hoisted(() => ({
   list: vi.fn(),
   all: vi.fn(),
   assign: vi.fn(),
-  override: vi.fn(),
-  overrides: vi.fn(),
+  preview: vi.fn(),
+  replace: vi.fn(),
 }));
 
-vi.mock('../../services/organizer', () => ({
+vi.mock('../../services/organizer', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../services/organizer')>(),
   fetchSessionVolunteers: (...a: unknown[]) => api.list(...a),
   fetchVolunteers: () => api.all(),
   assignVolunteer: (...a: unknown[]) => api.assign(...a),
-  assignVolunteerOverridingConflict: (...a: unknown[]) => api.override(...a),
-  fetchConflictOverrides: (...a: unknown[]) => api.overrides(...a),
+  previewManagerAssignment: (...a: unknown[]) => api.preview(...a),
+  assignManagerReplacingConflicts: (...a: unknown[]) => api.replace(...a),
   unassignVolunteer: vi.fn(),
 }));
 
 import SessionVolunteers from '../session/SessionVolunteers';
+import { describeReplacement, type ReplacedItem } from '../../services/organizer';
 import type { Session } from '../../models/sessions';
 
 const session = { id: 's1', title: 'Robot Showcase' } as Session;
 const sam = { id: 'sam', name: 'Sam Lee', email: 'sam@x.org', subtype: null, phone: null, role: 'volunteer' };
+const item = (over: Partial<ReplacedItem>): ReplacedItem => ({
+  sessionId: 's2', title: 'Bio Lab', kind: 'registered', participationType: 'participant',
+  teamName: null, teamOwner: false, teammates: 0, ...over,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
   api.list.mockResolvedValue([]);
   api.all.mockResolvedValue([sam]);
-  api.overrides.mockResolvedValue(new Set());
 });
 
 async function pickSam() {
@@ -40,38 +45,65 @@ async function pickSam() {
   return user;
 }
 
-describe('assigning over a schedule clash', () => {
-  test('an admin can assign anyway, and the row is marked', async () => {
+describe('assigning someone who is busy at that time', () => {
+  test('the admin sees what gets replaced, then assigns and replaces', async () => {
     api.assign.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'registered' });
-    api.override.mockResolvedValue({ outcome: 'assigned' });
+    const items = [
+      item({ kind: 'registered_this', sessionId: 's1', title: 'Robot Showcase', teamName: 'Rover', teamOwner: true, teammates: 2 }),
+      item({ kind: 'managing', sessionId: 's3', title: 'Drone Lab', participationType: null }),
+    ];
+    api.preview.mockResolvedValue(items);
+    api.replace.mockResolvedValue(items);
     const user = await pickSam();
-    expect(await screen.findByText(/already on "Bio Lab" at the same time/)).toBeInTheDocument();
 
-    api.list.mockResolvedValue([sam]);
-    api.overrides.mockResolvedValue(new Set(['sam']));
-    await user.click(screen.getByRole('button', { name: 'Assign anyway' }));
-    await waitFor(() => expect(api.override).toHaveBeenCalledWith('s1', 'sam'));
-    expect(await screen.findByText('Overlap approved')).toBeInTheDocument();
+    expect(await screen.findByText('Replace what they’re doing?')).toBeInTheDocument();
+    expect(screen.getByText(/Sam Lee can only do one thing at a time/)).toBeInTheDocument();
+    expect(screen.getByText(/Their sign-up to participate in this session. They'll manage it instead. They own "Rover"; it passes to the teammate who joined first./)).toBeInTheDocument();
+    expect(screen.getByText(/"Drone Lab", which they manage. They'll stop managing it./)).toBeInTheDocument();
+    expect(screen.getByText(/They'll get a notice/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Assign and replace' }));
+    await waitFor(() => expect(api.replace).toHaveBeenCalledWith('s1', 'sam'));
+    expect(api.list).toHaveBeenCalledTimes(2);
+  });
+
+  test('cancel changes nothing', async () => {
+    api.assign.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'registered' });
+    api.preview.mockResolvedValue([item({})]);
+    const user = await pickSam();
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+    expect(api.replace).not.toHaveBeenCalled();
   });
 
   test('before the SQL is run, the old refusal stays', async () => {
-    api.overrides.mockResolvedValue(null);
     api.assign.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'registered' });
+    api.preview.mockResolvedValue(null);
     await pickSam();
     expect(await screen.findByText(/can't be added to this session/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Assign anyway' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign and replace' })).not.toBeInTheDocument();
   });
 
-  test("a sign-up for this same session offers no override", async () => {
-    api.assign.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Robot Showcase', conflictKind: 'registered_this' });
+  test('someone free is assigned straight away', async () => {
+    api.assign.mockResolvedValue({ outcome: 'assigned' });
     await pickSam();
-    expect(await screen.findByText(/signed up for this session/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Assign anyway' })).not.toBeInTheDocument();
+    await waitFor(() => expect(api.assign).toHaveBeenCalledWith('s1', 'sam'));
+    expect(api.preview).not.toHaveBeenCalled();
+  });
+});
+
+describe('describeReplacement', () => {
+  test('a registration elsewhere, solo', () => {
+    expect(describeReplacement(item({ participationType: 'spectator' }), 'they'))
+      .toBe('"Bio Lab", where they\'re signed up to spectate.');
   });
 
-  test('organizers who can\'t assign never ask for overrides', async () => {
-    render(<SessionVolunteers session={session} canAssign={false} />);
-    await screen.findByText(/No one has been assigned/);
-    expect(api.overrides).not.toHaveBeenCalled();
+  test('a team member who is not the owner, said to the admin themself', () => {
+    expect(describeReplacement(item({ teamName: 'Rover', teammates: 1 }), 'you'))
+      .toBe('"Bio Lab", where you\'re signed up to participate. Your teammates on "Rover" are told.');
+  });
+
+  test('the last person on a team', () => {
+    expect(describeReplacement(item({ teamName: 'Rover', teamOwner: true, teammates: 0 }), 'they'))
+      .toContain('Their team "Rover" has no one else, so it\'s deleted.');
   });
 });

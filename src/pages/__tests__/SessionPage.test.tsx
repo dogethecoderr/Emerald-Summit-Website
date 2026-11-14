@@ -19,8 +19,8 @@ const state = vi.hoisted(() => ({
   },
   toggle: vi.fn(),
   manage: vi.fn(),
-  override: vi.fn(),
-  overrides: vi.fn(),
+  preview: vi.fn(),
+  replace: vi.fn(),
   project: vi.fn(),
   photos: vi.fn(),
 }));
@@ -53,8 +53,8 @@ vi.mock('../../services/sessionRegistration', async (importOriginal) => ({
 }));
 vi.mock('../../services/organizer', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/organizer')>(),
-  assignVolunteerOverridingConflict: (...args: unknown[]) => state.override(...args),
-  fetchConflictOverrides: (...args: unknown[]) => state.overrides(...args),
+  previewManagerAssignment: (...args: unknown[]) => state.preview(...args),
+  assignManagerReplacingConflicts: (...args: unknown[]) => state.replace(...args),
 }));
 vi.mock('../../services/sessionPhotos', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../services/sessionPhotos')>(),
@@ -236,43 +236,49 @@ describe('session page', () => {
   });
 });
 
-describe('an admin managing over a time clash', () => {
+describe('an admin managing a session they are busy for', () => {
+  const bioLab = {
+    sessionId: 's9', title: 'Bio Lab', kind: 'registered', participationType: 'spectator',
+    teamName: null, teamOwner: false, teammates: 0,
+  };
   beforeEach(() => {
     state.role = 'admin';
-    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'managing' });
-    state.override.mockResolvedValue({ outcome: 'assigned' });
-    state.overrides.mockResolvedValue(new Set());
+    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Bio Lab', conflictKind: 'registered' });
+    state.preview.mockResolvedValue([bioLab]);
+    state.replace.mockResolvedValue([bioLab]);
   });
 
-  test('"Manage anyway" assigns them over the clash', async () => {
+  test('sees what managing replaces, then "Manage instead" replaces it', async () => {
     const user = userEvent.setup();
     page();
     await user.click(screen.getByRole('button', { name: /Add to my day/ }));
     await user.click(screen.getByRole('button', { name: /Manage this session/ }));
-    expect(await screen.findByText(/overlaps with "Bio Lab"/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Manage anyway' }));
-    await waitFor(() => expect(state.override).toHaveBeenCalledWith('s1', 'me'));
+    expect(await screen.findByText('Replace what you’re doing?')).toBeInTheDocument();
+    expect(screen.getByText(/"Bio Lab", where you're signed up to spectate./)).toBeInTheDocument();
+    expect(state.preview).toHaveBeenCalledWith('s1', 'me');
+    await user.click(screen.getByRole('button', { name: 'Manage instead' }));
+    await waitFor(() => expect(state.replace).toHaveBeenCalledWith('s1', 'me'));
     expect(state.schedule.reload).toHaveBeenCalled();
   });
 
-  test('no "Manage anyway" before the SQL is run', async () => {
-    state.overrides.mockResolvedValue(null);
+  test('their own sign-up for this session is replaced too', async () => {
+    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Robot Showcase', conflictKind: 'registered_this' });
+    state.preview.mockResolvedValue([{ ...bioLab, sessionId: 's1', title: 'Robot Showcase', kind: 'registered_this', participationType: 'participant' }]);
+    const user = userEvent.setup();
+    page();
+    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
+    await user.click(screen.getByRole('button', { name: /Manage this session/ }));
+    expect(await screen.findByText(/Your sign-up to participate in this session. You'll manage it instead./)).toBeInTheDocument();
+  });
+
+  test('before the SQL is run, the old refusal stays', async () => {
+    state.preview.mockResolvedValue(null);
     const user = userEvent.setup();
     page();
     await user.click(screen.getByRole('button', { name: /Add to my day/ }));
     await user.click(screen.getByRole('button', { name: /Manage this session/ }));
     expect(await screen.findByText(/overlaps with "Bio Lab"/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Manage anyway' })).not.toBeInTheDocument();
-  });
-
-  test("a sign-up for this same session can't be overridden", async () => {
-    state.manage.mockResolvedValue({ outcome: 'conflict', conflictingTitle: 'Robot Showcase', conflictKind: 'registered_this' });
-    const user = userEvent.setup();
-    page();
-    await user.click(screen.getByRole('button', { name: /Add to my day/ }));
-    await user.click(screen.getByRole('button', { name: /Manage this session/ }));
-    expect(await screen.findByText(/Remove it from your day first/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Manage anyway' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage instead' })).not.toBeInTheDocument();
   });
 });
 

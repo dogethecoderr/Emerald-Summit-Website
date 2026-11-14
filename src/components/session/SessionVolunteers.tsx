@@ -1,8 +1,8 @@
 // Who's organizing a session (the app's session_volunteers_screen.dart).
 // Organizers and editors see the list with numbers; only admins assign and
-// remove, through RPCs that refuse anyone else and any schedule clash. An
-// admin can assign anyway over a clash with another session; the row is then
-// marked conflict_override and shows "Overlap approved" here.
+// remove, through RPCs that refuse anyone else and any schedule clash. When
+// someone is busy at that time, the admin sees what assigning them would take
+// off their day and can go ahead: managing replaces it.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,14 +11,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, X } from '@/components/icons';
 import PhoneActions from '../PhoneActions';
+import ReplaceScheduleDialog, { type ReplaceRequest } from './ReplaceScheduleDialog';
 import type { Session } from '../../models/sessions';
 import { VOLUNTEER_SUBTYPE_LABELS } from '../../models/roles';
 import {
+  assignManagerReplacingConflicts,
   assignVolunteer,
-  assignVolunteerOverridingConflict,
-  fetchConflictOverrides,
   fetchSessionVolunteers,
   fetchVolunteers,
+  previewManagerAssignment,
   unassignVolunteer,
   type VolunteerRef,
 } from '../../services/organizer';
@@ -28,11 +29,10 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState<VolunteerRef[] | null>(null);
   const [query, setQuery] = useState('');
-  // A refused assignment. `overridable` is set for a clash with another
-  // session, which an admin can approve; a sign-up for this session can't be.
-  const [blocked, setBlocked] = useState<{ message: string; overridable: VolunteerRef | null } | null>(null);
-  // Null until known, or when the override isn't on the backend yet.
-  const [overrides, setOverrides] = useState<Set<string> | null>(null);
+  // A refused assignment, when the backend can't replace yet.
+  const [blocked, setBlocked] = useState<string | null>(null);
+  // A clash the admin can resolve by replacing what the person was doing.
+  const [replacing, setReplacing] = useState<(ReplaceRequest & { volunteer: VolunteerRef }) | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -40,8 +40,7 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
     fetchSessionVolunteers(session.id)
       .then(setList)
       .catch(() => setError("Couldn't load this session's volunteers. Try again."));
-    if (canAssign) void fetchConflictOverrides(session.id).then(setOverrides);
-  }, [session.id, canAssign]);
+  }, [session.id]);
   useEffect(load, [load]);
 
   const openPicker = async () => {
@@ -60,31 +59,42 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
     }
   };
 
-  const assign = async (v: VolunteerRef, override = false) => {
+  const assign = async (v: VolunteerRef) => {
     setPicking(null);
-    setBlocked(null);
     setBusy(true);
     try {
-      const result = override
-        ? await assignVolunteerOverridingConflict(session.id, v.id)
-        : await assignVolunteer(session.id, v.id);
+      const result = await assignVolunteer(session.id, v.id);
       const name = v.name || v.email;
       if (result.outcome === 'conflict') {
-        setBlocked(result.conflictKind === 'registered_this'
-          ? { message: `${name} is signed up for this session, so they can't manage it. They need to remove it from their day first.`, overridable: null }
-          : overrides
-            ? {
-                message: `${name} is already on "${result.conflictingTitle ?? 'another session'}" at the same time. You can assign them anyway if they'll cover both.`,
-                overridable: v,
-              }
-            : {
-                message: `${name} has a schedule conflict and can't be added to this session. It overlaps with "${result.conflictingTitle ?? 'another session'}".`,
-                overridable: null,
-              });
+        const items = await previewManagerAssignment(session.id, v.id);
+        if (items && items.length > 0) {
+          setReplacing({ volunteer: v, personName: name, sessionTitle: session.title, items });
+        } else {
+          // Backend without volunteer_conflict_override.sql: the old refusal.
+          setBlocked(result.conflictKind === 'registered_this'
+            ? `${name} is signed up for this session, so they can't manage it. They need to remove it from their day first.`
+            : `${name} has a schedule conflict and can't be added to this session. It overlaps with "${result.conflictingTitle ?? 'another session'}".`);
+        }
       } else {
-        toast.success(override ? `Assigned ${name} despite the overlap` : `Assigned ${name} to this session`);
+        toast.success(`Assigned ${name} to this session`);
         load();
       }
+    } catch {
+      toast.error('Could not assign. Admins only.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmReplace = async () => {
+    if (!replacing) return;
+    const { volunteer: v, personName } = replacing;
+    setBusy(true);
+    try {
+      const replaced = await assignManagerReplacingConflicts(session.id, v.id);
+      setReplacing(null);
+      toast.success(`Assigned ${personName}. ${replaced.length} ${replaced.length === 1 ? 'thing was' : 'things were'} taken off their day, and they've been told.`);
+      load();
     } catch {
       toast.error('Could not assign. Admins only.');
     } finally {
@@ -141,14 +151,7 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
           {list.map((v) => (
             <li key={v.id} className="flex items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {v.name || v.email}
-                  {overrides?.has(v.id) && (
-                    <span className="ml-2 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                      Overlap approved
-                    </span>
-                  )}
-                </p>
+                <p className="font-medium">{v.name || v.email}</p>
                 <p className="text-xs text-muted-foreground">
                   {[v.subtype ? VOLUNTEER_SUBTYPE_LABELS[v.subtype] : null, v.email].filter(Boolean).join(' · ')}
                 </p>
@@ -189,22 +192,18 @@ export default function SessionVolunteers({ session, canAssign }: { session: Ses
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Schedule conflict</DialogTitle>
-            <DialogDescription>{blocked?.message}</DialogDescription>
+            <DialogDescription>{blocked}</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            {blocked?.overridable ? (
-              <>
-                <Button variant="outline" onClick={() => setBlocked(null)}>Cancel</Button>
-                <Button disabled={busy} onClick={() => void assign(blocked.overridable!, true)} className="bg-emerald text-white hover:bg-emerald-deep">
-                  Assign anyway
-                </Button>
-              </>
-            ) : (
-              <Button onClick={() => setBlocked(null)}>Got it</Button>
-            )}
-          </DialogFooter>
+          <DialogFooter><Button onClick={() => setBlocked(null)}>Got it</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReplaceScheduleDialog
+        request={replacing}
+        busy={busy}
+        onConfirm={() => void confirmReplace()}
+        onCancel={() => setReplacing(null)}
+      />
     </div>
   );
 }
