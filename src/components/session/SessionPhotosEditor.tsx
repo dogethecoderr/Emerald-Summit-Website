@@ -106,7 +106,7 @@ export default function SessionPhotosEditor({
       <div className="space-y-2">
         <p className="text-sm font-medium">Hero photo</p>
         {hero && (
-          <img src={hero} alt="" width={1200} height={675} className="aspect-video w-full rounded-xl bg-muted object-cover" />
+          <img src={hero} alt="" width={1200} height={675} className="aspect-video w-full rounded-sm bg-muted object-cover" />
         )}
         <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => pick(heroInput.current)}>
           <ImageIcon className="h-4 w-4" /> {hero ? 'Replace' : 'Set hero photo'}
@@ -118,7 +118,7 @@ export default function SessionPhotosEditor({
         <ul className="flex flex-wrap gap-2">
           {gallery.map((p) => (
             <li key={p.name} className="relative">
-              <img src={p.url} alt="" width={96} height={96} loading="lazy" className="h-24 w-24 rounded-lg bg-muted object-cover" />
+              <img src={p.url} alt="" width={96} height={96} loading="lazy" className="h-24 w-24 rounded-sm bg-muted object-cover" />
               <button
                 type="button"
                 aria-label="Remove"

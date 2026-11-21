@@ -27,7 +27,7 @@ function SectionTitle({ id, children }: { id: string; children: string }) {
 
 function buttonClass(primary?: boolean) {
   return cn(
-    'inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-semibold transition-colors',
+    'inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors',
     primary ? 'bg-emerald text-white hover:bg-emerald-deep' : 'border border-border bg-card hover:border-emerald/40',
   );
 }
@@ -124,7 +124,7 @@ export function SupportEafCard() {
   return (
     <section aria-labelledby="support-eaf">
       <SectionTitle id="support-eaf">Support EAF</SectionTitle>
-      <div className="rounded-3xl border border-emerald/20 bg-gradient-to-br from-emerald/10 to-emerald/[0.03] p-5 sm:p-6">
+      <div className="rounded-3xl border border-border bg-card p-5 sm:p-6">
         <div className="flex flex-col items-start gap-4 sm:flex-row">
           <SummitLogo size={64} className="shrink-0" />
           <div className="max-w-3xl space-y-3 text-[14.5px] leading-relaxed">

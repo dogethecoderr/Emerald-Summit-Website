@@ -23,7 +23,7 @@ export function quoteForDay(date: Date): { quote: string; author: string } {
 export default function QuoteCard({ className }: { className?: string }) {
   const q = quoteForDay(new Date());
   return (
-    <figure className={cn('flex flex-col justify-center rounded-3xl border border-emerald/20 bg-gradient-to-br from-emerald/10 to-emerald/[0.03] p-6', className)}>
+    <figure className={cn('flex flex-col justify-center rounded-3xl border border-border bg-card p-6', className)}>
       <Quotes className="h-7 w-7 text-emerald/70" aria-hidden />
       <blockquote className="mt-2 text-[17px] font-semibold leading-snug text-foreground">{q.quote}</blockquote>
       <figcaption className="mt-3 text-sm italic text-muted-foreground">{q.author}</figcaption>

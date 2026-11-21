@@ -1,9 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, useReducedMotion, type Variants } from 'framer-motion';
-import { markIntroPlayed, shouldPlayIntro } from '../components/introSession';
 import LandingNav from '../components/LandingNav';
-import SkyVideo from '../components/SkyVideo';
 import FaqSection from '../components/FaqSection';
 import OrbitalUniverses from '../components/OrbitalUniverses';
 import PhotoMosaic from '../components/PhotoMosaic';
@@ -12,7 +9,6 @@ import PhotoRail from '../landing/PhotoRail';
 import HairlineFigure from '../landing/HairlineFigure';
 import { SIGN_IN_ROLES } from '../models/roles';
 import { DAY_PARTS, type DayPart } from '../landing/dayParts';
-import SunArc from '../landing/SunArc';
 import { Mail } from '@/components/icons';
 import { useIsTouchScreen } from '../lib/device';
 import '../landing/landing.css';
@@ -56,71 +52,10 @@ const RAIL_PHOTOS = DAY_PHOTOS.map((p) => ({
   height: p.tall ? 1200 : 798,
 }));
 
-/**
- * Container that cascades its children in. `custom` is the beat to hold
- * before the first child moves: long enough after the jump for the night
- * sky to stand alone for a moment, short on an ordinary load.
- */
-const stagger: Variants = {
-  hidden: {},
-  show: (delayChildren: number) => ({
-    transition: { staggerChildren: 0.08, delayChildren },
-  }),
-};
-
-/** One settle: a fade with an 8px rise. */
-const rise: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
-  },
-};
-
-/**
- * The sky cues us the moment the sun is down, so the copy arrives *with* the
- * returning stars rather than after them; only a short beat is needed here.
- */
-const AFTER_INTRO_DELAY = 0.25;
-/** Nav drops in just behind the copy, then scrolling is handed back. */
-const NAV_DELAY = 0.5;
-const UNLOCK_MS = 1400;
-/** The headline's glide from the middle of the sky up to its place, clearing room for the details. */
-const GLIDE_MS = 900;
-const SKIP_GLIDE_MS = 450;
-/**
- * The opening: the sky stands still, then the view starts a long, slow push in
- * toward the upper sky (its length is on .lp-sky in landing.css), and the sun
- * rises while it is still under way.
- */
-const OPEN_HOLD_MS = 1000;
-const OPEN_SUN_DELAY_MS = 1500;
-/** The beat the name rests under the night sky after the sun has set, before it lifts. */
-const SETTLE_HOLD_MS = 900;
-/** The ground under the sky fading off (landing.css, .lp-hero__ground). */
-const GROUND_FADE_MS = 700;
-
 export default function WelcomePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const reduceMotion = useReducedMotion();
   const touch = useIsTouchScreen();
-
-  // When the sequence plays, the page holds still and the copy waits for it.
-  const [playingIntro] = useState(shouldPlayIntro);
-  const [revealed, setRevealed] = useState(() => !shouldPlayIntro());
-  const [locked, setLocked] = useState(playingIntro);
-  const [skipped, setSkipped] = useState(false);
-  /** The intro's ground and pinned headline, dropped once both have settled. */
-  const [introGone, setIntroGone] = useState(!playingIntro);
-  /** The opening push-in: the view is zoomed toward the summit, and the sun may start once it has arrived. */
-  const [zoomed, setZoomed] = useState(false);
-  const [sunStarted, setSunStarted] = useState(false);
-  const openRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const titleRef = useRef<HTMLSpanElement>(null);
-  const glidingRef = useRef(false);
-  const holdRef = useRef<ReturnType<typeof setTimeout>>();
   const [part, setPart] = useState(0);
   const [badge, setBadge] = useState(-1);
   // The badge picked so far, read synchronously by the click (state lags a render).
@@ -131,113 +66,6 @@ export default function WelcomePage() {
     badgeRef.current = i;
     setBadge(i);
   };
-
-  useEffect(() => {
-    if (playingIntro) markIntroPlayed();
-  }, [playingIntro]);
-
-  // While the sun crosses, the headline waits in the very middle of the sky, wiped
-  // on as the sun climbs (the app's splash does the same with its wordmark).
-  useLayoutEffect(() => {
-    const el = titleRef.current;
-    const hero = el?.closest('.lp-hero');
-    if (!playingIntro || !el || !hero || glidingRef.current) return;
-    // Measured from its own place, so running twice (React's dev check) still centres it.
-    el.style.transform = '';
-    const h = hero.getBoundingClientRect();
-    const t = el.getBoundingClientRect();
-    const dx = h.left + h.width / 2 - (t.left + t.width / 2);
-    const dy = h.top + h.height * 0.5 - (t.top + t.height / 2);
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
-    el.style.clipPath = 'inset(0 100% 0 0)';
-  }, [playingIntro]);
-
-  /** The wipe: from 0.2 to 0.45 of the timeline (the crest is 0.5), once the sun has climbed clear of the name. */
-  const onSunFrame = (t: number) => {
-    const el = titleRef.current;
-    if (!el || glidingRef.current) return;
-    // Daylight, 0 on the horizons and 1 at the crest: the stylesheet lights the range with it.
-    el.closest<HTMLElement>('.lp-hero')?.style.setProperty('--sun', Math.sin(t * Math.PI).toFixed(3));
-    const p = Math.min(1, Math.max(0, (t - 0.2) / 0.25));
-    const e = 1 - (1 - p) ** 3;
-    el.style.clipPath = `inset(-0.2em ${(1 - e) * 100}% -0.2em 0)`;
-  };
-
-  /** The sun has reached the top (or Skip): the headline lifts to its place and the details come in under it. */
-  const settle = (ms: number) => {
-    if (glidingRef.current) return;
-    glidingRef.current = true;
-    openRef.current.forEach(clearTimeout);
-    setRevealed(true);
-    const el = titleRef.current;
-    el?.closest<HTMLElement>('.lp-hero')?.style.removeProperty('--sun');
-    const done = () => setIntroGone(true);
-    if (!el) {
-      done();
-      return;
-    }
-    const from = el.style.transform || 'none';
-    el.style.transform = '';
-    el.style.clipPath = '';
-    const anim = el.animate([{ transform: from }, { transform: 'none' }], {
-      duration: ms,
-      easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
-    });
-    setTimeout(done, Math.max(ms, GROUND_FADE_MS) + 50);
-    anim.onfinish = () => anim.cancel();
-  };
-
-  // The opening beats, in order: hold on the sky, push in, then let the sun rise.
-  useEffect(() => {
-    if (!playingIntro) return;
-    openRef.current = [
-      setTimeout(() => setZoomed(true), OPEN_HOLD_MS),
-      setTimeout(() => setSunStarted(true), OPEN_HOLD_MS + OPEN_SUN_DELAY_MS),
-    ];
-    return () => openRef.current.forEach(clearTimeout);
-  }, [playingIntro]);
-
-  /** The sun is at the top: let the sky stand a moment, then bring the page in. */
-  const onSunSet = () => {
-    holdRef.current = setTimeout(() => settle(GLIDE_MS), SETTLE_HOLD_MS);
-  };
-  useEffect(() => () => clearTimeout(holdRef.current), []);
-
-  const skipIntro = () => {
-    clearTimeout(holdRef.current);
-    setSkipped(true);
-    settle(SKIP_GLIDE_MS);
-  };
-
-  // Hold the scroll position until the whole reveal has landed. The document
-  // scroller here is <html>, so locking <body> alone would do nothing.
-  useEffect(() => {
-    if (!locked) return;
-    const html = document.documentElement;
-    const { body } = document;
-    const prevHtml = html.style.overflow;
-    const prevBody = body.style.overflow;
-    const prevBehavior = html.style.scrollBehavior;
-
-    // Snap to the top rather than smooth-scrolling there (the stylesheet sets
-    // `scroll-behavior: smooth`, which would animate this).
-    html.style.scrollBehavior = 'auto';
-    window.scrollTo(0, 0);
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    html.style.scrollBehavior = prevBehavior;
-
-    return () => {
-      html.style.overflow = prevHtml;
-      body.style.overflow = prevBody;
-    };
-  }, [locked]);
-
-  useEffect(() => {
-    if (!revealed || !playingIntro) return;
-    const id = setTimeout(() => setLocked(false), UNLOCK_MS);
-    return () => clearTimeout(id);
-  }, [revealed, playingIntro]);
 
   // Cross-route anchor nav: LandingNav sends { scrollTo: id } when the link
   // is clicked from a different route; finish the scroll once we've landed.
@@ -256,77 +84,49 @@ export default function WelcomePage() {
 
   return (
     <div className="lp lp-page">
-      <LandingNav
-        overlay
-        entered={playingIntro ? revealed : undefined}
-        entranceDelay={NAV_DELAY}
-      />
-
-      {playingIntro && !revealed && !skipped && (
-        <div className="lp-night lp-skip">
-          <button type="button" onClick={skipIntro} className="lp-btn lp-btn--quiet">
-            Skip
-          </button>
-        </div>
-      )}
+      <LandingNav />
 
       <main id="main">
-        {/* The night sky fills the first screen, the name centred in it with the
-            date and place beneath. */}
-        {/* The arrival plays in this same sky: the sun rises over the central
-            summit and sets behind the ridges while the name is wiped on in
-            the middle; then the name lifts and the details come in under it. */}
-        <section
-          className={`lp-hero lp-night${introGone ? '' : ' lp-hero--intro'}`}
-          data-zoom={zoomed || undefined}
-          aria-labelledby="hero-title"
-        >
-          <SkyVideo
-            behindRidges={!playingIntro || sunStarted || skipped
-              ? <SunArc rise={playingIntro && !skipped} onFrame={onSunFrame} onDone={playingIntro ? onSunSet : undefined} />
-              : null}
-          />
-          <div className="lp-hero__scrim" aria-hidden />
-          {!introGone && <div className="lp-hero__ground" data-done={revealed || undefined} aria-hidden />}
-
-          <motion.div
-            className="container lp-hero__inner"
-            variants={stagger}
-            initial={reduceMotion ? false : 'hidden'}
-            animate={revealed ? 'show' : 'hidden'}
-            custom={playingIntro ? AFTER_INTRO_DELAY : 0.1}
-          >
-            <motion.p className="lp-hero__lede" variants={rise}>
-              The Tri-Valley’s largest student-led STEAM conference
-            </motion.p>
-
-            <motion.h1 id="hero-title" className="lp-hero__title" variants={playingIntro ? undefined : rise}>
-              <span ref={titleRef} className="lp-hero__title-in">
-                <span>Emerald</span>
-                <span>Summit</span>
-              </span>
-            </motion.h1>
-
-            <motion.div className="lp-hero__aside" variants={rise}>
-              <p className="lp-hero__when">
-                <span>Saturday, January 23, 2027</span>
-                <span>9 AM to 5 PM</span>
-                <span>{VENUE}</span>
+        <section className="lp-hero" aria-labelledby="hero-title">
+          <div className="container lp-hero__inner">
+            <div className="lp-hero__copy">
+              <p className="lp-hero__lede">
+                The Tri-Valley’s largest student-led STEAM conference
               </p>
-              <div className="lp-hero__actions">
-                <button type="button" className="lp-btn" onClick={() => navigate('/home')}>
-                  Get started
-                </button>
-                <button
-                  type="button"
-                  className="lp-btn lp-btn--quiet"
-                  onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                >
-                  Learn more
-                </button>
+              <h1 id="hero-title" className="lp-hero__title">
+                Emerald<br />Summit
+              </h1>
+              <div className="lp-hero__aside">
+                <p className="lp-hero__when">
+                  <span>Saturday, January 23, 2027</span>
+                  <span>9 AM to 5 PM</span>
+                  <span>{VENUE}</span>
+                </p>
+                <div className="lp-hero__actions">
+                  <button type="button" className="lp-btn" onClick={() => navigate('/home')}>
+                    Get started
+                  </button>
+                  <button
+                    type="button"
+                    className="lp-btn lp-btn--quiet"
+                    onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  >
+                    Learn more
+                  </button>
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+            <figure className="lp-hero__photo">
+              <img
+                src={photo(19)}
+                alt="Two students show their project to a visiting expert"
+                width={1200}
+                height={798}
+                fetchPriority="high"
+              />
+              <figcaption>Projects and conversations from a previous Summit.</figcaption>
+            </figure>
+          </div>
         </section>
 
         {/* What is it? The answer, the owner's photograph, the four figures. */}

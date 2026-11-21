@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import NewDisciplineDialog from '../components/verse/NewDisciplineDialog';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
-import VerseMotif from '../components/verse/VerseMotif';
 import {
   VerseBadge,
   VersePortalProvider,
@@ -176,7 +175,7 @@ function VersePanel({
         else if (e.target === e.currentTarget) openVerse(discipline.name, originOf(e));
       }}
       className={cn(
-        'group relative overflow-hidden rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'group relative overflow-hidden rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         stacked
           ? 'min-h-[300px]'
           : 'min-w-0 cursor-pointer transition-[flex-grow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
@@ -189,14 +188,7 @@ function VersePanel({
         boxShadow: `inset 0 0 0 1px ${rgba(vibe.accent, expanded ? 0.45 : 0.22)}`,
       }}
     >
-      <VerseMotif vibe={vibe} compact={!expanded} className="absolute inset-0" />
-      <span
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `linear-gradient(180deg, ${rgba(vibe.background, 0.15)} 0%, ${rgba(vibe.background, 0.55)} 45%, ${rgba(vibe.background, 0.94)} 100%)`,
-        }}
-        aria-hidden
-      />
+
 
       {!stacked && (
         <div
@@ -313,7 +305,7 @@ function EnterButton({
       type="button"
       tabIndex={tabIndex}
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-transform hover:translate-x-0.5"
+      className="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-bold transition-transform hover:translate-x-0.5"
       style={{ background: vibe.accent, color: vibe.background }}
     >
       {label} <ArrowRight className="h-4 w-4" />

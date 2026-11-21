@@ -93,7 +93,7 @@ export default function SchedulePage() {
                 key={s.id}
                 id={`my-schedule-${s.id}`}
                 className={cn('glass rounded-2xl border p-4 sm:p-5', justAdded === s.id && 'ring-2 ring-emerald ring-offset-2 ring-offset-background')}
-                style={{ background: `linear-gradient(120deg, ${rgba(accent, 0.22)}, ${rgba(accent, 0.06)} 65%), hsl(var(--card))`, borderColor: rgba(accent, 0.3), borderLeft: `4px solid ${accent}` }}
+                style={{ background: 'hsl(var(--card))', borderColor: rgba(accent, 0.3), borderLeft: `4px solid ${accent}` }}
               >
                 <div className="flex items-start gap-4">
                   <div className="min-w-0 flex-1">

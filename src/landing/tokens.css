@@ -30,7 +30,7 @@
 
   --font-display: "Satoshi", ui-sans-serif, system-ui, sans-serif; --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; --font-outlier: "Audiowide", ui-sans-serif, system-ui, sans-serif;
   --display-weight: 700;
-  --radius-card: 14px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
+  --radius-card: 8px; --radius-control: 6px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
   --tracking-display: -0.025em;
 }
 

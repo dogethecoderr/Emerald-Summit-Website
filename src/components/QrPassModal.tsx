@@ -96,7 +96,7 @@ export default function QrPassModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         data-testid="qr-pass-modal"
-        className="glass max-w-md border-emerald-glow/30 p-6 sm:rounded-3xl shadow-2xl bg-background/95 backdrop-blur-xl"
+        className="glass max-w-md border-emerald-glow/30 p-6 sm:rounded-lg shadow-md bg-background"
       >
         <DialogHeader className="text-center sm:text-center space-y-1">
           <div className="mx-auto mb-1 inline-flex items-center gap-1.5 rounded-full bg-emerald/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-mint">
@@ -112,7 +112,7 @@ export default function QrPassModal({
         </DialogHeader>
 
         {/* Digital Pass Card */}
-        <div className="mt-2 space-y-4 rounded-2xl border border-border/80 bg-card/60 p-4 backdrop-blur-md">
+        <div className="mt-2 space-y-4 rounded-2xl border border-border/80 bg-card p-4">
           {/* User Info Header */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">

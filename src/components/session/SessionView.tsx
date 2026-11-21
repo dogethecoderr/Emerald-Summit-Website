@@ -599,7 +599,7 @@ export default function SessionView({
         {disciplineLabel && (
           <p className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: accent }}>
             <span
-              className="inline-flex h-8 w-8 items-center justify-center rounded-[10px]"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md"
               style={{ background: rgba(accent, 0.16), boxShadow: `inset 0 0 0 1px ${rgba(accent, 0.35)}` }}
             >
               <VerseIcon className="h-4 w-4" strokeWidth={2} />

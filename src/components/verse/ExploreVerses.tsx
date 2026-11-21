@@ -11,13 +11,11 @@ import {
   vibeFor,
   type VerseVibe,
 } from '../../models/verseVibes';
-import VerseMotif from './VerseMotif';
 import EighthGradeBadge from './EighthGradeBadge';
 import { EIGHTH_GRADE_BADGE, isEighthGradeParticipant } from '../../models/registration';
 import { useAuth } from '../../context/AuthContext';
 import { canEditVerse, useSummitContent, toMinutes } from '../../services/summitContent';
 import { SessionEditorDialog, type SessionEditorTarget } from './ContentEditors';
-import FlowingBorder from './FlowingBorder';
 import { growIn, useCircleReveal, type Origin } from './useCircleReveal';
 import SessionView from '../session/SessionView';
 import { toast } from 'sonner';
@@ -38,7 +36,7 @@ export function VerseBadge({ vibe, size }: { vibe: VerseVibe; size: number }) {
       style={{
         width: size,
         height: size,
-        borderRadius: size * 0.28,
+        borderRadius: 6,
         background: mixHex(vibe.background, vibe.accent, 0.18),
         border: `1px solid ${rgba(vibe.accent, 0.45)}`,
         color: vibe.accent,
@@ -167,7 +165,7 @@ function EditChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-transform hover:translate-x-0.5"
+      className="inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[13px] font-semibold transition-transform hover:translate-x-0.5"
       style={{
         background: rgba(vibe.surface, 0.6),
         color: vibe.accent,
@@ -302,7 +300,6 @@ function VersePage({
       className="fixed inset-0 z-50 overflow-hidden"
       style={{ background: vibe.background, color: vibe.text }}
     >
-      <VerseMotif vibe={vibe} className="absolute inset-0" />
       <div ref={content} className="absolute inset-0">
         <div ref={scroller} className="h-full overflow-y-auto">
           <div className="mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
@@ -310,7 +307,7 @@ function VersePage({
               ref={backButton}
               type="button"
               onClick={back}
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors"
               style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
             >
               <ChevronLeft className="h-4 w-4" /> Back
@@ -390,7 +387,6 @@ function VersePage({
           </div>
         </div>
       </div>
-      <FlowingBorder vibe={vibe} cornerRadius={0} />
       <SessionEditorDialog target={sessionEditor} onClose={() => setSessionEditor(null)} />
     </div>,
     document.body,
@@ -402,7 +398,7 @@ function ScheduleButton({ vibe, onClick }: { vibe: VerseVibe; onClick: () => voi
     <button
       type="button"
       onClick={onClick}
-      className="mt-5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-transform hover:translate-x-0.5"
+      className="mt-5 inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-bold transition-transform hover:translate-x-0.5"
       style={{ background: vibe.accent, color: vibe.background }}
     >
       Build your schedule <ChevronRight className="h-4 w-4" />

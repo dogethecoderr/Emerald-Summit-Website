@@ -37,7 +37,7 @@
     --input: 152 16% 80%;
     --ring: 160 82% 30%;
 
-    --radius: 0.9rem;
+    --radius: 0.5rem;
 
     /* Portal chrome (sidebar, auth asides, landing bands), as "r g b". */
     --navy: 16 28 54;

@@ -3,8 +3,6 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from '@/components/icons';
 import { Skeleton } from '@/components/ui/skeleton';
 import SessionView from '../components/session/SessionView';
-import FlowingBorder from '../components/verse/FlowingBorder';
-import VerseMotif from '../components/verse/VerseMotif';
 import { screenCenter, useCircleReveal, type Origin } from '../components/verse/useCircleReveal';
 import { useTheme } from '../context/ThemeContext';
 import { MOCK_SESSIONS } from '../models/sessions';
@@ -77,13 +75,12 @@ function SessionWorld({
       className="fixed inset-0 z-40 overflow-hidden"
       style={{ background: vibe.background, color: vibe.text }}
     >
-      <VerseMotif vibe={vibe} className="absolute inset-0" />
       <div ref={content} className="absolute inset-0 overflow-y-auto">
         <div className="relative mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
           <button
             type="button"
             onClick={() => close(onBack)}
-            className="mb-8 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
+            className="mb-8 inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors"
             style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
           >
             <ChevronLeft className="h-4 w-4" /> Back
@@ -91,7 +88,6 @@ function SessionWorld({
           {children}
         </div>
       </div>
-      <FlowingBorder vibe={vibe} cornerRadius={0} />
     </div>
   );
 }

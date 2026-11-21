@@ -158,7 +158,7 @@ function StatTile({
         <span className="flex-1 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
           {label}
         </span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent text-emerald">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-emerald">
           <Icon className="h-4 w-4" />
         </span>
       </div>
@@ -179,7 +179,7 @@ function AgendaRow({ item, first }: { item: AgendaItem; first: boolean }) {
       className={cn(
         'flex items-center gap-3 rounded-2xl px-3 py-4 sm:gap-5 sm:px-5',
         first
-          ? 'border border-emerald/60 bg-card shadow-[0_6px_18px_-6px_rgba(12,90,64,0.18)]'
+          ? 'border border-emerald/60 bg-card'
           : 'border border-transparent',
       )}
     >
@@ -325,11 +325,7 @@ export default function HomePage() {
     <AppShell>
       <ExpertDeclinedDialog />
       {/* hero */}
-      <section className="relative mb-5 animate-gradient-pan overflow-hidden rounded-3xl bg-[linear-gradient(115deg,#0B2E22_0%,#0A5F43_25%,#0F8C62_50%,#0A5F43_75%,#0B2E22_100%)] bg-[length:300%_300%] p-6 text-white motion-reduce:animate-none sm:p-8">
-        <div
-          className="pointer-events-none absolute -right-16 -top-40 h-[420px] w-[420px] rounded-full bg-emerald-300/30 blur-[110px]"
-          aria-hidden
-        />
+      <section className="relative mb-5 overflow-hidden rounded-lg bg-emerald-deep p-6 text-white sm:p-8">
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
           <div className="min-w-0 flex-1">
             <div className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-emerald-300">
@@ -349,7 +345,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => navigate(primaryAction.to)}
-                  className="inline-flex items-center gap-2 rounded-[10px] bg-white px-4 py-2.5 text-sm font-semibold text-emerald-deep transition-colors hover:bg-emerald-50"
+                  className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-semibold text-emerald-deep transition-colors hover:bg-emerald-50"
                 >
                   <primaryAction.icon className="h-4 w-4" />
                   {primaryAction.label}
@@ -358,7 +354,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => navigate('/announcements')}
-                className="inline-flex items-center gap-2 rounded-[10px] border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20"
               >
                 Latest announcements <ArrowRight className="h-4 w-4" />
               </button>
@@ -366,7 +362,7 @@ export default function HomePage() {
           </div>
 
           {canSchedule && (
-            <div className="w-full rounded-[18px] border border-white/20 bg-white/10 p-5 backdrop-blur-sm lg:w-[360px] lg:shrink-0">
+            <div className="w-full rounded-lg border border-white/20 bg-white/10 p-5 lg:w-[360px] lg:shrink-0">
               {next ? (
                 <>
                   <div className="flex items-center justify-between gap-2">
@@ -436,7 +432,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => navigate('/schedule')}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-border bg-card px-3 py-2 text-[13px] font-semibold transition-colors hover:border-emerald/40"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-[13px] font-semibold transition-colors hover:border-emerald/40"
                   >
                     View schedule <ArrowRight className="h-3.5 w-3.5" />
                   </button>
@@ -453,7 +449,7 @@ export default function HomePage() {
                   <button
                     type="button"
                     onClick={() => navigate(ownKind === 'volunteering' ? '/schedule' : '/disciplines')}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-emerald px-4 py-2 text-[13px] font-semibold text-white hover:bg-emerald-deep"
                   >
                     {scheduleLabel} <ArrowRight className="h-3.5 w-3.5" />
                   </button>
@@ -477,7 +473,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => navigate('/account')}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-full bg-sky-200 px-3 py-2 text-[12.5px] font-semibold text-navy transition-colors hover:bg-sky-100"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md bg-sky-200 px-3 py-2 text-[12.5px] font-semibold text-navy transition-colors hover:bg-sky-100"
                     >
                       <QrCode className="h-4 w-4 shrink-0" />
                       <span>My QR Pass</span>

@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import GetTheAppBanner from './components/GetTheAppBanner';
+import PageRouteBoundary from './components/PageRouteBoundary';
 // Eager: the landing page is the most common entry point, so it ships in the
 // main bundle rather than costing a round-trip on first paint. Every other
 // route — including the drag-and-drop scheduler and its dnd/redux
@@ -41,7 +42,7 @@ export default function App() {
     <>
       <ScrollToTop />
       <GetTheAppBanner />
-      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <PageRouteBoundary>
         <Routes>
           <Route path="/" element={<WelcomePage />} />
           <Route path="/home" element={<HomePage />} />
@@ -75,7 +76,7 @@ export default function App() {
           <Route path="/follow-up" element={<SummitFollowupPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
+      </PageRouteBoundary>
     </>
   );
 }

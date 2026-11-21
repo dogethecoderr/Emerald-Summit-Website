@@ -67,14 +67,7 @@ export default function GetTheAppBanner() {
 
   useEffect(() => {
     if (!offer) return;
-    // The landing page's intro owns the bottom of the screen (its Skip button)
-    // while it plays, so wait for that to finish too.
-    let timer = 0;
-    const check = () => {
-      if (document.querySelector('.lp-skip')) timer = window.setTimeout(check, 1000);
-      else setVisible(true);
-    };
-    timer = window.setTimeout(check, SHOW_DELAY_MS);
+    const timer = window.setTimeout(() => setVisible(true), SHOW_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [offer]);
 
@@ -98,13 +91,13 @@ export default function GetTheAppBanner() {
           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="relative flex items-center gap-3 rounded-2xl border border-border bg-card p-3 pr-3 text-card-foreground shadow-xl shadow-black/15">
+          <div className="relative flex items-center gap-3 rounded-2xl border border-border bg-card p-3 pr-3 text-card-foreground shadow-md">
             <img
               src="/apple-touch-icon-dragon.png"
               alt=""
               width={48}
               height={48}
-              className="h-12 w-12 shrink-0 rounded-[12px] ring-1 ring-black/5"
+              className="h-12 w-12 shrink-0 rounded-lg ring-1 ring-black/5"
             />
             <div className="min-w-0 flex-1 pr-1">
               <p className="text-[14px] font-semibold leading-snug">Better in the app</p>
@@ -126,7 +119,7 @@ export default function GetTheAppBanner() {
                 setVisible(false);
               }}
               aria-label={`Get the app on ${store}`}
-              className="shrink-0 rounded-full bg-emerald px-5 py-2 text-[13.5px] font-semibold text-white transition-colors hover:bg-emerald/90"
+              className="shrink-0 rounded-md bg-emerald px-5 py-2 text-[13.5px] font-semibold text-white transition-colors hover:bg-emerald/90"
             >
               Get
             </a>

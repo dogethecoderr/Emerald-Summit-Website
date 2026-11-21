@@ -91,7 +91,7 @@ function SidebarLink({ to, label, icon: Icon }: NavItem) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'group flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13.5px] font-medium text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white',
+          'group flex items-center gap-3 rounded-md px-3 py-2 text-[13.5px] font-medium text-white/65 transition-colors hover:bg-white/[0.06] hover:text-white',
           isActive &&
             'bg-white/[0.12] font-semibold text-white hover:bg-white/[0.12]',
         )
@@ -177,7 +177,7 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
 
   return (
     <div className="relative w-full max-w-[440px]">
-      <label className="flex items-center gap-2.5 rounded-[10px] border border-border bg-secondary/70 px-3 py-2 transition-colors focus-within:border-emerald/40 focus-within:bg-card">
+      <label className="flex items-center gap-2.5 rounded-md border border-border bg-secondary/70 px-3 py-2 transition-colors focus-within:border-emerald/40 focus-within:bg-card">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           ref={inputRef}
@@ -212,7 +212,7 @@ function GlobalSearch({ items }: { items: NavItem[] }) {
         </kbd>
       </label>
       {open && query.trim() && (
-        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-xl shadow-emerald-deep/10">
+        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-md">
           {hits.length === 0 ? (
             <div className="px-3 py-4 text-center text-[13px] text-muted-foreground">
               No matches for “{query.trim()}”
@@ -337,25 +337,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {isQrEligible && (
           <div className="relative overflow-hidden rounded-2xl bg-[#0b1428] p-4 ring-1 ring-inset ring-white/10">
-            <svg
-              className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 text-white/[0.07]"
-              viewBox="0 0 160 160"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden
-            >
-              <circle cx="120" cy="40" r="30" />
-              <circle cx="120" cy="40" r="55" />
-              <circle cx="120" cy="40" r="80" />
-            </svg>
             <div className="relative font-display text-[17px] font-bold leading-snug">
               Your Summit pass, one tap away
             </div>
             <button
               type="button"
               onClick={() => setQrPassOpen(true)}
-              className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-sky-200 px-3.5 py-2 text-[13px] font-semibold text-navy transition-colors hover:bg-sky-100"
+              className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-sky-200 px-3.5 py-2 text-[13px] font-semibold text-navy transition-colors hover:bg-sky-100"
             >
               <QrCode className="h-4 w-4 shrink-0" />
               <span>My QR Pass</span>
@@ -407,7 +395,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 hidden items-center gap-4 border-b border-border/80 bg-card/85 px-8 py-3 backdrop-blur-xl lg:flex">
+        <header className="sticky top-0 z-20 hidden items-center gap-4 border-b border-border/80 bg-card px-8 py-3 lg:flex">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
             <span className="text-muted-foreground">Portal</span>
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -426,7 +414,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <NavLink
               to="/notifications"
               aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-              className="relative rounded-[10px] border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="relative rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
             >
               <Bell className="h-[18px] w-[18px]" />
               {hasUnread && (
@@ -451,7 +439,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setQrPassOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-sky-200 px-3 py-1.5 text-xs font-semibold text-navy transition-colors hover:bg-sky-100"
+                className="flex items-center gap-1.5 rounded-md bg-sky-200 px-3 py-1.5 text-xs font-semibold text-navy transition-colors hover:bg-sky-100"
               >
                 <QrCode className="h-3.5 w-3.5" />
                 <span>My QR Pass</span>

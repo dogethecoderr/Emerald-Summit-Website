@@ -22,7 +22,7 @@ interface Props {
 }
 
 const BUTTON_CLASS =
-  'h-12 w-full gap-3 rounded-xl bg-navy text-[15px] font-semibold text-white shadow-[0_10px_30px_-14px_rgba(16,28,54,0.8)] hover:bg-navy-bright dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90';
+  'h-12 w-full gap-3 rounded-xl bg-navy text-[15px] font-semibold text-white hover:bg-navy-bright dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90';
 
 /**
  * Google's own "Continue with Google" button. Its popup names this website, not

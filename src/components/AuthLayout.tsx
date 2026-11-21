@@ -1,9 +1,4 @@
-// Split sign-in layout, adapted from "Split Login" (Hirael login-03, MIT,
-// Mohammad Shehadeh, https://github.com/MohammadShehadeh/hirael) found via
-// 21st.dev: a decorative aside of flowing paths beside a focused sign-in pane,
-// with a back link and staggered entrances. Reworked for Emerald Summit: the
-// aside is the portal's navy, the paths take the role's color, and they move
-// with a CSS stroke animation instead of per-frame JavaScript.
+// Shared sign-in layout: a flat branded aside and a focused form pane.
 import ThemeToggle from './ThemeToggle';
 import type { CSSProperties, ReactNode } from 'react';
 import { ChevronLeft, type LucideIcon } from '@/components/icons';
@@ -18,55 +13,9 @@ export const authStagger = (index: number, step = 60): CSSProperties => ({
   animationDelay: `${index * step}ms`,
 });
 
-/** Deterministic 0–1 per index, so path timings don't reshuffle per render. */
-const jitter = (i: number) => {
-  const v = Math.sin(i + 1) * 10_000;
-  return v - Math.floor(v);
-};
-
-function FlowingPaths({ position, color }: { position: number; color: string }) {
-  const paths = Array.from({ length: 22 }, (_, k) => {
-    const i = k * 1.6;
-    return {
-      id: k,
-      d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${
-        312 - i * 5 * position
-      } ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${
-        684 - i * 5 * position
-      } ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
-      width: 0.5 + i * 0.03,
-      opacity: 0.14 + k * 0.035,
-      duration: 22 + jitter(k) * 12,
-    };
-  });
-  return (
-    <svg
-      className="absolute inset-0 h-full w-full"
-      fill="none"
-      viewBox="0 0 696 316"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden
-    >
-      {paths.map((p) => (
-        <path
-          key={p.id}
-          d={p.d}
-          pathLength={1}
-          stroke={color}
-          strokeOpacity={Math.min(p.opacity, 0.85)}
-          strokeWidth={p.width}
-          strokeDasharray="0.4 0.6"
-          className="motion-safe:animate-[auth-path_linear_infinite]"
-          style={{ animationDuration: `${p.duration}s` }}
-        />
-      ))}
-    </svg>
-  );
-}
-
 /**
  * Two-column auth page: a navy aside (brand, the role or page identity, and
- * flowing paths in `accent`) and a pane for the form. Collapses to the pane
+ * a simple role marker in `accent`) and a pane for the form. Collapses to the pane
  * alone on small screens, with the brand shown above the content.
  */
 export default function AuthLayout({
@@ -81,7 +30,7 @@ export default function AuthLayout({
 }: {
   /** A narrower aside and a wider form column, for long forms like profile setup. */
   wide?: boolean;
-  /** Hex color for the paths and the identity tile. */
+  /** Hex color for the role marker. */
   accent: string;
   icon: LucideIcon;
   /** Small label over the aside title, e.g. "Sign in". */
@@ -95,16 +44,6 @@ export default function AuthLayout({
   return (
     <section className={cn('relative min-h-svh overflow-x-clip bg-background lg:grid', wide ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,2.5fr)]' : 'lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]')}>
       <aside className="relative hidden h-svh flex-col overflow-hidden bg-navy p-10 text-white dark:border-r dark:border-white/10 lg:sticky lg:top-0 lg:flex xl:p-14">
-        <div className="absolute inset-0 opacity-90">
-          <FlowingPaths position={1} color={accent} />
-          <FlowingPaths position={-1} color={accent} />
-        </div>
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgb(var(--navy) / 0) 30%, rgb(var(--navy) / 0.6) 72%, rgb(var(--navy)))' }}
-        />
-
         <div className={cn(AUTH_ENTER, 'relative z-10')}>
           <BrandMark
             logoClassName="h-11 w-11"
@@ -116,7 +55,7 @@ export default function AuthLayout({
 
         <div style={authStagger(3)} className={cn(AUTH_ENTER, 'relative z-10 my-auto pb-28')}>
           <span
-            className="flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg"
+            className="flex h-14 w-14 items-center justify-center rounded-md text-white"
             style={{ background: accent }}
           >
             <Icon className="h-7 w-7" strokeWidth={1.9} />
@@ -132,17 +71,6 @@ export default function AuthLayout({
       </aside>
 
       <div className={cn('relative flex min-h-svh flex-col justify-center px-6 py-20 sm:px-10', wide ? 'pt-28 lg:pb-20 lg:pt-36' : 'lg:py-16')}>
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -right-24 -top-40 h-[520px] w-[520px] rounded-full opacity-60"
-            style={{ background: `radial-gradient(closest-side, ${accent}22, transparent)` }}
-          />
-          <div
-            className="absolute -bottom-48 -left-24 h-[420px] w-[420px] rounded-full opacity-50"
-            style={{ background: 'radial-gradient(closest-side, rgba(12,122,85,0.14), transparent)' }}
-          />
-        </div>
-
         <button
           type="button"
           onClick={onBack}

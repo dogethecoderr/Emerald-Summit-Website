@@ -36,7 +36,7 @@ export default function ThemeToggle({
       <DropdownMenuTrigger
         aria-label={`Theme: ${current.label}`}
         className={cn(
-          'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-[10px] text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+          'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md text-[13px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
           labels ? 'px-3' : 'w-9',
           tone === 'onDark'
             ? 'bg-white/[0.08] text-white/80 ring-1 ring-inset ring-white/15 hover:bg-white/15 hover:text-white'
