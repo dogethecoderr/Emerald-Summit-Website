@@ -9,19 +9,19 @@ import {
 } from 'framer-motion';
 import SummitLogo from './SummitLogo';
 import { useIsPhoneScreen } from '../lib/device';
-import { toMinutes, useSummitContent } from '../services/summitContent';
+import { useSummitContent } from '../services/summitContent';
+import { orderTracks } from '../models/trackOrder';
 import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
 import { MOCK_SESSIONS } from '../models/sessions';
 
 /**
- * A discipline's sessions by title, earliest first: tracks are sessions. Not the
+ * A discipline's sessions by title, in its description's order (models/trackOrder.ts): tracks are sessions. Not the
  * session's `track` column, which some rows fill with the discipline's own name
  * ("NovaSphere") or a group ("Engineering Track"), so it named the discipline as
  * a track and folded sessions that share it into one.
  */
 function sessionTitles(discipline: string): string[] {
-  const titles = MOCK_SESSIONS.filter((s) => s.track === discipline)
-    .sort((a, b) => toMinutes(a.time) - toMinutes(b.time))
+  const titles = orderTracks(discipline, MOCK_SESSIONS.filter((s) => s.track === discipline))
     .map((s) => s.title.trim())
     .filter(Boolean);
   return [...new Set(titles)];

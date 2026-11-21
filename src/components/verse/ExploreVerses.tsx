@@ -15,7 +15,8 @@ import VerseMotif from './VerseMotif';
 import EighthGradeBadge from './EighthGradeBadge';
 import { EIGHTH_GRADE_BADGE, isEighthGradeParticipant } from '../../models/registration';
 import { useAuth } from '../../context/AuthContext';
-import { canEditVerse, useSummitContent, toMinutes } from '../../services/summitContent';
+import { canEditVerse, useSummitContent } from '../../services/summitContent';
+import { orderTracks } from '../../models/trackOrder';
 import { SessionEditorDialog, type SessionEditorTarget } from './ContentEditors';
 import FlowingBorder from './FlowingBorder';
 import { growIn, useCircleReveal, type Origin } from './useCircleReveal';
@@ -23,10 +24,9 @@ import SessionView from '../session/SessionView';
 import { toast } from 'sonner';
 import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../../services/siteSwitches';
 
+/** A discipline's tracks, grouped the way its description reads (see models/trackOrder.ts). */
 export function sessionsFor(id: string): Session[] {
-  return MOCK_SESSIONS.filter((s) => s.track === id).sort(
-    (a, b) => toMinutes(a.time) - toMinutes(b.time),
-  );
+  return orderTracks(id, MOCK_SESSIONS.filter((s) => s.track === id));
 }
 
 /** A verse's mark on a tinted square in its colors (mobile: DisciplineBadge). */
@@ -337,7 +337,7 @@ function VersePage({
                   </p>
                   <p className="mt-4 text-[15px]">
                     <span className="font-bold">
-                      {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
+                      {sessions.length} {sessions.length === 1 ? 'track' : 'tracks'}
                     </span>
                     , {seatsOpen} seats open
                     {onDay > 0 && (
@@ -368,7 +368,11 @@ function VersePage({
                     Tracks marked "{EIGHTH_GRADE_BADGE}" are the ones you can participate in. You can spectate any of them.
                   </p>
                 )}
-                <div className="grid gap-3 sm:grid-cols-2">
+                {/* Fills down the first column, then the second, so each group reads as a column (TechVerse: tech, then engineering). */}
+                <div
+                  className="grid gap-3 sm:grid-flow-col sm:grid-cols-2 sm:[grid-template-rows:repeat(var(--rows),auto)]"
+                  style={{ '--rows': Math.max(1, Math.ceil(sessions.length / 2)) } as React.CSSProperties}
+                >
                   {sessions.length === 0 && (
                     <p style={{ color: vibe.textDim }}>No tracks in this discipline yet.</p>
                   )}

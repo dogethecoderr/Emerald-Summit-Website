@@ -125,8 +125,6 @@ export default function WelcomePage() {
   const [badge, setBadge] = useState(-1);
   // The badge picked so far, read synchronously by the click (state lags a render).
   const badgeRef = useRef(-1);
-  // A touch picks a badge on its first tap; only a tap on the badge already out opens sign-up.
-  const badgeTap = useRef<{ before: number; touch: boolean }>({ before: -1, touch: false });
   const pickBadge = (i: number) => {
     badgeRef.current = i;
     setBadge(i);
@@ -403,12 +401,8 @@ export default function WelcomePage() {
             {/* The figure is a picture for screen readers; the role rows beside it are the real links. */}
             <figure
               className="lp-roles__figure"
-              onPointerDownCapture={(e) => { badgeTap.current = { before: badgeRef.current, touch: e.pointerType !== 'mouse' }; }}
-              onClick={() => {
-                const i = badgeRef.current;
-                if (i < 0 || (badgeTap.current.touch && badgeTap.current.before !== i)) return;
-                navigate(signUpPath(BADGE_ROLES[i].name));
-              }}
+              // Any badge opens the roles page, where people pick how they're joining.
+              onClick={() => { if (badgeRef.current >= 0) navigate('/roles'); }}
             >
               <HairlineFigure
                 name="badges"
