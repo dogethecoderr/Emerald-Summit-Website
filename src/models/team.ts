@@ -27,6 +27,8 @@ export interface TeamMember {
   id: string;
   name: string;
   role: string;
+  /** Square headshot under /public; members without one get the silhouette placeholder. */
+  photo?: string;
   bio: string;
   affiliations: readonly TeamLinkKey[];
   /** Includes role-label aliases as well as the submitted paragraph wording. */
@@ -37,6 +39,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
   {
     "id": "deep-shah",
     "name": "Deep Shah",
+    "photo": "/team/deep-shah.jpg",
     "role": "Engineering Exhibits Track Lead",
     "bio": "The track I am leading for the Summit is the Engineering Exhibits track, where kids show their creations to a panel of judges. As an 11th grader that enjoys sports, I am allowing for people to do projects to solve any problem. Even in areas like playing golf, which is my hobby, I am planning on building a robot that helps individuals play better.",
     "affiliations": [
@@ -67,6 +70,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
   {
     "id": "rishi-krishnan",
     "name": "Rishi Krishnan",
+    "photo": "/team/rishi-krishnan.jpg",
     "role": "Engineering Exhibits & CADathon Track Lead",
     "bio": "I am in 11th grade, and am leading the Engineering Exhibit and CADathon in the summit. Some of my hobbies include piano and playing chess. Within engineering, areas that I am passionate about include Computer-Aided Design, sustainability, and product design. One fun fact about me is that I love the San Francisco 49ers.",
     "affiliations": [
@@ -116,6 +120,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
   {
     "id": "kashvi-gupta",
     "name": "Kashvi Gupta",
+    "photo": "/team/kashvi-gupta.jpg",
     "role": "Computer Science Presentations Track Lead",
     "bio": "Hi, my name is Kashvi and I'm a junior at Emerald High School. For the Emerald summit, I am leading the computer science presentations track and I am really excited to see what people will construct through my track. For a little bit about me, one of my biggest hobbies is reading books, especially books in the fantasy genre.",
     "affiliations": [
@@ -154,6 +159,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
   {
     "id": "prisha-chandra",
     "name": "Prisha Chandra",
+    "photo": "/team/prisha-chandra.jpg",
     "role": "Track Lead: AI Playground and Marketing",
     "bio": "Hi my name is Prisha and I'm a junior at Emerald High leading the Marketing Track and the AI Playground Track for Summit 2027! Some of my hobbies are cooking and a reading. A fun fact about me is that I've been swimming and dancing competitively for years and now I coach kids in the sports I love!",
     "affiliations": [
@@ -240,6 +246,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
   {
     "id": "riddhi-krishnan",
     "name": "Riddhi Krishnan",
+    "photo": "/team/riddhi-krishnan.jpg",
     "role": "Event Organization Lead",
     "bio": "My name is Riddhi, and I'm in 11th grade. I'm one of the event organization leads for Emerald Summit '27! When I'm not studying or planning the summit, I love to read, sing, play the piano, and listen to music. One fun fact about me is that my favorite movie is Tangled!",
     "affiliations": [],

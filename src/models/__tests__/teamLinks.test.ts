@@ -61,3 +61,11 @@ test('the Team runs organizers first, then by discipline, a discipline lead befo
   expect(sorted[2].role).toMatch(/TechVerse Engineering Lead/);
   expect(sorted.length).toBe(TEAM_MEMBERS.length);
 });
+
+test('every team photo points at a file in public/', async () => {
+  const { existsSync } = await import('node:fs');
+  const { TEAM_MEMBERS } = await import('../team');
+  const photos = TEAM_MEMBERS.flatMap((m) => (m.photo ? [m.photo] : []));
+  expect(photos.length).toBeGreaterThan(0);
+  for (const photo of photos) expect(existsSync(`public${photo}`), photo).toBe(true);
+});
