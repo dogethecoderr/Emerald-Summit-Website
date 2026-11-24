@@ -80,6 +80,13 @@
 .lp-nav__link:hover { color: var(--color-night-ink); background: var(--color-night-2); }
 .lp-nav__link[aria-current="page"] { color: var(--color-night-accent); }
 .lp-nav__link:active { transform: translateY(1px); }
+.lp-nav__group { position: relative; }
+.lp-nav__caret { width: 14px; height: 14px; margin-left: 4px; transition: transform var(--dur-short) var(--ease-out); }
+.lp-nav__group [aria-expanded="true"] .lp-nav__caret { transform: rotate(180deg); }
+/* padding-top bridges the gap under the button so the pointer can reach the panel without it closing. */
+.lp-nav__dropdown { position: absolute; top: 100%; left: 0; z-index: 10; padding-top: 6px; }
+.lp-nav__dropdown-panel { display: grid; gap: 2px; min-width: 11rem; padding: var(--space-2xs); border: 1px solid var(--color-night-rule); border-radius: var(--radius-card); background: var(--color-night); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.lp-nav__dropdown .lp-nav__link { width: 100%; justify-content: flex-start; border-radius: calc(var(--radius-card) - 4px); }
 .lp-nav__actions { display: flex; align-items: center; gap: var(--space-sm); }
 .lp-nav__actions .lp-btn { min-height: 44px; }
 .lp-nav__menu-btn { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-night-ink); cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
@@ -89,15 +96,19 @@
 .lp-nav__sheet-list { display: grid; gap: var(--space-2xs); }
 .lp-nav__sheet .lp-nav__link { justify-content: flex-start; border-radius: var(--radius-card); width: 100%; text-align: left; }
 .lp-nav__sheet .lp-btn { width: 100%; margin-top: var(--space-sm); }
-/* Nine links since Donate (Nov 23, 2026): tighter on laptop widths, and the
-   phone menu takes over below 72rem, where even tight links would run off
-   (they overflowed up to about 71rem). */
-@media (max-width: 82rem) {
+.lp-nav__sheet-group { display: grid; gap: var(--space-2xs); }
+.lp-nav__sheet-label { margin: var(--space-xs) 0 0; padding-inline: var(--space-md); color: var(--color-night-muted); font: 600 var(--text-sm)/1.4 var(--font-body); letter-spacing: 0.04em; text-transform: uppercase; }
+.lp-nav__sheet-group .lp-nav__link { padding-left: calc(var(--space-md) * 2); }
+/* Six items since Keynote, Experts, Team and Sponsors moved under one
+   "Summit '27" menu (Nov 24, 2026): the bar needs about 995px with tight
+   padding, so links tighten below 72rem and the phone menu takes over below
+   64rem (it was 82rem / 72rem with nine separate links). */
+@media (max-width: 72rem) {
   .lp-nav__inner { gap: var(--space-sm); }
   .lp-nav__links { gap: 0; }
   .lp-nav__links .lp-nav__link { padding-inline: var(--space-sm); }
 }
-@media (max-width: 72rem) {
+@media (max-width: 64rem) {
   .lp-nav__links, .lp-nav__actions { display: none; }
   .lp-nav__menu-btn { display: inline-flex; }
 }

@@ -17,6 +17,7 @@ export default function BrandMark({
   subtitle = 'EHS Academic Foundation',
   showSubtitle = true,
   className,
+  logoProps,
 }: {
   logoClassName?: string;
   titleClassName?: string;
@@ -26,6 +27,8 @@ export default function BrandMark({
   subtitle?: ReactNode;
   showSubtitle?: boolean;
   className?: string;
+  /** Extra attributes for the logo box (the landing nav marks it as the Summit '27 intro's landing spot). */
+  logoProps?: Record<`data-${string}`, string>;
 }) {
   return (
     <Link
@@ -34,6 +37,7 @@ export default function BrandMark({
       className={cn('group flex items-center', gap, className)}
     >
       <div
+        {...logoProps}
         className={cn(
           'shrink-0 transition-transform duration-200 group-hover:scale-105',
           logoClassName,

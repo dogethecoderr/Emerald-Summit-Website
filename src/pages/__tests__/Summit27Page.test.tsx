@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Summit27Page from '../Summit27Page';
@@ -46,12 +46,25 @@ describe("Summit '27 page", () => {
     expect(screen.queryByRole('list', { name: 'Sponsor tiers, highest first' })).not.toBeInTheDocument();
   });
 
-  test('the landing navbar has no Summit \'27 link', () => {
+  test("the landing navbar's Summit '27 menu opens on hover or click and closes on Escape", async () => {
+    const user = userEvent.setup();
     render(<MemoryRouter><LandingNav /></MemoryRouter>);
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByText("Summit '27")).not.toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    const summit = within(nav).getByRole('button', { name: "Summit '27" });
+    expect(summit).toHaveAttribute('aria-expanded', 'false');
+    await user.hover(summit);
+    expect(summit).toHaveAttribute('aria-expanded', 'true');
+    // A click after the hover keeps it open rather than toggling it shut.
+    await user.click(summit);
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(
+      ['About', 'Disciplines', "Summit '27", 'Keynote', 'Experts', 'Team', 'Sponsors', 'FAQ', 'Donate', 'Contact'],
+    );
+    await user.keyboard('{Escape}');
+    expect(summit).toHaveAttribute('aria-expanded', 'false');
+    expect(summit).toHaveFocus();
   });
 
-  test('the landing navbar has Sponsors, Keynote, Experts and Team after Disciplines, Donate before Contact; Team opens the Keynote, Experts & Team page', async () => {
+  test("the landing navbar groups Keynote, Experts, Team and Sponsors under Summit '27; Team opens the Keynote, Experts & Team page", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -63,9 +76,11 @@ describe("Summit '27 page", () => {
     );
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(
-      ['About', 'Disciplines', 'Sponsors', 'Keynote', 'Experts', 'Team', 'FAQ', 'Donate', 'Contact'],
+      ['About', 'Disciplines', "Summit '27", 'FAQ', 'Donate', 'Contact'],
     );
-    await user.click(within(nav).getByRole('button', { name: 'Team' }));
+    await user.click(within(nav).getByRole('button', { name: "Summit '27" }));
+    // fireEvent: user-event's pointer move between buttons reads as leaving the menu in jsdom (no relatedTarget), closing it.
+    fireEvent.click(within(nav).getByRole('button', { name: 'Team' }));
     // All three on one page, Experts between Keynote and Team.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Keynote', 'Experts', 'Team']);

@@ -195,10 +195,12 @@
   }
 }
 
-/* Summit '27's intro (Summit27Intro.tsx): the Support EAF card's logo stays
-   hidden until the intro's flying copy lands on it, and the heading's letters
+/* Summit '27's intro (Summit27Intro.tsx): the Support EAF card's logo (or, on
+   public pages, the landing navbar's) stays hidden until the intro's flying
+   copy lands on it, and the heading's letters
    until they roll in. */
-body.summit-intro [data-summit-eaf-logo] {
+body.summit-intro [data-summit-eaf-logo],
+body.summit-intro [data-summit-nav-logo] {
   visibility: hidden;
 }
 body.summit-intro [data-summit-roll] > * {

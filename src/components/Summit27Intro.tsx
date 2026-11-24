@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import SummitLogo from './SummitLogo';
 import { reducedMotion } from './verse/useCircleReveal';
 import { EASE_IN_OUT, EASE_OUT } from '@/lib/motion';
@@ -18,6 +17,8 @@ const WAIT_MAX_MS = 4000; // longest to wait for Summit '27 to load before clear
 
 /** The Support EAF card's logo on Summit '27, where the flying logo lands. */
 export const EAF_LOGO_ATTR = 'data-summit-eaf-logo';
+/** The landing navbar's logo: where it lands on public pages, which have no Support EAF card. */
+export const NAV_LOGO_ATTR = 'data-summit-nav-logo';
 /** The "Summit '27" heading, whose letters roll in as the blur clears. */
 export const ROLL_ATTR = 'data-summit-roll';
 /** On <body> while the intro runs: hides that logo and heading until their turn (index.css). */
@@ -25,7 +26,7 @@ const BODY_CLASS = 'summit-intro';
 /** sessionStorage: the intro plays once per browser session. */
 const PLAYED_KEY = 'summit27-intro-played';
 
-const listeners = new Set<(to: string) => void>();
+const listeners = new Set<(go: () => void) => void>();
 
 function playedThisSession(): boolean {
   try {
@@ -50,12 +51,21 @@ function markPlayed() {
  * caller passes its own `navigate`).
  */
 export function openSummit27(to: string, navigate: (to: string) => void) {
+  playSummit27Intro(() => navigate(to));
+}
+
+/**
+ * Runs `go` (the navigation) under the intro the first time this browser
+ * session, or straight away otherwise. The landing navbar's Summit '27 menu
+ * uses it so its links can carry their scroll-to-section state.
+ */
+export function playSummit27Intro(go: () => void) {
   if (listeners.size === 0 || reducedMotion() || playedThisSession()) {
-    navigate(to);
+    go();
     return;
   }
   markPlayed();
-  listeners.forEach((l) => l(to));
+  listeners.forEach((l) => l(go));
 }
 
 /**
@@ -67,20 +77,19 @@ export function openSummit27(to: string, navigate: (to: string) => void) {
  * as the blur clears. A click or Escape skips it.
  */
 export default function Summit27IntroHost() {
-  const [to, setTo] = useState<string | null>(null);
+  const [go, setGo] = useState<(() => void) | null>(null);
   useEffect(() => {
-    const l = (next: string) => setTo((cur) => cur ?? next);
+    const l = (next: () => void) => setGo((cur) => cur ?? next);
     listeners.add(l);
     return () => {
       listeners.delete(l);
     };
   }, []);
-  if (!to) return null;
-  return <Intro to={to} onDone={() => setTo(null)} />;
+  if (!go) return null;
+  return <Intro go={go} onDone={() => setGo(null)} />;
 }
 
-function Intro({ to, onDone }: { to: string; onDone: () => void }) {
-  const navigate = useNavigate();
+function Intro({ go, onDone }: { go: () => void; onDone: () => void }) {
   const blur = useRef<HTMLDivElement>(null);
   const glow = useRef<HTMLDivElement>(null);
   const flier = useRef<HTMLDivElement>(null);
@@ -89,8 +98,8 @@ function Intro({ to, onDone }: { to: string; onDone: () => void }) {
   const skip = useRef<() => void>(() => {});
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
-  const navRef = useRef(navigate);
-  navRef.current = navigate;
+  const goRef = useRef(go);
+  goRef.current = go;
 
   useLayoutEffect(() => {
     const b = blur.current;
@@ -107,7 +116,7 @@ function Intro({ to, onDone }: { to: string; onDone: () => void }) {
     const swap = () => {
       if (swapped) return;
       swapped = true;
-      navRef.current(to);
+      goRef.current();
     };
     const stop = () => {
       timers.forEach((t) => window.clearTimeout(t));
@@ -220,7 +229,7 @@ function Intro({ to, onDone }: { to: string; onDone: () => void }) {
     let found = 0;
     const seek = () => {
       if (ended) return;
-      const el = document.querySelector(`[${EAF_LOGO_ATTR}]`);
+      const el = document.querySelector(`[${EAF_LOGO_ATTR}]`) ?? document.querySelector(`[${NAV_LOGO_ATTR}]`);
       const spot = el?.getBoundingClientRect();
       if (spot && spot.width > 0) {
         // Two frames after it appears, so the page has laid out.
@@ -233,7 +242,7 @@ function Intro({ to, onDone }: { to: string; onDone: () => void }) {
     rise.finished.then(() => later(seek, HOLD_MS), () => {});
 
     return stop;
-  }, [to]);
+  }, [go]);
 
   // The page stays put under the blur, the card's logo hides until the flying
   // one lands, and Escape skips the intro.

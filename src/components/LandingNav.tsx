@@ -3,19 +3,26 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { EASE_OUT_ARRAY } from '@/lib/motion';
-import { Menu, X } from '@/components/icons';
+import { ChevronDown, Menu, X } from '@/components/icons';
 import BrandMark from './BrandMark';
+import { NAV_LOGO_ATTR, playSummit27Intro } from './Summit27Intro';
 import { cn } from '@/lib/utils';
 
 /** Keynote, Experts and Team live on their own page (KeynoteTeamPage); the rest are sections of "/". */
 const KEYNOTE_TEAM_PATH = '/keynote-and-team';
-const SECTION_LINKS: { id: string; label: string; path?: string }[] = [
-  { id: 'about', label: 'About' },
-  { id: 'disciplines', label: 'Disciplines' },
-  { id: 'sponsors', label: 'Sponsors' },
+type SectionLink = { id: string; label: string; path?: string };
+/** Grouped under one "Summit '27" menu so the bar isn't nine links wide. */
+const SUMMIT_LINKS: SectionLink[] = [
   { id: 'keynote', label: 'Keynote', path: KEYNOTE_TEAM_PATH },
   { id: 'experts', label: 'Experts', path: KEYNOTE_TEAM_PATH },
   { id: 'team', label: 'Team', path: KEYNOTE_TEAM_PATH },
+  { id: 'sponsors', label: 'Sponsors' },
+];
+const SUMMIT_LABEL = "Summit '27";
+const SECTION_LINKS: (SectionLink | 'summit')[] = [
+  { id: 'about', label: 'About' },
+  { id: 'disciplines', label: 'Disciplines' },
+  'summit',
   { id: 'faq', label: 'FAQ' },
   { id: 'donate', label: 'Donate' },
   { id: 'contact', label: 'Contact' },
@@ -53,6 +60,8 @@ export default function LandingNav({
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [summitOpen, setSummitOpen] = useState(false);
+  const summitBtnRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -82,6 +91,7 @@ export default function LandingNav({
 
   const goToSection = (id: string, path = '/') => {
     setOpen(false);
+    setSummitOpen(false);
     if (location.pathname === path) {
       document
         .getElementById(id)
@@ -89,6 +99,12 @@ export default function LandingNav({
     } else {
       navigate(path, { state: { scrollTo: id } });
     }
+  };
+  // The first Summit '27 link of the browser session plays the portal's Summit '27 intro (Summit27Intro.tsx).
+  const goToSummitLink = (l: SectionLink) => {
+    setOpen(false);
+    setSummitOpen(false);
+    playSummit27Intro(() => goToSection(l.id, l.path));
   };
 
   return (
@@ -114,19 +130,61 @@ export default function LandingNav({
               titleClassName="text-base font-semibold tracking-tight text-white lg:text-[17px]"
               showSubtitle={false}
               gap="gap-2.5"
+              logoProps={{ [NAV_LOGO_ATTR]: '' }}
             />
 
             <nav className="lp-nav__links" aria-label="Main">
-              {SECTION_LINKS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => goToSection(s.id, s.path)}
-                  className="lp-nav__link"
-                >
-                  {s.label}
-                </button>
-              ))}
+              {SECTION_LINKS.map((s) =>
+                s === 'summit' ? (
+                  <div
+                    key="summit"
+                    className="lp-nav__group"
+                    onMouseEnter={() => setSummitOpen(true)}
+                    onMouseLeave={() => setSummitOpen(false)}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSummitOpen(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Escape' || !summitOpen) return;
+                      setSummitOpen(false);
+                      summitBtnRef.current?.focus();
+                    }}
+                  >
+                    {/* Opens (never toggles) on click, so a click after hover-open doesn't shut it. */}
+                    <button
+                      ref={summitBtnRef}
+                      type="button"
+                      className="lp-nav__link"
+                      aria-expanded={summitOpen}
+                      aria-controls="lp-nav-summit"
+                      onClick={() => setSummitOpen(true)}
+                    >
+                      {SUMMIT_LABEL}
+                      <ChevronDown className="lp-nav__caret" aria-hidden="true" />
+                    </button>
+                    {summitOpen && (
+                      <div id="lp-nav-summit" className="lp-nav__dropdown">
+                        <div className="lp-nav__dropdown-panel">
+                          {SUMMIT_LINKS.map((l) => (
+                            <button key={l.id} type="button" className="lp-nav__link" onClick={() => goToSummitLink(l)}>
+                              {l.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => goToSection(s.id, s.path)}
+                    className="lp-nav__link"
+                  >
+                    {s.label}
+                  </button>
+                ),
+              )}
             </nav>
 
             <div className="lp-nav__actions">
@@ -167,16 +225,27 @@ export default function LandingNav({
           >
             <div className="container lp-nav__sheet-list">
               <ThemeToggle tone="onDark" labels className="mb-2 self-start" />
-              {SECTION_LINKS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => goToSection(s.id, s.path)}
-                  className="lp-nav__link"
-                >
-                  {s.label}
-                </button>
-              ))}
+              {SECTION_LINKS.map((s) =>
+                s === 'summit' ? (
+                  <div key="summit" role="group" aria-labelledby="lp-nav-sheet-summit" className="lp-nav__sheet-group">
+                    <p id="lp-nav-sheet-summit" className="lp-nav__sheet-label">{SUMMIT_LABEL}</p>
+                    {SUMMIT_LINKS.map((l) => (
+                      <button key={l.id} type="button" onClick={() => goToSummitLink(l)} className="lp-nav__link">
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => goToSection(s.id, s.path)}
+                    className="lp-nav__link"
+                  >
+                    {s.label}
+                  </button>
+                ),
+              )}
               <button
                 type="button"
                 className="lp-btn"
