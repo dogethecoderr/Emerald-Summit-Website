@@ -77,5 +77,6 @@ test('the Team splits into its five sections, each section lead first', async ()
   expect(sections.flatMap((s) => s.members).length).toBe(TEAM_MEMBERS.length);
   const ambassadors = sections[2].members.map((m) => m.id);
   expect(ambassadors.slice(0, 2).sort()).toEqual(['deep-shah', 'guhan-bala']);
+  expect(sections[0].members[0].id).toBe('riddhi-krishnan');
   expect(sections[0].members.every((m) => m.role === 'Event Organization Lead')).toBe(true);
 });

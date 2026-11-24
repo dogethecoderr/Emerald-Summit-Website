@@ -275,6 +275,7 @@ export const TEAM_MEMBERS: readonly TeamMember[] = [
     "photo": "/team/riddhi-krishnan.jpg",
     "role": "Event Organization Lead",
     "section": "organizers",
+    "leadsSection": true,
     "bio": "My name is Riddhi, and I'm in 11th grade. I'm one of the event organization leads for Emerald Summit '27! When I'm not studying or planning the summit, I love to read, sing, play the piano, and listen to music. One fun fact about me is that my favorite movie is Tangled!",
     "affiliations": [],
     "mentions": []
