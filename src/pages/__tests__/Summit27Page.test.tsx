@@ -11,6 +11,7 @@ import { navItemsForRole } from '../../components/AppShell';
 import { EAF_VOLUNTEER_URL } from '../../components/home/AboutSections';
 import { SPONSOR_TIERS } from '../../models/sponsors';
 import { EXPERTS_EMPTY } from '../../components/ExpertsDirectory';
+import { TEAM_MEMBERS } from '../../models/team';
 
 const state = vi.hoisted(() => ({
   guard: { ready: true, redirect: null as string | null },
@@ -70,7 +71,7 @@ describe("Summit '27 page", () => {
     expect(headings).toEqual(['Keynote', 'Experts', 'Team']);
     expect(await screen.findByText(EXPERTS_EMPTY)).toBeInTheDocument();
     expect(screen.getAllByText('Coming soon')).toHaveLength(1);
-    expect(within(screen.getByRole('list', { name: 'Summit team' })).getAllByRole('listitem')).toHaveLength(13);
+    expect(['Event Organizers', 'Developers', 'Ambassadors', 'EAF Team'].flatMap((name) => within(screen.getByRole('list', { name })).getAllByRole('listitem'))).toHaveLength(TEAM_MEMBERS.length);
     expect(screen.getByRole('heading', { name: 'Deep Shah' })).toBeInTheDocument();
   });
 
@@ -90,7 +91,7 @@ describe("Summit '27 page", () => {
     const tabs = screen.getByRole('navigation', { name: "Summit '27" });
     await userEvent.click(within(tabs).getByRole('link', { name: /Team/ }));
     expect(screen.getByRole('heading', { level: 1, name: "Summit '27" })).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: 'Summit team' })).getAllByRole('listitem')).toHaveLength(13);
+    expect(['Event Organizers', 'Developers', 'Ambassadors', 'EAF Team'].flatMap((name) => within(screen.getByRole('list', { name })).getAllByRole('listitem'))).toHaveLength(TEAM_MEMBERS.length);
     expect(screen.getByRole('heading', { name: 'Guhan Bala' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /CADathon/i })[0]).toHaveAttribute('href', '/team/tracks/cadathon');
 

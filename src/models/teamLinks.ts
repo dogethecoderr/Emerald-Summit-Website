@@ -1,5 +1,5 @@
 import type { Session } from './sessions';
-import type { TeamLinkKey, TeamMember, TeamMention } from './team';
+import { TEAM_SECTIONS, type TeamLinkKey, type TeamMember, type TeamMention } from './team';
 import { VERSE_VIBES } from './verseVibes';
 
 type TrackTarget = {
@@ -148,6 +148,15 @@ export function sortTeam(members: readonly TeamMember[]): TeamMember[] {
   return [...members].sort((a, b) => {
     const [ra, rb] = [rank(a), rank(b)];
     return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2];
+  });
+}
+
+/** The Team split into its sections in display order: section leads first, then sortTeam's order. */
+export function teamSections(members: readonly TeamMember[]) {
+  const sorted = sortTeam(members);
+  return TEAM_SECTIONS.map((s) => {
+    const inSection = sorted.filter((m) => m.section === s.key);
+    return { ...s, members: [...inSection.filter((m) => m.leadsSection), ...inSection.filter((m) => !m.leadsSection)] };
   });
 }
 

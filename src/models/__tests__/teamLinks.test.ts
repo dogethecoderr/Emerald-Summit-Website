@@ -57,8 +57,7 @@ test('the Team runs organizers first, then by discipline, a discipline lead befo
   const groups = sorted.map((m) => mainDiscipline(m) ?? 'organizers');
   const order = ['organizers', 'techverse', 'ventureverse', 'biosphere', 'novasphere', 'civicverse', 'imaginex'];
   expect(groups.map((g) => order.indexOf(g))).toEqual([...groups.map((g) => order.indexOf(g))].sort((a, b) => a - b));
-  expect(sorted.slice(0, 2).every((m) => m.role === 'Event Organization Lead')).toBe(true);
-  expect(sorted[2].role).toMatch(/TechVerse Engineering Lead/);
+  expect(sorted[0].role).toBe('Event Organization Lead');
   expect(sorted.length).toBe(TEAM_MEMBERS.length);
 });
 
@@ -68,4 +67,15 @@ test('every team photo points at a file in public/', async () => {
   const photos = TEAM_MEMBERS.flatMap((m) => (m.photo ? [m.photo] : []));
   expect(photos.length).toBeGreaterThan(0);
   for (const photo of photos) expect(existsSync(`public${photo}`), photo).toBe(true);
+});
+
+test('the Team splits into its five sections, each section lead first', async () => {
+  const { TEAM_MEMBERS } = await import('../team');
+  const { teamSections } = await import('../teamLinks');
+  const sections = teamSections(TEAM_MEMBERS);
+  expect(sections.map((s) => s.title)).toEqual(['Event Organizers', 'Developers', 'Ambassadors', 'EAF Team', 'Parent Volunteers']);
+  expect(sections.flatMap((s) => s.members).length).toBe(TEAM_MEMBERS.length);
+  const ambassadors = sections[2].members.map((m) => m.id);
+  expect(ambassadors.slice(0, 2).sort()).toEqual(['deep-shah', 'guhan-bala']);
+  expect(sections[0].members.every((m) => m.role === 'Event Organization Lead')).toBe(true);
 });
