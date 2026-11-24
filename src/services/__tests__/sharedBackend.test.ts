@@ -72,7 +72,7 @@ const { MOCK_SESSIONS } = await import('../../models/sessions');
 const { TRACKS } = await import('../../models/tracks');
 
 const session = {
-  id: 'mobile-session', discipline_id: 'techverse', title: 'Robotics workshop', track: '',
+  id: 'mobile-session', discipline_id: 'techverse', title: 'Robotics workshop',
   expert_name: 'Alex', start_time: '09:45', end_time: '11:15', room: 'Lab',
   description: 'Build a robot.', capacity: 24, enrolled: 7,
 };

@@ -51,7 +51,6 @@ export interface Session {
   askProjectName?: boolean;
   pageBlocks?: SessionPageBlock[];
   heroImageUrl?: string | null;
-  sponsor?: string | null;
 }
 
 /**

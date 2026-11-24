@@ -552,7 +552,6 @@ export default function SessionView({
           </ul>
         </section>
       )}
-      {s.sponsor && <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm">{s.sponsor}</p>}
 
       <div className="space-y-3">
         {!signedIn ? (

@@ -59,7 +59,6 @@ interface SessionRow {
   id: string;
   discipline_id: string;
   title: string;
-  track: string;
   expert_name: string;
   start_time: string;
   end_time: string;
@@ -77,7 +76,6 @@ interface SessionRow {
   ask_project_name?: boolean | null;
   page_blocks?: unknown;
   hero_image_url?: string | null;
-  sponsor?: string | null;
 }
 
 /**
@@ -127,7 +125,7 @@ function displayTime(time: string): string {
 const sessionFromRow = (r: SessionRow): Session => ({
   id: r.id,
   track: r.discipline_id,
-  trackName: r.track || r.title,
+  trackName: r.title,
   title: r.title,
   // The app dropped the free-text expert line; the page lists approved
   // experts who registered (session_experts) instead.
@@ -160,7 +158,6 @@ const sessionFromRow = (r: SessionRow): Session => ({
   askProjectName: r.ask_project_name !== false,
   pageBlocks: parsePageBlocks(r.page_blocks),
   heroImageUrl: r.hero_image_url?.trim() || null,
-  sponsor: r.sponsor?.trim() || null,
 });
 
 /** Read the same disciplines and session view as the mobile app. */
