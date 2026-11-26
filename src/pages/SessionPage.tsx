@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from '@/components/icons';
 import { Skeleton } from '@/components/ui/skeleton';
 import SessionView from '../components/session/SessionView';
 import FlowingBorder from '../components/verse/FlowingBorder';
@@ -11,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { MOCK_SESSIONS } from '../models/sessions';
 import { rgba, vibeFor } from '../models/verseVibes';
 import { useSummitContent } from '../services/summitContent';
+import BackButton from '../components/BackButton';
 
 type SessionRouteState = { add?: boolean; origin?: Origin } | null;
 
@@ -91,14 +91,7 @@ function SessionWorld({
       <div ref={content} className="absolute inset-0 overflow-y-auto">
         <div className="relative mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
           <div className="mb-8 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => close(onBack)}
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
-              style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
-            >
-              <ChevronLeft className="h-4 w-4" /> Back
-            </button>
+            <BackButton onClick={() => close(onBack)} style={{ background: rgba(vibe.surface, 0.7), color: vibe.text, borderColor: rgba(vibe.accent, 0.35) }} />
             <SummitHomeLink vibe={vibe} />
           </div>
           {children}

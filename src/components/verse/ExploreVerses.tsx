@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Pencil, Plus } from '@/components/icons';
+import { Check, ChevronRight, Pencil, Plus } from '@/components/icons';
 import { USER_DISCIPLINES, type DisciplineInfo } from '../../models/disciplines';
 import { MOCK_SESSIONS, joinParts, sessionPlace, type Session } from '../../models/sessions';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +26,7 @@ import { growIn, reducedMotion, useCircleReveal, type Origin } from './useCircle
 import SessionView from '../session/SessionView';
 import { toast } from 'sonner';
 import { REGISTRATION_CLOSED_MESSAGE, TBD, useSiteSwitches } from '../../services/siteSwitches';
+import BackButton from '../BackButton';
 
 /** A discipline's tracks, grouped the way its description reads (see models/trackOrder.ts). */
 export function sessionsFor(id: string): Session[] {
@@ -364,15 +365,7 @@ function VersePage({
         <div ref={scroller} onScroll={onScroll} className="h-full overflow-y-auto">
           <div className="mx-auto max-w-4xl px-6 pb-16 pt-8 sm:px-10 sm:pt-10">
             <div className="flex items-center justify-between gap-3">
-              <button
-                ref={backButton}
-                type="button"
-                onClick={back}
-                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
-                style={{ background: rgba(vibe.surface, 0.7), color: vibe.text }}
-              >
-                <ChevronLeft className="h-4 w-4" /> Back
-              </button>
+              <BackButton ref={backButton} onClick={back} style={{ background: rgba(vibe.surface, 0.7), color: vibe.text, borderColor: rgba(vibe.accent, 0.35) }} />
               <SummitHomeLink vibe={vibe} />
             </div>
 

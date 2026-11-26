@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Info, XCircle } from '@/components/icons';
+import { Info, XCircle } from '@/components/icons';
 import ThemeToggle from '../components/ThemeToggle';
 import SummitLogo from '../components/SummitLogo';
 import EafLogo from '../components/EafLogo';
 import { useAuth } from '../context/AuthContext';
 import { CHOOSER_ROLES, roleByName, roleLabelFor, type RoleInfo } from '../models/roles';
 import { cn } from '@/lib/utils';
+import BackButton from '../components/BackButton';
 
 const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
@@ -42,14 +43,9 @@ export default function RolesPage() {
 
   return (
     <div className="relative min-h-svh bg-background lg:grid lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
-      <button
-        type="button"
-        onClick={() => navigate(signedIn ? '/home' : '/')}
-        className="absolute left-4 top-5 z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:left-8 sm:top-8"
-      >
-        <ChevronLeft className="h-4 w-4" />
+      <BackButton onClick={() => navigate(signedIn ? '/home' : '/')} className="absolute left-4 top-5 z-10 sm:left-8 sm:top-8">
         {signedIn ? 'Back to dashboard' : 'Back'}
-      </button>
+      </BackButton>
       <ThemeToggle className="absolute right-4 top-5 z-10 rounded-xl border border-border bg-card sm:right-8 sm:top-8" />
 
       {/* Identity: headline, the Summit seal, and who organizes it */}

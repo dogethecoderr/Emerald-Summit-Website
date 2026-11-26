@@ -3,7 +3,7 @@
 // session starting within the hour), separate from Announcements. Tapping a note marks
 // it read and opens what it's about; "Mark all as read" clears the bell.
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { CheckCheck, ChevronLeft } from '@/components/icons';
+import { CheckCheck } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import NotificationList from '../components/NotificationList';
@@ -11,6 +11,7 @@ import { useRequireProfile } from '../hooks/useRequireProfile';
 import { useNotifications } from '../context/NotificationsContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import BackButton from '../components/BackButton';
 
 export default function NotificationsPage() {
   const { ready, redirect } = useRequireProfile();
@@ -34,13 +35,7 @@ export default function NotificationsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl">
-        <button
-          type="button"
-          onClick={back}
-          className="mb-8 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] font-semibold text-foreground shadow-sm transition-colors hover:border-emerald/50 hover:text-emerald focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald"
-        >
-          <ChevronLeft className="h-5 w-5" /> Back
-        </button>
+        <BackButton onClick={back} className="mb-7" />
         <PageHeader label="For you" title="Notifications" />
         <section className="glass rounded-2xl p-2 sm:p-4">
           <div className="flex items-center justify-between gap-2 px-2 pb-3">

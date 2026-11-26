@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeftRight, Award, Bug, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
+  ArrowLeftRight, Award, Bug, CalendarDays, ChartLine, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
   Palette, QrCode, ScanLine, ShieldCheck, Trash2, UserRound, Users, CameraOff,
   Bell,
 } from '@/components/icons';
@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import BackButton from '../components/BackButton';
 
 function SettingsRow({ icon: Icon, title, subtitle, onClick, destructive }: {
   icon: typeof UserRound;
@@ -138,9 +139,7 @@ function ProfileSettings({ profile, onSaved }: { profile: Profile; onSaved: () =
 
   return (
     <div className="mx-auto max-w-[43.2rem] space-y-5">
-      <button type="button" onClick={() => navigate('/account')} className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-        <ChevronLeft className="h-4 w-4" /> Profile
-      </button>
+      <BackButton onClick={() => navigate('/account')} className="!mb-2">Profile</BackButton>
       <h2 className="font-display text-2xl font-semibold tracking-tight">Edit profile</h2>
       <div className="space-y-4 rounded-2xl border border-border/70 bg-card/70 p-5">
         <div className="space-y-2">
