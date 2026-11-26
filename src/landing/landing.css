@@ -556,7 +556,7 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 /* Each section fills the screen under the bar, and the nav lands it right under the bar, so the one you clicked shows alone. */
 .lp-lineup .lp-section { min-height: calc(100svh - var(--bar-h)); scroll-margin-top: calc(var(--bar-h) - var(--space-3xl)); background: var(--color-paper); }
 /* Landing › "Who makes the Summit happen?" (LineupPreview): a frame showing one Lineup section at a time as a live,
-   scaled-down copy (laid out 1200px wide, scaled to the frame), fading out toward the bottom, with the slide's count and
+   scaled-down copy (laid out 1600px wide, scaled to the frame), fading out toward the bottom, with the slide's count and
    "View …" button over the fade. Slides cross-fade on opacity; a hidden slide is also visibility: hidden once faded, so
    it isn't painted. */
 .lp-preview { background: var(--color-paper-2); }
