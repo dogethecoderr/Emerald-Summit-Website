@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { isSectionJumping, SECTION_JUMP_EVENT } from './jumpToSection';
 
 /**
  * Mounts a Hairline figure (public/hairline/<name>.js) on the page, the way
@@ -156,8 +155,6 @@ export default function HairlineFigure({
           let step = -1;
           // Browsers already fire scroll at most once a frame, and this is one rect read.
           onScroll = () => {
-            // A nav or footer scroll is passing through: hold this figure still until it lands.
-            if (isSectionJumping()) return;
             const r = section.getBoundingClientRect(), vh = window.innerHeight;
             if (r.bottom < 0 || r.top > vh) return;
             const p = -r.top / Math.max(1, r.height - vh);
@@ -166,7 +163,6 @@ export default function HairlineFigure({
           };
           window.addEventListener('scroll', onScroll, { passive: true });
           window.addEventListener('resize', onScroll);
-          window.addEventListener(SECTION_JUMP_EVENT, onScroll);
           onScroll();
           return;
         }
@@ -196,7 +192,6 @@ export default function HairlineFigure({
       if (onScroll) {
         window.removeEventListener('scroll', onScroll);
         window.removeEventListener('resize', onScroll);
-        window.removeEventListener(SECTION_JUMP_EVENT, onScroll);
       }
       io?.disconnect();
       playing?.stop();

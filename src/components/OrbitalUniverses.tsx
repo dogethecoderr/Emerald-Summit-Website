@@ -1,7 +1,6 @@
-import { Component, lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   motion,
-  useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -16,7 +15,6 @@ import { useSummitContent } from '../services/summitContent';
 import { landingTrackTitles, techVerseTrackColumns } from '../models/landingTracks';
 import { VERSE_DISCIPLINES as USER_DISCIPLINES } from '../models/verseVibes';
 import { MOCK_SESSIONS } from '../models/sessions';
-import { isSectionJumping, SECTION_JUMP_EVENT } from '../landing/jumpToSection';
 
 /**
  * A discipline's public titles, in its description's order: tracks are sessions. Not the
@@ -77,12 +75,11 @@ function UniverseOrbit() {
   // Each universe sits exactly at the top of the ring at the middle of its
   // slice of the scroll; the turn between them is a linear scrub, smoothed
   // just enough by a stiff spring that a wheel's steps don't judder.
-  // Positive: the ring turns clockwise as the reader scrolls down.
-  const turnAt = (p: number) => Math.min(Math.max(p * COUNT - 0.5, 0), COUNT - 1) * STEP;
-  const activeAt = (p: number) => Math.min(COUNT - 1, Math.max(0, Math.floor(p * COUNT)));
-  // The ring's target follows the scroll, except while a nav or footer scroll
-  // passes through (isSectionJumping): then it holds, and on landing it snaps.
-  const turn = useMotionValue(turnAt(scrollYProgress.get()));
+  const turn = useTransform(
+    scrollYProgress,
+    // Positive: the ring turns clockwise as the reader scrolls down.
+    (p) => Math.min(Math.max(p * COUNT - 0.5, 0), COUNT - 1) * STEP,
+  );
   const rotate = useSpring(turn, { stiffness: 220, damping: 34, mass: 0.6 });
   const counterRotate = useTransform(rotate, (r) => -r);
 
@@ -90,23 +87,9 @@ function UniverseOrbit() {
   // The flat planets show until the 3D ones have a renderer.
   const [spheres, setSpheres] = useState(false);
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    if (isSectionJumping()) return;
-    turn.set(turnAt(v));
-    const i = activeAt(v);
+    const i = Math.min(COUNT - 1, Math.max(0, Math.floor(v * COUNT)));
     setActive((prev) => (prev === i ? prev : i));
   });
-  useEffect(() => {
-    const land = () => {
-      const v = scrollYProgress.get();
-      turn.jump(turnAt(v));
-      rotate.jump(turnAt(v));
-      setActive(activeAt(v));
-    };
-    window.addEventListener(SECTION_JUMP_EVENT, land);
-    return () => window.removeEventListener(SECTION_JUMP_EVENT, land);
-    // turnAt/activeAt are pure.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollYProgress, turn, rotate]);
 
   /** Scroll to the middle of universe i's slice of the pinned track. */
   const goTo = (i: number) => {

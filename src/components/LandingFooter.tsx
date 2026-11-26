@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail } from '@/components/icons';
 import BrandMark from './BrandMark';
-import { jumpToSection } from '../landing/jumpToSection';
 
 const SITE_LINKS = [
   { to: '/', label: 'Home', anchor: null },
@@ -20,7 +19,7 @@ export default function LandingFooter() {
       return;
     }
     if (location.pathname === '/') {
-      jumpToSection(anchor);
+      document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
       navigate('/', { state: { scrollTo: anchor } });
     }

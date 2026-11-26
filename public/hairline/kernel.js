@@ -395,15 +395,7 @@ var HL = (() => {
   var last = 0;
   var io = null;
   var rm = null;
-  // Emerald Summit: while a nav or footer scroll passes (jumpToSection sets data-lp-jumping on <html>), the figures don't
-  // tick at all, so the scroll never waits on SVG redraws; when it lands (lp:section-jump), the visible ones wake.
-  const jumping = () => document.documentElement.hasAttribute("data-lp-jumping");
-  addEventListener("lp:section-jump", () => boards.forEach((b) => b.vis && wake(b)));
   function frame() {
-    if (jumping()) {
-      raf = 0;
-      return;
-    }
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1e3));
     last = now;

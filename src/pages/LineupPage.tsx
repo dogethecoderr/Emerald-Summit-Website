@@ -15,7 +15,6 @@ import LandingFooter from '../components/LandingFooter';
 import { LINEUP_SECTIONS, LineupBody } from '../components/LineupSections';
 import { SPONSOR_TIERS } from '../models/sponsors';
 import { useIsPhoneScreen } from '../lib/device';
-import { isSectionJumping, SECTION_JUMP_EVENT } from '../landing/jumpToSection';
 import { cn } from '@/lib/utils';
 import '../landing/landing.css';
 
@@ -63,8 +62,7 @@ export default function LineupPage() {
 /**
  * Sponsors, pinned: a tall track whose stage stays put while the scroll
  * through it is split evenly between the tiers, Capstone first. Phones and
- * reduced motion get the plain pyramid. A nav scroll passing through doesn't
- * step it (isSectionJumping); it catches up when the scroll lands.
+ * reduced motion get the plain pyramid.
  */
 function SponsorsSection({ title, lead }: { title: string; lead?: string }) {
   const phone = useIsPhoneScreen();
@@ -79,7 +77,6 @@ function SponsorsSection({ title, lead }: { title: string; lead?: string }) {
     const count = SPONSOR_TIERS.length;
     // One rect read per scroll event (browsers fire it at most once a frame); state changes only on a new tier.
     const onScroll = () => {
-      if (isSectionJumping()) return;
       const r = section.getBoundingClientRect();
       const vh = window.innerHeight;
       if (r.bottom < 0 || r.top > vh) return;
@@ -89,11 +86,9 @@ function SponsorsSection({ title, lead }: { title: string; lead?: string }) {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    window.addEventListener(SECTION_JUMP_EVENT, onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      window.removeEventListener(SECTION_JUMP_EVENT, onScroll);
     };
   }, [pinned]);
 
