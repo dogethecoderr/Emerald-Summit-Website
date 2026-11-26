@@ -97,7 +97,7 @@
 .lp-nav__sheet .lp-nav__link { justify-content: flex-start; border-radius: var(--radius-card); width: 100%; text-align: left; }
 .lp-nav__sheet .lp-btn { width: 100%; margin-top: var(--space-sm); }
 .lp-nav__sheet-group { display: grid; gap: var(--space-2xs); }
-.lp-nav__sheet-label { margin: var(--space-xs) 0 0; padding-inline: var(--space-md); color: var(--color-night-muted); font: 600 var(--text-sm)/1.4 var(--font-body); letter-spacing: 0.04em; text-transform: uppercase; }
+.lp-nav__sheet-label { display: block; border: 0; background: transparent; text-align: left; cursor: pointer; margin: var(--space-xs) 0 0; padding-inline: var(--space-md); color: var(--color-night-muted); font: 600 var(--text-sm)/1.4 var(--font-body); letter-spacing: 0.04em; text-transform: uppercase; }
 .lp-nav__sheet-group .lp-nav__link { padding-left: calc(var(--space-md) * 2); }
 /* Six items since Keynote, Experts, Team and Sponsors moved under one
    "Summit '27" menu (Nov 24, 2026): the bar needs about 995px with tight
@@ -565,8 +565,8 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 .lp-preview__tab:hover { color: var(--color-ink); border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-rule)); }
 .lp-preview__tab[aria-selected="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
 .lp-preview__tab:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-.lp-preview__frame { position: relative; height: clamp(480px, 80svh, 820px); overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper); box-shadow: 0 24px 60px -36px color-mix(in oklab, var(--color-ink) 45%, transparent); }
-.lp-preview__slides { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 45%, rgb(0 0 0 / 0.35) 78%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 45%, rgb(0 0 0 / 0.35) 78%, transparent 100%); }
+.lp-preview__frame { position: relative; height: clamp(560px, calc(100svh - var(--bar-h) - var(--space-lg)), 980px); overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper); box-shadow: 0 24px 60px -36px color-mix(in oklab, var(--color-ink) 45%, transparent); }
+.lp-preview__slides { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 80%, rgb(0 0 0 / 0.4) 93%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 80%, rgb(0 0 0 / 0.4) 93%, transparent 100%); }
 .lp-preview__slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 500ms var(--ease-out), visibility 0s linear 500ms; }
 .lp-preview__slide.is-active { opacity: 1; visibility: visible; transition: opacity 500ms var(--ease-out), visibility 0s; }
 .lp-preview__page { padding: var(--space-2xl) var(--space-2xl) 0; transform-origin: top left; pointer-events: none; }

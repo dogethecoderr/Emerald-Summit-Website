@@ -4,13 +4,15 @@ import { vibeFor } from '../models/verseVibes';
 import { useTheme } from '../context/ThemeContext';
 import TeamLinkedText from './TeamLinkedText';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn } from '@/lib/utils';
 
 const SECTIONS = teamSections(TEAM_MEMBERS);
 
 export const TEAM_INTRO = 'Meet the students and organizers behind Emerald Summit ’27.';
 
 /** Shared profiles for the public Team section and the signed-in Team tab. */
-export default function TeamDirectory() {
+/** `preview`: the landing page's picture of it, four cards across with bios cut to three lines, so more fits above the fade. */
+export default function TeamDirectory({ preview = false }: { preview?: boolean }) {
   const { theme } = useTheme();
   // Each discipline's own accent (the deeper light-theme one on light cards); organizers get the Summit's emerald.
   const accent = (discipline: string | null) => vibeFor(discipline, theme).accent;
@@ -22,7 +24,7 @@ export default function TeamDirectory() {
         <section key={section.key} className="space-y-4" aria-labelledby={`team-${section.key}`}>
           <h3 id={`team-${section.key}`} className="font-display text-2xl font-semibold">{section.title}</h3>
           {section.members.length ? (
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={section.title}>
+            <ul className={preview ? 'grid grid-cols-4 gap-4' : 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'} aria-label={section.title}>
               {section.members.map((member) => (
                 <li key={member.id} className="min-w-0">
                   <article className="h-full space-y-4 rounded-2xl border border-border bg-card p-5 text-card-foreground sm:p-6">
@@ -44,7 +46,7 @@ export default function TeamDirectory() {
                         </p>
                       </div>
                     </div>
-                    <p className="break-words text-[15px] leading-relaxed text-muted-foreground">
+                    <p className={cn('break-words text-[15px] leading-relaxed text-muted-foreground', preview && 'line-clamp-3')}>
                       <TeamLinkedText text={member.bio} mentions={member.mentions} />
                     </p>
                   </article>

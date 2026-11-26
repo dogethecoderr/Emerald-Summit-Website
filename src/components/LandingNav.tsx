@@ -63,6 +63,7 @@ export default function LandingNav({
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [summitOpen, setSummitOpen] = useState(false);
+  const escaped = useRef(false);
   const summitBtnRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
   const menuBtnRef = useRef<HTMLButtonElement>(null);
@@ -147,17 +148,23 @@ export default function LandingNav({
                     onKeyDown={(e) => {
                       if (e.key !== 'Escape' || !summitOpen) return;
                       setSummitOpen(false);
+                      // Focus goes back to the label without reopening the menu.
+                      escaped.current = true;
                       summitBtnRef.current?.focus();
                     }}
                   >
-                    {/* Opens (never toggles) on click, so a click after hover-open doesn't shut it. */}
+                    {/* The label goes to "Who makes the Summit happen?" (no intro; that waits for a section link); hover or keyboard focus opens the menu of its four sections. */}
                     <button
                       ref={summitBtnRef}
                       type="button"
                       className="lp-nav__link"
                       aria-expanded={summitOpen}
                       aria-controls="lp-nav-summit"
-                      onClick={() => setSummitOpen(true)}
+                      onFocus={() => {
+                        if (escaped.current) escaped.current = false;
+                        else setSummitOpen(true);
+                      }}
+                      onClick={() => goToSection('lineup')}
                     >
                       {SUMMIT_LABEL}
                       <ChevronDown className="lp-nav__caret" aria-hidden="true" />
@@ -228,7 +235,9 @@ export default function LandingNav({
               {SECTION_LINKS.map((s) =>
                 s === 'summit' ? (
                   <div key="summit" role="group" aria-labelledby="lp-nav-sheet-summit" className="lp-nav__sheet-group">
-                    <p id="lp-nav-sheet-summit" className="lp-nav__sheet-label">{SUMMIT_LABEL}</p>
+                    <button id="lp-nav-sheet-summit" type="button" className="lp-nav__sheet-label" onClick={() => goToSection('lineup')}>
+                      {SUMMIT_LABEL}
+                    </button>
                     {SUMMIT_LINKS.map((l) => (
                       <button key={l.id} type="button" onClick={() => goToSummitLink(l)} className="lp-nav__link">
                         {l.label}

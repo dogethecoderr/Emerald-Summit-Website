@@ -12,6 +12,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 import { ArrowRight } from '@/components/icons';
+import { playSummit27Intro } from '../components/Summit27Intro';
 import { cn } from '@/lib/utils';
 
 const SLIDES = [
@@ -77,7 +78,8 @@ export default function LineupPreview() {
     return () => window.clearTimeout(t);
   }, [playing, active]);
 
-  const open = (id: SlideId) => navigate('/lineup', { state: { scrollTo: id } });
+  // Like the Summit '27 menu's links, the first of these in a browser session plays the Summit '27 intro.
+  const open = (id: SlideId) => playSummit27Intro(() => navigate('/lineup', { state: { scrollTo: id } }));
   const current = SLIDES[active];
 
   return (

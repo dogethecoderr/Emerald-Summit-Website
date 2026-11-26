@@ -35,6 +35,6 @@ export function LineupBody({ id, focus, preview = false }: { id: LineupId; focus
     case 'experts':
       return <ExpertsDirectory />;
     case 'team':
-      return <TeamDirectory />;
+      return <TeamDirectory preview={preview} />;
   }
 }

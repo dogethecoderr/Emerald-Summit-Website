@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import Summit27Page from '../Summit27Page';
 import LineupPage from '../LineupPage';
 import SponsorTiers from '../../components/SponsorTiers';
@@ -46,7 +46,7 @@ describe("Summit '27 page", () => {
     expect(screen.queryByRole('list', { name: 'Sponsor tiers, highest first' })).not.toBeInTheDocument();
   });
 
-  test("the landing navbar's Summit '27 menu opens on hover or click and closes on Escape", async () => {
+  test("the landing navbar's Summit '27 menu opens on hover or keyboard focus and closes on Escape", async () => {
     const user = userEvent.setup();
     render(<MemoryRouter><LandingNav /></MemoryRouter>);
     const nav = screen.getByRole('navigation', { name: 'Main' });
@@ -54,11 +54,14 @@ describe("Summit '27 page", () => {
     expect(summit).toHaveAttribute('aria-expanded', 'false');
     await user.hover(summit);
     expect(summit).toHaveAttribute('aria-expanded', 'true');
-    // A click after the hover keeps it open rather than toggling it shut.
-    await user.click(summit);
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(
       ['About', 'Disciplines', "Summit '27", 'Keynote', 'Sponsors', 'Experts', 'Team', 'FAQ', 'Donate', 'Contact'],
     );
+    await user.unhover(summit);
+    expect(summit).toHaveAttribute('aria-expanded', 'false');
+    // Keyboard: focusing the label opens the menu; Escape closes it and keeps focus on the label.
+    act(() => summit.focus());
+    expect(summit).toHaveAttribute('aria-expanded', 'true');
     await user.keyboard('{Escape}');
     expect(summit).toHaveAttribute('aria-expanded', 'false');
     expect(summit).toHaveFocus();
@@ -78,7 +81,7 @@ describe("Summit '27 page", () => {
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(
       ['About', 'Disciplines', "Summit '27", 'FAQ', 'Donate', 'Contact'],
     );
-    await user.click(within(nav).getByRole('button', { name: "Summit '27" }));
+    await user.hover(within(nav).getByRole('button', { name: "Summit '27" }));
     // fireEvent: user-event's pointer move between buttons reads as leaving the menu in jsdom (no relatedTarget), closing it.
     fireEvent.click(within(nav).getByRole('button', { name: 'Team' }));
     // All four on one page, in the Lineup's order.
@@ -137,3 +140,21 @@ describe("Summit '27 page", () => {
     );
   });
 });
+
+test("clicking Summit '27 itself goes to the landing page's Who makes the Summit happen? section", async () => {
+  render(
+    <MemoryRouter initialEntries={['/lineup']}>
+      <Routes>
+        <Route path="/lineup" element={<LandingNav />} />
+        <Route path="/" element={<LandingTarget />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name: "Summit '27" }));
+  expect(screen.getByText('Landing, section lineup')).toBeInTheDocument();
+});
+
+function LandingTarget() {
+  const { state } = useLocation();
+  return <p>Landing, section {(state as { scrollTo?: string } | null)?.scrollTo}</p>;
+}
