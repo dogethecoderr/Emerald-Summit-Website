@@ -385,7 +385,7 @@ export default function WelcomePage() {
             <div className="lp-about__text">
               <h2 id="about-title">What is Emerald Summit?</h2>
               <p>
-                {SUMMIT_ABOUT} Emerald Summit values collaboration over competition. Students present work in progress, learn from
+                {SUMMIT_ABOUT} The Summit values collaboration over competition. Students present work in progress, learn from
                 their peers, and receive guidance from professionals across six disciplines, leaving with a clearer
                 path forward for their ideas.
               </p>
