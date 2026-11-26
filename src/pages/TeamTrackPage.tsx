@@ -18,7 +18,7 @@ export default function TeamTrackPage() {
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const returnTo = (state as { teamReturnTo?: string } | null)?.teamReturnTo === '/summit-27/team'
-    ? '/summit-27/team' : '/keynote-and-team';
+    ? '/summit-27/team' : '/lineup';
 
   useEffect(() => {
     if (target?.kind !== 'track') return;
@@ -78,7 +78,7 @@ export default function TeamTrackPage() {
     </main>
   );
   // Reached from the public Team section: keep the landing page's navbar and footer around it.
-  return returnTo === '/keynote-and-team' ? (
+  return returnTo === '/lineup' ? (
     <div className="lp lp-page">
       <LandingNav />
       <div className="lp-lineup">{body}</div>

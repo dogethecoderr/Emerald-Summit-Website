@@ -1,6 +1,6 @@
 // The sponsor tiers as a stepped pyramid, shared by the portal's Summit '27
 // page (Sponsors tab) and the landing page's Sponsors section.
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Handshake, Plus } from '@/components/icons';
 import { LinkButton, ZeffyFormButton } from './home/AboutSections';
 import {
@@ -125,17 +125,75 @@ function OpenSpot({ tier, solid, first, onOpen }: { tier: string; solid: boolean
  * Cornerstone at the base, each with its price, perks and logos, and open
  * spots that open the sponsor form.
  */
-export default function SponsorTiers({ sponsors = SPONSORS }: { sponsors?: Sponsor[] }) {
+export default function SponsorTiers({ sponsors = SPONSORS, focus }: {
+  sponsors?: Sponsor[];
+  /**
+   * Focus mode (the Lineup page's pinned Sponsors section): the pyramid zooms
+   * and pans so this tier sits in the middle of the frame, and the others dim.
+   * Leave it out for the plain pyramid.
+   */
+  focus?: number;
+}) {
   const openForm = useRef<(() => void) | null>(null);
   const onOpen = () => openForm.current?.();
-  return (
-    <div className="space-y-5">
-      <ol className="flex flex-col items-center gap-2" aria-label="Sponsor tiers, highest first">
+  const focusing = focus !== undefined;
+  const frame = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const transform = useFocusTransform(frame, list, focus);
+
+  const actions = (
+    <div className="sponsor-actions flex flex-wrap gap-2.5">
+      <ZeffyFormButton
+        label="Become a sponsor"
+        dialogTitle="Become a sponsor"
+        pageUrl={SPONSOR_FORM_URL}
+        embedUrl={SPONSOR_FORM_EMBED_URL}
+        icon={Handshake}
+        opener={openForm}
+      />
+      <LinkButton href={SPONSORSHIP_DETAILS_URL}>Sponsorship details</LinkButton>
+    </div>
+  );
+  const wrap = (pyramid: ReactNode) =>
+    focusing ? (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {actions}
+        {/* The frame clips the zoomed pyramid; only transform and opacity animate, so the browser composites it. */}
+        <div ref={frame} className="relative min-h-0 flex-1 overflow-hidden">{pyramid}</div>
+      </div>
+    ) : (
+      <div className="space-y-5">
+        {pyramid}
+        {actions}
+      </div>
+    );
+
+  return wrap(
+      <ol
+        ref={list}
+        className={cn(
+          'flex flex-col items-center gap-2',
+          focusing && 'relative origin-top transition-transform duration-500 ease-[var(--ease-out)] motion-reduce:transition-none',
+        )}
+        style={focusing ? { transform } : undefined}
+        aria-label="Sponsor tiers, highest first"
+      >
         {SPONSOR_TIERS.map((t, i) => {
           const step = TIER_STEPS[i];
           const inTier = sponsors.filter((s) => s.tier === t.name);
           return (
-            <li key={t.name} aria-label={t.name} className={cn('w-full rounded-2xl px-4 py-3.5 sm:px-5', step.width, step.band)}>
+            <li
+              key={t.name}
+              aria-label={t.name}
+              aria-current={focusing && focus === i ? 'true' : undefined}
+              className={cn(
+                'w-full rounded-2xl px-4 py-3.5 sm:px-5',
+                step.width,
+                step.band,
+                focusing && 'transition-[opacity,box-shadow] duration-500',
+                focusing && (focus === i ? 'shadow-[0_0_0_2px_rgba(12,122,85,0.55),0_18px_40px_-18px_rgba(0,0,0,0.35)]' : 'opacity-35'),
+              )}
+            >
               <div className="flex items-start gap-3.5">
                 <span
                   className={cn('mt-0.5 font-mono text-[12px] font-semibold tabular-nums', step.solid ? 'text-white/60' : 'text-emerald/70')}
@@ -159,19 +217,40 @@ export default function SponsorTiers({ sponsors = SPONSORS }: { sponsors?: Spons
             </li>
           );
         })}
-      </ol>
-      <div className="sponsor-actions flex flex-wrap gap-2.5">
-        <ZeffyFormButton
-          label="Become a sponsor"
-          dialogTitle="Become a sponsor"
-          pageUrl={SPONSOR_FORM_URL}
-          embedUrl={SPONSOR_FORM_EMBED_URL}
-          icon={Handshake}
-          opener={openForm}
-        />
-        <LinkButton href={SPONSORSHIP_DETAILS_URL}>Sponsorship details</LinkButton>
-      </div>
-    </div>
+      </ol>,
   );
+}
+
+/** At most this much zoom, so the focused tier stays crisp and its neighbours stay in view. */
+const MAX_ZOOM = 1.3;
+
+/**
+ * The transform that centres tier `focus` in the frame, zoomed so it fills
+ * about half the frame's height (never past MAX_ZOOM, never shrunk). Measured
+ * only when the tier or the frame's size changes, never per frame.
+ */
+function useFocusTransform(frame: RefObject<HTMLElement>, list: RefObject<HTMLElement>, focus: number | undefined): string {
+  const [transform, setTransform] = useState('none');
+  useLayoutEffect(() => {
+    const box = frame.current;
+    const ol = list.current;
+    if (focus === undefined || !box || !ol) return;
+    const place = () => {
+      const tier = ol.children[focus] as HTMLElement | undefined;
+      const h = box.clientHeight;
+      if (!tier || !h) return;
+      // Also never wider than the frame, so the wide lower tiers aren't clipped at the sides.
+      const fit = (box.clientWidth * 0.98) / tier.offsetWidth;
+      const s = Math.max(1, Math.min(MAX_ZOOM, fit, (h * 0.5) / tier.offsetHeight));
+      const y = h / 2 - (tier.offsetTop + tier.offsetHeight / 2) * s;
+      setTransform(`translate3d(0, ${Math.round(y)}px, 0) scale(${s.toFixed(3)})`);
+    };
+    place();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(place);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [frame, list, focus]);
+  return transform;
 }
 

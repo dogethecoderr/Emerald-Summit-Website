@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import GetTheAppBanner from './components/GetTheAppBanner';
 import PageRouteBoundary from './components/PageRouteBoundary';
@@ -34,7 +34,13 @@ const ArchiePage = lazyPage(() => import('./pages/ArchiePage'));
 const NotificationsPage = lazyPage(() => import('./pages/NotificationsPage'));
 const PhotoPermissionPage = lazyPage(() => import('./pages/PhotoPermissionPage'));
 const Summit27Page = lazyPage(() => import('./pages/Summit27Page'));
-const KeynoteTeamPage = lazyPage(() => import('./pages/KeynoteTeamPage'));
+const LineupPage = lazyPage(() => import('./pages/LineupPage'));
+
+/** /keynote-and-team was the Lineup page's address; forward, keeping the section a link asked for. */
+function OldLineupAddress() {
+  const { state, hash } = useLocation();
+  return <Navigate to={{ pathname: '/lineup', hash }} state={state} replace />;
+}
 
 function LegacyApplicationRedirect() {
   const { role } = useParams();
@@ -49,8 +55,10 @@ export default function App() {
       <PageRouteBoundary>
         <Routes>
           <Route path="/" element={<WelcomePage />} />
-          <Route path="/keynote-and-team" element={<KeynoteTeamPage />} />
-          <Route path="/experts" element={<Navigate to="/keynote-and-team" state={{ scrollTo: 'experts' }} replace />} />
+          <Route path="/lineup" element={<LineupPage />} />
+          {/* The page's old address (until Nov 25, 2026); keeps any section it was sent to. */}
+          <Route path="/keynote-and-team" element={<OldLineupAddress />} />
+          <Route path="/experts" element={<Navigate to="/lineup" state={{ scrollTo: 'experts' }} replace />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/roles" element={<RolesPage />} />
           <Route path="/login/:role" element={<LoginPage />} />

@@ -8,7 +8,7 @@ export default function TeamLinkedText({ text, mentions }: {
 }) {
   const { pathname } = useLocation();
   const inPortal = pathname === '/summit-27/team';
-  const teamReturnTo = inPortal ? pathname : '/keynote-and-team';
+  const teamReturnTo = inPortal ? pathname : '/lineup';
   // /disciplines needs sign-in, so on the public page a discipline opens the landing page's Disciplines section.
   const publicDiscipline = (key: keyof typeof TEAM_TARGETS) => !inPortal && TEAM_TARGETS[key].kind === 'discipline';
   return (

@@ -555,6 +555,13 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 .lp-lineup .lp-head { margin-bottom: var(--space-lg); }
 /* Each section fills the screen under the bar, and the nav lands it right under the bar, so the one you clicked shows alone. */
 .lp-lineup .lp-section { min-height: calc(100svh - var(--bar-h)); scroll-margin-top: calc(var(--bar-h) - var(--space-3xl)); background: var(--color-paper); }
+/* Lineup › Sponsors, pinned (LineupPage's SponsorsSection): a tall track whose stage stays under the bar while the scroll
+   steps the pyramid's zoom through the five tiers, about 60svh of scroll per tier. The stage is a column: heading,
+   then SponsorTiers' actions and its clipping frame, which takes the rest of the height. */
+.lp-lineup .lp-tierpin { height: 340svh; padding-block: 0; }
+.lp-tierpin__stage { position: sticky; top: var(--bar-h); display: flex; flex-direction: column; gap: var(--space-md); height: calc(100svh - var(--bar-h)); padding-block: var(--space-lg); }
+.lp-tierpin__stage .lp-head { margin-bottom: 0; }
+.lp-tierpin__step { font-size: var(--text-sm); color: var(--color-muted); white-space: nowrap; }
 /* A full-width rule between Keynote and Team, Keynote on top. */
 .lp-lineup .lp-section + .lp-section { border-top: 1px solid var(--color-rule); }
 .lp-soon { display: grid; gap: var(--space-sm); max-width: 46rem; padding: var(--space-xl); border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper-2); }

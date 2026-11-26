@@ -4,7 +4,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import Summit27Page from '../Summit27Page';
-import KeynoteTeamPage from '../KeynoteTeamPage';
+import LineupPage from '../LineupPage';
 import SponsorTiers from '../../components/SponsorTiers';
 import LandingNav from '../../components/LandingNav';
 import { navItemsForRole } from '../../components/AppShell';
@@ -57,20 +57,20 @@ describe("Summit '27 page", () => {
     // A click after the hover keeps it open rather than toggling it shut.
     await user.click(summit);
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(
-      ['About', 'Disciplines', "Summit '27", 'Keynote', 'Experts', 'Team', 'Sponsors', 'FAQ', 'Donate', 'Contact'],
+      ['About', 'Disciplines', "Summit '27", 'Keynote', 'Sponsors', 'Experts', 'Team', 'FAQ', 'Donate', 'Contact'],
     );
     await user.keyboard('{Escape}');
     expect(summit).toHaveAttribute('aria-expanded', 'false');
     expect(summit).toHaveFocus();
   });
 
-  test("the landing navbar groups Keynote, Experts, Team and Sponsors under Summit '27; Team opens the Keynote, Experts & Team page", async () => {
+  test("the landing navbar groups Keynote, Sponsors, Experts and Team under Summit '27; Team opens the Lineup page", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route path="/" element={<LandingNav />} />
-          <Route path="/keynote-and-team" element={<KeynoteTeamPage />} />
+          <Route path="/lineup" element={<LineupPage />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -81,9 +81,9 @@ describe("Summit '27 page", () => {
     await user.click(within(nav).getByRole('button', { name: "Summit '27" }));
     // fireEvent: user-event's pointer move between buttons reads as leaving the menu in jsdom (no relatedTarget), closing it.
     fireEvent.click(within(nav).getByRole('button', { name: 'Team' }));
-    // All three on one page, Experts between Keynote and Team.
+    // All four on one page, in the Lineup's order.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(['Keynote', 'Experts', 'Team']);
+    expect(headings).toEqual(['Keynote', 'Sponsors', 'Experts', 'Team']);
     expect(await screen.findByText(EXPERTS_EMPTY)).toBeInTheDocument();
     expect(screen.getAllByText('Coming soon')).toHaveLength(1);
     expect(['Event Organizers', 'Developers', 'Ambassadors', 'EAF Team'].flatMap((name) => within(screen.getByRole('list', { name })).getAllByRole('listitem'))).toHaveLength(TEAM_MEMBERS.length);

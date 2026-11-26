@@ -21,7 +21,7 @@ test('renders clickable track names without changing any paragraph characters', 
 test('on the public page a discipline opens the landing Disciplines section; in the portal, the discipline itself', () => {
   const mentions = [{ text: 'BioSphere', target: 'biosphere' as const }];
   const { unmount } = render(
-    <MemoryRouter initialEntries={['/keynote-and-team']}><TeamLinkedText text="I lead BioSphere." mentions={mentions} /></MemoryRouter>,
+    <MemoryRouter initialEntries={['/lineup']}><TeamLinkedText text="I lead BioSphere." mentions={mentions} /></MemoryRouter>,
   );
   expect(screen.getByRole('link', { name: 'BioSphere' })).toHaveAttribute('href', '/');
   unmount();

@@ -10,14 +10,15 @@ import { cn } from '@/lib/utils';
 import { jumpToSection } from '../landing/jumpToSection';
 
 /** Keynote, Experts and Team live on their own page (KeynoteTeamPage); the rest are sections of "/". */
-const KEYNOTE_TEAM_PATH = '/keynote-and-team';
+const LINEUP_PATH = '/lineup';
 type SectionLink = { id: string; label: string; path?: string };
 /** Grouped under one "Summit '27" menu so the bar isn't nine links wide. */
 const SUMMIT_LINKS: SectionLink[] = [
-  { id: 'keynote', label: 'Keynote', path: KEYNOTE_TEAM_PATH },
-  { id: 'experts', label: 'Experts', path: KEYNOTE_TEAM_PATH },
-  { id: 'team', label: 'Team', path: KEYNOTE_TEAM_PATH },
-  { id: 'sponsors', label: 'Sponsors' },
+  // All four live on the Lineup page, in its order.
+  { id: 'keynote', label: 'Keynote', path: LINEUP_PATH },
+  { id: 'sponsors', label: 'Sponsors', path: LINEUP_PATH },
+  { id: 'experts', label: 'Experts', path: LINEUP_PATH },
+  { id: 'team', label: 'Team', path: LINEUP_PATH },
 ];
 const SUMMIT_LABEL = "Summit '27";
 const SECTION_LINKS: (SectionLink | 'summit')[] = [
