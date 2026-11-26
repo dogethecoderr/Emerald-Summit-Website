@@ -61,6 +61,7 @@ export default function LandingNav({
 }: LandingNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const here = useCurrentSection(location.pathname);
   const [open, setOpen] = useState(false);
   const [summitOpen, setSummitOpen] = useState(false);
   const escaped = useRef(false);
@@ -160,6 +161,7 @@ export default function LandingNav({
                       className="lp-nav__link"
                       aria-expanded={summitOpen}
                       aria-controls="lp-nav-summit"
+                      aria-current={here === 'summit' ? 'location' : undefined}
                       onFocus={() => {
                         if (escaped.current) escaped.current = false;
                         else setSummitOpen(true);
@@ -187,6 +189,7 @@ export default function LandingNav({
                     type="button"
                     onClick={() => goToSection(s.id, s.path)}
                     className="lp-nav__link"
+                    aria-current={here === s.id ? 'location' : undefined}
                   >
                     {s.label}
                   </button>
@@ -235,7 +238,13 @@ export default function LandingNav({
               {SECTION_LINKS.map((s) =>
                 s === 'summit' ? (
                   <div key="summit" role="group" aria-labelledby="lp-nav-sheet-summit" className="lp-nav__sheet-group">
-                    <button id="lp-nav-sheet-summit" type="button" className="lp-nav__sheet-label" onClick={() => goToSection('lineup')}>
+                    <button
+                      id="lp-nav-sheet-summit"
+                      type="button"
+                      className="lp-nav__sheet-label"
+                      aria-current={here === 'summit' ? 'location' : undefined}
+                      onClick={() => goToSection('lineup')}
+                    >
                       {SUMMIT_LABEL}
                     </button>
                     {SUMMIT_LINKS.map((l) => (
@@ -250,6 +259,7 @@ export default function LandingNav({
                     type="button"
                     onClick={() => goToSection(s.id, s.path)}
                     className="lp-nav__link"
+                    aria-current={here === s.id ? 'location' : undefined}
                   >
                     {s.label}
                   </button>
@@ -272,4 +282,37 @@ export default function LandingNav({
       </div>
     </motion.header>
   );
+}
+
+/** Landing sections the nav tracks, top to bottom; "lineup" (Who makes the Summit happen?) lights up Summit '27. */
+const TRACKED = ['about', 'disciplines', 'lineup', 'faq', 'donate', 'contact'];
+
+/**
+ * Which nav tab the reader is on, so it shows in emerald: the landing section
+ * crossing the middle of the screen (one IntersectionObserver, nothing per
+ * frame), Summit '27 anywhere on the Lineup page, nothing elsewhere.
+ */
+function useCurrentSection(pathname: string): string | null {
+  const [here, setHere] = useState<string | null>(null);
+  useEffect(() => {
+    setHere(pathname === '/lineup' ? 'summit' : null);
+    if (pathname !== '/' || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const tab = e.target.id === 'lineup' ? 'summit' : e.target.id;
+          // Leaving the line clears it, so a section with no tab (the hero, Summit day) lights nothing.
+          setHere((cur) => (e.isIntersecting ? tab : cur === tab ? null : cur));
+        }
+      },
+      // A one-pixel line across the middle of the screen.
+      { rootMargin: '-50% 0px -50% 0px' },
+    );
+    for (const id of TRACKED) {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    }
+    return () => io.disconnect();
+  }, [pathname]);
+  return here;
 }

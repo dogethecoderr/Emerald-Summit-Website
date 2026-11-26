@@ -158,3 +158,10 @@ function LandingTarget() {
   const { state } = useLocation();
   return <p>Landing, section {(state as { scrollTo?: string } | null)?.scrollTo}</p>;
 }
+
+test("on the Lineup page, Summit '27 shows as the current tab", () => {
+  render(<MemoryRouter initialEntries={['/lineup']}><LandingNav /></MemoryRouter>);
+  const nav = screen.getByRole('navigation', { name: 'Main' });
+  expect(within(nav).getByRole('button', { name: "Summit '27" })).toHaveAttribute('aria-current', 'location');
+  expect(within(nav).getByRole('button', { name: 'FAQ' })).not.toHaveAttribute('aria-current');
+});

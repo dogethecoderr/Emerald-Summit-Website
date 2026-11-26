@@ -78,7 +78,8 @@
 .lp-nav__links { display: flex; align-items: center; gap: var(--space-2xs); }
 .lp-nav__link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-md); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-night-ink); font: 500 var(--text-md)/1 var(--font-body); text-decoration: none; cursor: pointer; transition: color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
 .lp-nav__link:hover { color: var(--color-night-ink); background: var(--color-night-2); }
-.lp-nav__link[aria-current="page"] { color: var(--color-night-accent); }
+/* The page, or the section the reader is on (useCurrentSection in LandingNav), in emerald. */
+.lp-nav__link[aria-current="page"], .lp-nav__link[aria-current="location"], .lp-nav__sheet-label[aria-current="location"] { color: var(--color-night-accent); }
 .lp-nav__link:active { transform: translateY(1px); }
 .lp-nav__group { position: relative; }
 .lp-nav__caret { width: 14px; height: 14px; margin-left: 4px; transition: transform var(--dur-short) var(--ease-out); }
