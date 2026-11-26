@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowRight, Check } from '@/components/icons';
 import AppShell from '../components/AppShell';
@@ -55,8 +55,45 @@ export default function VersesPage() {
   );
 }
 
+const OPEN_FLEX = 4.2;
+const ROW_GAP = 10; // gap-2.5
+
+/** A panel world's fixed canvas: the open panel's width, the row's height. */
+interface WorldBox { w: number; h: number; strip: number }
+
+/**
+ * Measures the wide row so every panel's canvas can stay one fixed size (the
+ * open panel's) while the panels grow and shrink: a canvas resized on every
+ * frame of the 300 ms hover reallocates its buffer each time and stutters.
+ */
+function useWorldBox(): [(el: HTMLDivElement | null) => void, WorldBox | null] {
+  const [box, setBox] = useState<WorldBox | null>(null);
+  const ro = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    ro.current?.disconnect();
+    ro.current = null;
+    if (!el) return;
+    const measure = () => {
+      const n = USER_DISCIPLINES.length;
+      const r = el.getBoundingClientRect();
+      const unit = Math.max(0, r.width - ROW_GAP * (n - 1)) / (OPEN_FLEX + n - 1);
+      const w = Math.round(unit * OPEN_FLEX);
+      const h = Math.round(r.height);
+      // A collapsed strip's world fills the strip's width, as it did when the canvas was the strip.
+      setBox(w && h ? { w, h, strip: unit / Math.min(w, h) } : null);
+    };
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      ro.current = new ResizeObserver(measure);
+      ro.current.observe(el);
+    }
+  }, []);
+  return [ref, box];
+}
+
 function VersesBody({ mine }: { mine: Set<string> }) {
   useSummitContent();
+  const [rowRef, worldBox] = useWorldBox();
   const { ready, redirect } = useRequireProfile();
   const wide = useWideScreen();
   const [active, setActive] = useState(0);
@@ -101,6 +138,7 @@ function VersesBody({ mine }: { mine: Set<string> }) {
 
       {wide ? (
         <div
+          ref={rowRef}
           role="list"
           onKeyDown={onKeyDown}
           className="flex h-[min(76svh,720px)] min-h-[520px] gap-2.5"
@@ -112,6 +150,7 @@ function VersesBody({ mine }: { mine: Set<string> }) {
               index={i}
               expanded={i === active}
               mine={mine}
+              worldBox={worldBox}
               onActivate={() => setActive(i)}
             />
           ))}
@@ -137,6 +176,7 @@ function VersePanel({
   expanded,
   stacked,
   mine,
+  worldBox,
   onActivate,
 }: {
   discipline: DisciplineInfo;
@@ -145,6 +185,8 @@ function VersePanel({
   /** Phone layout: a full-width card, always open. */
   stacked?: boolean;
   mine: Set<string>;
+  /** Wide row: the fixed canvas size every panel's world uses (see useWorldBox). */
+  worldBox?: WorldBox | null;
   onActivate?: () => void;
 }) {
   const { theme } = useTheme();
@@ -183,17 +225,23 @@ function VersePanel({
         boxShadow: `inset 0 0 0 1px ${rgba(vibe.accent, expanded ? 0.45 : 0.22)}`,
       }}
     >
-      <DisciplineWorld
-        discipline={discipline.name}
-        vibe={vibe}
-        theme={theme}
-        // Collapsed: the world fills the strip, cropped. Open: it floats above the text.
-        targets={stacked ? STACKED_WORLD : expanded ? OPEN_WORLD : STRIP_WORLD}
-        interactive={expanded && !stacked}
-        delay={150 + index * 110}
-        // Phones: a band across the top of the card, above the text.
-        className={stacked ? 'absolute inset-x-0 top-0 h-[170px]' : 'absolute inset-0'}
-      />
+      {/* Wide row: the canvas keeps the open panel's size, centred and clipped by
+          the panel, so a hover only moves the camera instead of resizing it. */}
+      <div
+        className={stacked ? 'absolute inset-x-0 top-0 h-[170px]' : 'pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2'}
+        style={stacked ? undefined : { width: worldBox ? worldBox.w : '100%' }}
+      >
+        <DisciplineWorld
+          discipline={discipline.name}
+          vibe={vibe}
+          theme={theme}
+          // Collapsed: the world fills the strip, cropped. Open: it floats above the text.
+          targets={stacked ? STACKED_WORLD : expanded ? OPEN_WORLD : worldBox ? { ...STRIP_WORLD, fill: worldBox.strip } : STRIP_WORLD}
+          interactive={expanded && !stacked}
+          delay={150 + index * 110}
+          className="absolute inset-0"
+        />
+      </div>
       <span
         className="pointer-events-none absolute inset-0"
         style={{
