@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Gavel,
   Megaphone,
+  Plus,
   QrCode,
   type LucideIcon,
 } from '@/components/icons';
@@ -481,6 +482,15 @@ export default function HomePage() {
                   {agenda.map((item) => (
                     <AgendaRow key={item.session.id} item={item} first={item === next} />
                   ))}
+                  {canSchedule && ownKind !== 'volunteering' && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/disciplines')}
+                      className="!mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald/40 px-4 py-3.5 text-[15px] font-semibold text-emerald transition-colors hover:border-emerald hover:bg-emerald/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald"
+                    >
+                      <Plus className="h-5 w-5" /> Add a track
+                    </button>
+                  )}
                 </div>
               )}
           </section>
