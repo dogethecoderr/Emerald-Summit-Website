@@ -556,7 +556,7 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 /* Each section fills the screen under the bar, and the nav lands it right under the bar, so the one you clicked shows alone. */
 .lp-lineup .lp-section { min-height: calc(100svh - var(--bar-h)); scroll-margin-top: calc(var(--bar-h) - var(--space-3xl)); background: var(--color-paper); }
 /* Landing › "Who makes the Summit happen?" (LineupPreview): a frame showing one Lineup section at a time as a live,
-   scaled-down copy (laid out 1600px wide, scaled to the frame), fading out toward the bottom, with the slide's count and
+   scaled-down copy (laid out 1350px wide, scaled to the frame), fading out toward the bottom, with the slide's count and
    "View …" button over the fade. Slides cross-fade on opacity; a hidden slide is also visibility: hidden once faded, so
    it isn't painted. */
 .lp-preview { background: var(--color-paper-2); }
@@ -565,7 +565,7 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 .lp-preview__tab:hover { color: var(--color-ink); border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-rule)); }
 .lp-preview__tab[aria-selected="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
 .lp-preview__tab:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-.lp-preview__frame { position: relative; height: clamp(340px, 58svh, 560px); overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper); box-shadow: 0 24px 60px -36px color-mix(in oklab, var(--color-ink) 45%, transparent); }
+.lp-preview__frame { position: relative; height: clamp(480px, 80svh, 820px); overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper); box-shadow: 0 24px 60px -36px color-mix(in oklab, var(--color-ink) 45%, transparent); }
 .lp-preview__slides { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 45%, rgb(0 0 0 / 0.35) 78%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 45%, rgb(0 0 0 / 0.35) 78%, transparent 100%); }
 .lp-preview__slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 500ms var(--ease-out), visibility 0s linear 500ms; }
 .lp-preview__slide.is-active { opacity: 1; visibility: visible; transition: opacity 500ms var(--ease-out), visibility 0s; }

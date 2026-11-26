@@ -25,7 +25,7 @@ type SlideId = (typeof SLIDES)[number]['id'];
 /** How long each slide shows before the next. */
 export const SLIDE_MS = 6000;
 /** The copies are laid out at this width, then scaled to fit the frame. */
-const PAGE_W = 1600;
+const PAGE_W = 1350;
 
 const LineupBody = lazy(() => import('../components/LineupSections').then((m) => ({ default: m.LineupBody })));
 
