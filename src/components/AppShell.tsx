@@ -525,7 +525,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {initials}
             </div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="break-words whitespace-normal text-[13px] font-semibold">{name}</div>
+              {/* One line, cut off with "…" when long; hover shows the whole name. */}
+              <div className="truncate text-[13px] font-semibold" title={name}>{name}</div>
               <div className="truncate text-[11.5px] text-white/55">{roleLabel}</div>
             </div>
           </NavLink>
