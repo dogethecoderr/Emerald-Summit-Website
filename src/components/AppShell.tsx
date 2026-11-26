@@ -31,6 +31,7 @@ import { useSummitContent } from '../services/summitContent';
 import { useAuth } from '../context/AuthContext';
 import { useSchedule } from '../context/ScheduleContext';
 import { useNotifications } from '../context/NotificationsContext';
+import NotificationBell from './NotificationBell';
 import { roleByName, roleLabelFor, USER_ROLES } from '../models/roles';
 import { signOut } from '../services/auth';
 import { MOCK_SESSIONS, joinParts, sessionPlace } from '../models/sessions';
@@ -574,18 +575,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <role.icon className="h-3.5 w-3.5" />
               {roleLabel}
             </span>
-            <NavLink
-              to="/notifications"
-              aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-              className="relative rounded-md border border-border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Bell className="h-[18px] w-[18px]" />
-              {hasUnread && (
-                <span className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-card">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </NavLink>
+            <NotificationBell />
           </div>
         </header>
 

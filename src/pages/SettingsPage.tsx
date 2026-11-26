@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeftRight, Award, Bug, CalendarDays, ChartLine, ChevronLeft, ChevronRight, Clock, HeartHandshake, LogOut, MapPin,
   Palette, QrCode, ScanLine, ShieldCheck, Trash2, UserRound, Users, CameraOff,
+  Bell,
 } from '@/components/icons';
 import { useSummitStatus } from '../services/summitStatus';
 import { toast } from 'sonner';
@@ -215,6 +216,7 @@ function ProfileHub({ profile }: { profile: Profile }) {
         <div className="border-b border-border/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Settings</div>
         <div className="divide-y divide-border/60">
           <SettingsRow icon={UserRound} title="Edit profile" subtitle="Your name and contact details" onClick={() => navigate('/account/edit')} />
+          <SettingsRow icon={Bell} title="Notifications" subtitle="Track reminders, posts for you and changes to your tracks. They show on the bell; there are no browser alerts to turn on or off" onClick={() => navigate('/notifications')} />
           <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/15 text-emerald-mint dark:text-primary"><Palette className="h-4 w-4" /></span>
             <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold">Appearance</span><span className="mt-0.5 block text-[12px] text-muted-foreground">System is dark from 7 PM to 7 AM</span></span>

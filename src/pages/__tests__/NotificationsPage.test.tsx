@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import NotificationsPage from '../NotificationsPage';
+import NotificationBell from '../../components/NotificationBell';
 import type { AppNotification } from '../../models/notifications';
 import { notificationFromRow, notificationFullTime, notificationLink, notificationStamp } from '../../models/notifications';
 
@@ -106,5 +107,54 @@ describe('notification rows', () => {
     expect(notificationStamp('2025-12-30T18:00:00Z', now, tz)).toBe('Dec 30, 2025');
     expect(notificationStamp(undefined, now, tz)).toBe('');
     expect(notificationFullTime('2026-11-12T17:05:00Z', tz)).toBe('Thursday, November 12, 2026 at 9:05 AM');
+  });
+});
+
+describe('Back and the bell preview', () => {
+  test('Back returns to the page the bell was clicked on', async () => {
+    render(
+      <MemoryRouter initialEntries={['/schedule', '/notifications']} initialIndex={1}>
+        <Routes>
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/schedule" element={<div>My Day page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('My Day page')).toBeInTheDocument();
+  });
+
+  test('opened directly, Back goes Home', async () => {
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <Routes>
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/home" element={<div>Home page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Home page')).toBeInTheDocument();
+  });
+
+  test('hovering the bell previews the newest notes; clicking it opens the full page', async () => {
+    render(
+      <MemoryRouter initialEntries={['/home']}>
+        <NotificationBell />
+        <Routes>
+          <Route path="/home" element={<div>Home page</div>} />
+          <Route path="/notifications" element={<div>Full notifications page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const bell = screen.getByRole('link', { name: 'Notifications, 2 unread' });
+    expect(screen.queryByRole('region', { name: 'Latest notifications' })).not.toBeInTheDocument();
+    fireEvent.mouseEnter(bell.parentElement!);
+    const preview = screen.getByRole('region', { name: 'Latest notifications' });
+    expect(preview).toHaveTextContent('Summit Admin posted to TechVerse');
+    expect(preview).toHaveTextContent('See all notifications');
+    fireEvent.click(bell);
+    expect(screen.getByText('Full notifications page')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Latest notifications' })).not.toBeInTheDocument();
   });
 });
