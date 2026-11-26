@@ -77,7 +77,8 @@ function UniverseOrbit() {
   // just enough by a stiff spring that a wheel's steps don't judder.
   const turn = useTransform(
     scrollYProgress,
-    (p) => -Math.min(Math.max(p * COUNT - 0.5, 0), COUNT - 1) * STEP,
+    // Positive: the ring turns clockwise as the reader scrolls down.
+    (p) => Math.min(Math.max(p * COUNT - 0.5, 0), COUNT - 1) * STEP,
   );
   const rotate = useSpring(turn, { stiffness: 220, damping: 34, mass: 0.6 });
   const counterRotate = useTransform(rotate, (r) => -r);
@@ -109,7 +110,8 @@ function UniverseOrbit() {
       className="lp lp-night lp-orbit"
       aria-labelledby="universes-title"
     >
-      <div className="lp-orbit__pin">
+      {/* The section glows in the color of the discipline at the top of the ring. */}
+      <div className="lp-orbit__pin" style={{ '--orbit-glow': d.color } as CSSProperties}>
         <div className="container lp-grid lp-orbit__inner">
           <div className="lp-orbit__stage" aria-hidden>
             <div className="lp-orbit__ring" />
@@ -118,7 +120,7 @@ function UniverseOrbit() {
                 <OrbitPlanets3D
                   rotate={rotate}
                   active={active}
-                  colors={USER_DISCIPLINES.map((u) => u.color)}
+                  planets={USER_DISCIPLINES.map((u) => ({ name: u.name, color: u.color }))}
                   radius={R}
                   onReady={() => setSpheres(true)}
                 />
@@ -126,7 +128,8 @@ function UniverseOrbit() {
             </Fallback>
             <motion.div className="lp-orbit__wheel" style={{ rotate }}>
               {USER_DISCIPLINES.map((u, i) => {
-                const angle = (i / COUNT) * 2 * Math.PI - Math.PI / 2;
+                // Laid out counterclockwise from the top, so a clockwise turn brings each one up in order.
+                const angle = (-i / COUNT) * 2 * Math.PI - Math.PI / 2;
                 const isActive = i === active;
                 return (
                   <div
@@ -141,7 +144,7 @@ function UniverseOrbit() {
                       <motion.span
                         className="lp-orbit__planet"
                         style={{ '--uni': u.color, visibility: spheres ? 'hidden' : undefined } as CSSProperties}
-                        animate={{ scale: isActive ? 2 : 1, opacity: isActive ? 1 : 0.6 }}
+                        animate={{ scale: isActive ? 1.7 : 1, opacity: isActive ? 1 : 0.6 }}
                         transition={{ type: 'spring', stiffness: 260, damping: 26 }}
                       />
                       <span className={`lp-orbit__label${isActive ? ' is-active' : ''}`}>
