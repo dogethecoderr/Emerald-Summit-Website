@@ -605,8 +605,9 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 .lp-donate { background: var(--color-paper-2); padding-block: var(--section-gap-s); }
 #donate { scroll-margin-top: calc(var(--bar-h) - var(--space-3xl)); }
 .lp-donate__inner { display: grid; justify-items: center; gap: var(--space-md); text-align: center; }
-#donate .lp-donate__actions > :is(a, button) { font-size: 1rem; padding: 12px 22px; }
-.lp-donate__inner h2 { max-width: none; font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.4rem); }
-.lp-donate__lede { max-width: 60ch; color: var(--color-ink-2); font-size: var(--text-md); line-height: 1.55; }
+#donate .lp-donate__actions > :is(a, button) { font-size: var(--text-sm); padding: 10px 18px; }
+.lp-donate__inner h2 { max-width: none; font-size: 27px; }
+/* 14px, not the 11px a strict 27/48 scale of the old sizes would give: the smallest size that stays comfortable to read. */
+.lp-donate__lede { max-width: 60ch; color: var(--color-ink-2); font-size: var(--text-sm); line-height: 1.6; }
 #donate .lp-donate__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-sm); margin-top: var(--space-sm); }
 @media (max-width: 40rem) { #donate .lp-donate__actions { width: 100%; } }
