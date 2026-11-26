@@ -181,14 +181,18 @@ export default function SunArc({
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Only paint while the hero is on screen: the resting sun would otherwise run forever.
     let onScreen = true;
-    const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; });
+    let raf = 0;
+    // Resting off screen, the loop stops outright (no idle frame wake-ups) and restarts when the hero is back.
+    const io = new IntersectionObserver(([e]) => {
+      onScreen = e.isIntersecting;
+      if (onScreen && !raf && !still) raf = requestAnimationFrame(frame);
+    });
     io.observe(canvas);
 
-    let raf = 0;
     let start = 0;
     let restAt = 0; // when the sun reached the crest
     let lastPaint = 0;
-    const frame = (now: number) => {
+    const frame = (now: number): void => {
       raf = requestAnimationFrame(frame);
       if (!start) start = now;
       const secs = (now - start) / 1000;
@@ -205,7 +209,12 @@ export default function SunArc({
         onFrameRef.current?.(0.5);
         onDoneRef.current?.();
       }
-      if (!onScreen || now - lastPaint < REST_FRAME_MS) return;
+      if (!onScreen) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        return;
+      }
+      if (now - lastPaint < REST_FRAME_MS) return;
       lastPaint = now;
       // Settles from full strength to DIM, then a slow breath down by PULSE_DEPTH and back.
       const settled = rise ? smooth(clamp01((now - restAt) / DIM_MS)) : 1;

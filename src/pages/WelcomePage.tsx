@@ -238,6 +238,14 @@ export default function WelcomePage() {
   // and as the page scrolls, so the sky reads as layers rather than a flat
   // picture. The stylesheet does the moving from these three variables.
   const heroRef = useRef<HTMLElement>(null);
+  // Off screen, the hero's endless CSS animations (the wordmark's glint) pause.
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => hero.toggleAttribute('data-offscreen', !e.isIntersecting));
+    io.observe(hero);
+    return () => io.disconnect();
+  }, []);
   useEffect(() => {
     const hero = heroRef.current;
     if (!hero || reduceMotion) return;

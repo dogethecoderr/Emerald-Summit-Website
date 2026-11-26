@@ -123,6 +123,8 @@
 /* The wordmark's colour: white easing to pale emerald, then pale emerald running to green, with one highlight that travels across both lines. */
 .lp-hero__title-in > span { --fill: linear-gradient(100deg, #ffffff 5%, #f2fdf8 45%, #d1fae5 95%); --glint: rgb(167 243 208 / 0.95); padding-bottom: 0.06em; background-image: linear-gradient(100deg, transparent 47%, var(--glint) 50%, transparent 53%), var(--fill); background-size: 300% 100%, 100% 100%; background-position: 100% 0, 0 0; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lp-glint 4.5s linear infinite; }
 .lp-hero__title-in > span + span { --fill: linear-gradient(100deg, #d1fae5 5%, #6ee7b7 45%, #22c55e 95%); --glint: rgb(255 255 255 / 0.92); animation-delay: 0.7s; }
+/* The glint repaints the title (and its drop shadow) every frame, so it rests while the hero is scrolled out of view. */
+.lp-hero[data-offscreen] .lp-hero__title-in > span { animation-play-state: paused; }
 @keyframes lp-glint { 0%, 80% { background-position: 100% 0, 0 0; } 100% { background-position: 0% 0, 0 0; } }
 .lp-hero__aside { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
 /* A soft pool behind the details: the sky and ridges under them are blurred and dimmed, feathered out so no edge shows. */
@@ -529,6 +531,7 @@
   .lp-nav__bar, .lp-btn, .lp-icon-btn, .lp-faq__a, .lp-faq__icon, .lp-hero .lp-sky { transition: none; }
   .lp-hero [data-ridge], .lp-hero .lp-sun { translate: none !important; }
   .lp-hero:not(.lp-hero--intro) .lp-hero__title-in { transform: none; }
+  .lp-hero__title-in > span { animation: none; }
   .lp-viewer__overlay[data-state="open"], .lp-viewer[data-state="open"] { animation: none; }
 }
 

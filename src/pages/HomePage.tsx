@@ -387,7 +387,7 @@ export default function HomePage() {
           </div>
 
           {/* Up next, inside the greeting card, for every role. */}
-          <section aria-label="Up next" className="w-full rounded-xl border border-white/30 bg-white/[0.14] p-5 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-6 lg:max-w-[440px] lg:flex-1">
+          <section aria-label="Up next" className="w-full rounded-xl border border-white/30 bg-white/[0.14] p-5 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.45)] sm:p-6 lg:max-w-[440px] lg:flex-1">
               {next ? (
                 <>
                   <div className="flex items-center justify-between gap-2">
