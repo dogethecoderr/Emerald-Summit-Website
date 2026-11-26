@@ -6,8 +6,8 @@
 // Kept light: the copies load only when the section nears the screen (their
 // module is split out), they're static (inert, no buttons, so the sponsor
 // form never preloads), the slides cross-fade on opacity alone, and the
-// slideshow only advances while it's on screen, the tab is visible and nobody
-// is hovering or focused in it; never by itself under reduced motion.
+// slideshow only advances while it's on screen and the tab is visible (hover
+// and focus don't pause it); never by itself under reduced motion.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
@@ -36,7 +36,6 @@ export default function LineupPreview() {
   const [active, setActive] = useState(0);
   const [near, setNear] = useState(false);
   const [onScreen, setOnScreen] = useState(false);
-  const [held, setHeld] = useState(false);
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const [scale, setScale] = useState(0.5);
   const section = useRef<HTMLElement>(null);
@@ -71,7 +70,8 @@ export default function LineupPreview() {
     return () => ro.disconnect();
   }, []);
 
-  const playing = !reduce && onScreen && !held && !hidden;
+  // Hover and focus don't pause it: it keeps going whenever the section is on screen.
+  const playing = !reduce && onScreen && !hidden;
   useEffect(() => {
     if (!playing) return;
     const t = window.setTimeout(() => setActive((i) => (i + 1) % SLIDES.length), SLIDE_MS);
@@ -89,10 +89,6 @@ export default function LineupPreview() {
       className="lp-section lp-preview"
       aria-labelledby="lineup-title"
       aria-roledescription="carousel"
-      onMouseEnter={() => setHeld(true)}
-      onMouseLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
-      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setHeld(false)}
     >
       <div className="container">
         <div className="lp-head lp-head--row">
