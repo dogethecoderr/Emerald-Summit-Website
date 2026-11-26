@@ -18,10 +18,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 export const SUMMIT27_TABS: { id: string; label: string; icon: AppIcon }[] = [
+  // The public Lineup page's order (src/components/LineupSections.tsx).
   { id: 'keynote', label: 'Keynote', icon: Keynote },
-  { id: 'team', label: 'Team', icon: Team },
-  { id: 'experts', label: 'Experts', icon: Award },
   { id: 'sponsors', label: 'Sponsors', icon: Handshake },
+  { id: 'experts', label: 'Experts', icon: Award },
+  { id: 'team', label: 'Team', icon: Team },
 ];
 
 const HEADING = "Summit '27";

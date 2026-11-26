@@ -100,13 +100,15 @@ describe("Summit '27 page", () => {
     }
   });
 
-  test('subtabs switch between keynote, team, experts and sponsors, with Donate on each', async () => {
+  test('subtabs (keynote, sponsors, experts, team) switch, with Donate on each', async () => {
     renderAt('/summit-27/keynote');
     expect(screen.getByText(/keynote speaker will be announced soon/)).toBeInTheDocument();
     expect(screen.getByText('Saturday, January 23, 2027 · 9 AM to 5 PM · Emerald High School, Dublin, CA')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Donate/ })).toBeInTheDocument();
 
     const tabs = screen.getByRole('navigation', { name: "Summit '27" });
+    // Same order as the public Lineup page.
+    expect(within(tabs).getAllByRole('link').map((l) => l.textContent?.trim())).toEqual(['Keynote', 'Sponsors', 'Experts', 'Team']);
     await userEvent.click(within(tabs).getByRole('link', { name: /Team/ }));
     expect(screen.getByRole('heading', { level: 1, name: "Summit '27" })).toBeInTheDocument();
     expect(['Event Organizers', 'Developers', 'Ambassadors', 'EAF Team'].flatMap((name) => within(screen.getByRole('list', { name })).getAllByRole('listitem'))).toHaveLength(TEAM_MEMBERS.length);
