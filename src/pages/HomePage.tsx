@@ -34,6 +34,7 @@ import PhotoSlideshow from '../components/home/PhotoSlideshow';
 import QuoteCard from '../components/home/QuoteCard';
 import { pickGreeting } from '../models/greetings';
 import LinksCard from '../components/home/LinksCard';
+import DisciplinesCard from '../components/home/DisciplinesCard';
 import { ExpertDeclinedDialog, ExpertPending, needsExpertApproval } from '../components/ExpertStatus';
 import { needsBeamentor } from '../models/beamentor';
 import { AboutAppCard, SupportEafCard } from '../components/home/AboutSections';
@@ -527,6 +528,10 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      <hr className="my-8 border-t border-border/80" aria-hidden />
+
+      <DisciplinesCard />
 
       <hr className="my-8 border-t border-border/80" aria-hidden />
 
