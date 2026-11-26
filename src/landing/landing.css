@@ -375,7 +375,7 @@
 .lp-orbit__planets3d { position: absolute; inset: 0; pointer-events: none; }
 .lp-orbit__slot { position: absolute; transform: translate(-50%, -50%); }
 .lp-orbit__body { display: grid; justify-items: center; gap: var(--space-md); }
-.lp-orbit__planet { display: block; width: 28px; height: 28px; border-radius: var(--radius-pill); background: var(--uni); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-night-ink) 25%, transparent); }
+.lp-orbit__planets3d { position: absolute; inset: 0; pointer-events: none; }
 .lp-orbit__label { font-size: var(--text-sm); color: var(--color-night-muted); white-space: nowrap; transition: color var(--dur-short) var(--ease-out); }
 .lp-orbit__label.is-active { color: var(--color-night-ink); }
 .lp-orbit__core { position: absolute; left: 50%; top: 50%; width: 22%; aspect-ratio: 1; transform: translate(-50%, -50%); }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, Check, Clock, MapPin, Minus, MoreHorizontal, ArrowRight } from '@/components/icons';
+import { CalendarDays, Check, Clock, MapPin, Minus, MoreHorizontal, ArrowRight, Plus } from '@/components/icons';
 import AppShell from '../components/AppShell';
 import PageHeader from '../components/PageHeader';
 import TrackPill from '../components/TrackPill';
@@ -95,7 +95,6 @@ export default function SchedulePage() {
             </p>
           )}
         </div>
-        <Link to="/disciplines" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald hover:underline">Explore <ArrowRight className="h-4 w-4" /></Link>
       </div>
       {added.length === 0 && !scheduleError ? (
         <div className="glass flex flex-col items-center gap-3 rounded-2xl px-6 py-16 text-center">
@@ -149,10 +148,10 @@ export default function SchedulePage() {
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       aria-label={`More options for ${s.title}`}
-                      className="-mr-1.5 -mt-1 shrink-0 rounded-md p-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald"
-                      style={{ color: vibe.textDim }}
+                      className="-mr-1 -mt-1 shrink-0 rounded-full p-2 transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald"
+                      style={{ color: accent, background: rgba(accent, 0.14), border: `1px solid ${rgba(accent, 0.35)}` }}
                     >
-                      <MoreHorizontal className="h-5 w-5" />
+                      <MoreHorizontal className="h-5 w-5" weight="bold" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => navigate(`/sessions/${s.id}`)}>
@@ -169,6 +168,12 @@ export default function SchedulePage() {
               </article>
             );
           })}
+          <Link
+            to="/disciplines"
+            className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald/40 px-4 py-4 text-[15px] font-semibold text-emerald transition-colors hover:border-emerald hover:bg-emerald/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald"
+          >
+            <Plus className="h-5 w-5" /> Add a track
+          </Link>
         </div>
       )}
       <Dialog open={confirmRemove != null} onOpenChange={(o) => !o && !removing && setConfirmRemove(null)}>
