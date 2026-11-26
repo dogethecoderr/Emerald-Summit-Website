@@ -39,7 +39,7 @@ export default function SponsorTerraces({ sponsors = SPONSORS }: { sponsors?: Sp
                 {here.map((s) => (
                   <li key={s.name}>
                     <a href={s.url} target="_blank" rel="noreferrer" className="lp-sponsors__logo" title={s.name}>
-                      <img src={s.logo} alt={s.name} loading="lazy" />
+                      <img src={s.logo} alt={s.name} loading="lazy" decoding="async" />
                     </a>
                   </li>
                 ))}
@@ -82,7 +82,7 @@ export default function SponsorTerraces({ sponsors = SPONSORS }: { sponsors?: Sp
                       {logos.length > 0
                         ? logos.map((s) => (
                             <span key={s.name} className="lp-terrace__chip">
-                              <img src={s.logo} alt="" loading="lazy" />
+                              <img src={s.logo} alt="" loading="lazy" decoding="async" />
                             </span>
                           ))
                         : <span className="lp-terrace__open">Open</span>}

@@ -7,6 +7,7 @@ import { ChevronDown, Menu, X } from '@/components/icons';
 import BrandMark from './BrandMark';
 import { NAV_LOGO_ATTR, playSummit27Intro } from './Summit27Intro';
 import { cn } from '@/lib/utils';
+import { jumpToSection } from '../landing/jumpToSection';
 
 /** Keynote, Experts and Team live on their own page (KeynoteTeamPage); the rest are sections of "/". */
 const KEYNOTE_TEAM_PATH = '/keynote-and-team';
@@ -93,9 +94,7 @@ export default function LandingNav({
     setOpen(false);
     setSummitOpen(false);
     if (location.pathname === path) {
-      document
-        .getElementById(id)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      jumpToSection(id);
     } else {
       navigate(path, { state: { scrollTo: id } });
     }

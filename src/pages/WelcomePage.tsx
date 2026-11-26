@@ -20,6 +20,7 @@ import { Mail } from '@/components/icons';
 import { useIsTouchScreen } from '../lib/device';
 import '../landing/landing.css';
 import { SUMMIT_ABOUT, SUMMIT_DATE_LABEL, SUMMIT_HOURS, VENUE } from '../models/summitFacts';
+import { jumpToSection } from '../landing/jumpToSection';
 
 const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
@@ -301,11 +302,7 @@ export default function WelcomePage() {
     const scrollTo = (location.state as { scrollTo?: string } | null)
       ?.scrollTo;
     if (!scrollTo) return;
-    const frame = requestAnimationFrame(() => {
-      document
-        .getElementById(scrollTo)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    const frame = requestAnimationFrame(() => jumpToSection(scrollTo));
     window.history.replaceState({}, '');
     return () => cancelAnimationFrame(frame);
   }, [location.state]);

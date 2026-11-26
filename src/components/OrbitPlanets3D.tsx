@@ -19,6 +19,7 @@ import type { MotionValue } from 'framer-motion';
 import * as THREE from 'three';
 import { VERSE_VIBES, type VerseMotif } from '../models/verseVibes';
 import { paintPlanet, paintRing, type PlanetMaps } from './planetTextures';
+import { SECTION_JUMP_EVENT, SECTION_JUMP_START_EVENT } from '../landing/jumpToSection';
 
 export interface PlanetSpec {
   name: string;
@@ -292,6 +293,18 @@ export default function OrbitPlanets3D({ rotate, active, planets, radius, onRead
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  // A nav or footer scroll passing through: hold the last frame instead of rendering every frame of the trip.
+  const [passing, setPassing] = useState(false);
+  useEffect(() => {
+    const start = () => setPassing(true);
+    const land = () => setPassing(false);
+    window.addEventListener(SECTION_JUMP_START_EVENT, start);
+    window.addEventListener(SECTION_JUMP_EVENT, land);
+    return () => {
+      window.removeEventListener(SECTION_JUMP_START_EVENT, start);
+      window.removeEventListener(SECTION_JUMP_EVENT, land);
+    };
+  }, []);
 
   return (
     <div ref={wrapRef} className="lp-orbit__planets3d" aria-hidden>
@@ -300,7 +313,7 @@ export default function OrbitPlanets3D({ rotate, active, planets, radius, onRead
         camera={{ position: [0, 0, 300], zoom: 1, near: 0.1, far: 1000 }}
         // Capped at 1.5: the planets are small, and a 2× buffer costs nearly twice the fill.
         dpr={[1, 1.5]}
-        frameloop={visible ? 'always' : 'never'}
+        frameloop={visible && !passing ? 'always' : 'never'}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
         onCreated={() => onReady()}
       >
