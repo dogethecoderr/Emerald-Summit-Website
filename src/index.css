@@ -206,3 +206,12 @@ body.summit-intro [data-summit-nav-logo] {
 body.summit-intro [data-summit-roll] > * {
   opacity: 0;
 }
+
+/* Sign-in, sign-up, profile setup and BeAMentor (AuthLayout): everything below the page's heading (the Google and LinkedIn
+   buttons, labels, fields, buttons and the small print) a touch larger for readability, in proportion, without touching
+   the heading. zoom scales the text, controls and spacing together and still fits the column's width. The rule covers both
+   layouts: a column whose <header> holds the h1 (sign in), and top-level siblings where only the first holds the h1. */
+.auth-body > :not(:has(h1)),
+.auth-body > :has(> header) > :not(header) {
+  zoom: 1.07;
+}

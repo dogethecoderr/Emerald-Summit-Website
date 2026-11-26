@@ -480,6 +480,7 @@ Two landing sections, **What happens on Summit day?** (the terraces) and **Who a
 
 The role sign-in (`/login/:role`), the expert application (`/apply/:role`), and profile setup (`/profile`) share `src/components/AuthLayout.tsx`. It's adapted from the "Split Login" block found on 21st.dev (Hirael login-03, MIT):
 
+- **Form size:** since Nov 25, 2026 everything below the heading (Google and LinkedIn buttons, labels, fields, buttons, small print) is 7% larger for readability, in proportion (`.auth-body` in `src/index.css`, a CSS `zoom` on the parts that don't hold the h1); the heading is unchanged.
 - **Navy aside:** the logo, the role's icon and name (centered a little above the middle, like the roles page heading), and flowing paths in the role's color. The paths drift with a CSS stroke animation (`auth-path` in `src/index.css`), not per-frame JavaScript. It stays in place while a long form scrolls. The outer section clips sideways overflow with `overflow-x-clip`, not `overflow-hidden`, which would break `sticky`.
 - **Focused pane:** a back link and the theme button, then the form.
 - **`fullScreen`** (Nov 21, 2026): once someone has signed in (Google, an emailed code, or LinkedIn for experts), the sign-up questions take the whole screen with no navy aside, at every size. Profile setup and the expert BeAMentor step pass it. The logo sits above the form with a small tag on the right (the role's icon, "Set up your profile · Participant"), and the form column is up to 960px. Sign-in itself keeps the split with the aside.

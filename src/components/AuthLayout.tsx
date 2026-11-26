@@ -176,7 +176,8 @@ export default function AuthLayout({
               </span>
             )}
           </div>
-          {children}
+          {/* .auth-body (index.css) sets the form below the heading a touch larger. */}
+          <div className="auth-body">{children}</div>
         </div>
       </div>
     </section>
