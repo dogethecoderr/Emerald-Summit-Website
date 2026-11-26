@@ -568,13 +568,14 @@ html:has(.lp-page), body:has(.lp-page) { background: var(--color-paper); }
 .lp-preview__tab:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .lp-preview__frame { position: relative; height: clamp(560px, calc(100svh - var(--bar-h) - var(--space-lg)), 980px); overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper); box-shadow: 0 24px 60px -36px color-mix(in oklab, var(--color-ink) 45%, transparent); }
 .lp-preview__slides { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 80%, rgb(0 0 0 / 0.4) 93%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 80%, rgb(0 0 0 / 0.4) 93%, transparent 100%); }
-.lp-preview__slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 500ms var(--ease-out), visibility 0s linear 500ms; }
-.lp-preview__slide.is-active { opacity: 1; visibility: visible; transition: opacity 500ms var(--ease-out), visibility 0s; }
+/* The outgoing slide fades out while the new one fades in and eases up 14px into place (0.8 s, opacity and transform only). */
+.lp-preview__slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transform: translateY(14px); transition: opacity 800ms var(--ease-out), transform 800ms var(--ease-out), visibility 0s linear 800ms; }
+.lp-preview__slide.is-active { opacity: 1; visibility: visible; transform: none; transition: opacity 800ms var(--ease-out), transform 800ms var(--ease-out), visibility 0s; }
 .lp-preview__page { padding: var(--space-2xl) var(--space-2xl) 0; transform-origin: top left; pointer-events: none; }
 .lp-preview__heading { font-family: var(--font-display); font-size: var(--text-display-s); font-weight: 700; line-height: 1; color: var(--color-ink); }
 .lp-preview__bar { position: absolute; inset-inline: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-lg) var(--space-xl); }
 .lp-preview__count { font-size: var(--text-sm); color: var(--color-ink-2); }
-@media (prefers-reduced-motion: reduce) { .lp-preview__slide, .lp-preview__slide.is-active { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .lp-preview__slide, .lp-preview__slide.is-active { transition: none; transform: none; } }
 
 /* Lineup › Sponsors, pinned (LineupPage's SponsorsSection): a tall track whose stage stays under the bar while the scroll
    steps the pyramid's zoom through the five tiers, about 60svh of scroll per tier. The stage is a column: heading,

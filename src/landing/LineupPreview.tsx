@@ -24,7 +24,7 @@ const SLIDES = [
 type SlideId = (typeof SLIDES)[number]['id'];
 
 /** How long each slide shows before the next. */
-export const SLIDE_MS = 6000;
+export const SLIDE_MS = 5000;
 /** The copies are laid out at this width, then scaled to fit the frame. */
 const PAGE_W = 1350;
 
