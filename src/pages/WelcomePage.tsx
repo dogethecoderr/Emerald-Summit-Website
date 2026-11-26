@@ -9,7 +9,6 @@ import FaqSection from '../components/FaqSection';
 import OrbitalUniverses from '../components/OrbitalUniverses';
 import PhotoMosaic from '../components/PhotoMosaic';
 import LandingFooter from '../components/LandingFooter';
-import SponsorTiers from '../components/SponsorTiers';
 import DonateSection from '../landing/DonateSection';
 import PhotoRail from '../landing/PhotoRail';
 import HairlineFigure from '../landing/HairlineFigure';
@@ -21,6 +20,7 @@ import { useIsTouchScreen } from '../lib/device';
 import '../landing/landing.css';
 import { SUMMIT_ABOUT, SUMMIT_DATE_LABEL, SUMMIT_HOURS, VENUE } from '../models/summitFacts';
 import { jumpToSection } from '../landing/jumpToSection';
+import LineupPreview from '../landing/LineupPreview';
 
 const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
@@ -431,15 +431,8 @@ export default function WelcomePage() {
         {/* The lineup: a scroll-driven orbit of the six disciplines and their tracks. */}
         <OrbitalUniverses />
 
-        {/* The sponsors, as the same tier pyramid the portal's Summit '27 page has. */}
-        <section id="sponsors" className="lp-section" aria-labelledby="sponsors-title">
-          <div className="container">
-            <div className="lp-head">
-              <h2 id="sponsors-title">Who helps make the Summit happen?</h2>
-            </div>
-            <SponsorTiers />
-          </div>
-        </section>
+        {/* Who makes the Summit happen: previews of the Lineup page's Keynote, Sponsors, Experts and Team, each opening it. */}
+        <LineupPreview />
 
         {/* The day, in the owner's photographs. */}
         <section className="lp-section lp-section--tight lp-ruled" aria-labelledby="rail-title">

@@ -17,8 +17,11 @@ export const LINEUP_SECTIONS: { id: LineupId; title: string; lead?: string }[] =
 
 export const LINEUP_PATH = '/lineup';
 
-/** A section's body, under its heading. `focus` drives the Sponsors pyramid's zoom (the pinned page section only). */
-export function LineupBody({ id, focus }: { id: LineupId; focus?: number }) {
+/**
+ * A section's body, under its heading. `focus` drives the Sponsors pyramid's zoom (the pinned page section only);
+ * `preview` is the landing page's picture of it (no sponsor buttons).
+ */
+export function LineupBody({ id, focus, preview = false }: { id: LineupId; focus?: number; preview?: boolean }) {
   switch (id) {
     case 'keynote':
       return (
@@ -28,7 +31,7 @@ export function LineupBody({ id, focus }: { id: LineupId; focus?: number }) {
         </div>
       );
     case 'sponsors':
-      return <SponsorTiers focus={focus} />;
+      return <SponsorTiers focus={focus} preview={preview} />;
     case 'experts':
       return <ExpertsDirectory />;
     case 'team':

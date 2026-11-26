@@ -125,8 +125,10 @@ function OpenSpot({ tier, solid, first, onOpen }: { tier: string; solid: boolean
  * Cornerstone at the base, each with its price, perks and logos, and open
  * spots that open the sponsor form.
  */
-export default function SponsorTiers({ sponsors = SPONSORS, focus }: {
+export default function SponsorTiers({ sponsors = SPONSORS, focus, preview = false }: {
   sponsors?: Sponsor[];
+  /** A picture of the pyramid (the landing page's Lineup preview): no buttons, so the sponsor form never preloads. */
+  preview?: boolean;
   /**
    * Focus mode (the Lineup page's pinned Sponsors section): the pyramid zooms
    * and pans so this tier sits in the middle of the frame, and the others dim.
@@ -141,7 +143,7 @@ export default function SponsorTiers({ sponsors = SPONSORS, focus }: {
   const list = useRef<HTMLOListElement>(null);
   const transform = useFocusTransform(frame, list, focus);
 
-  const actions = (
+  const actions = preview ? null : (
     <div className="sponsor-actions flex flex-wrap gap-2.5">
       <ZeffyFormButton
         label="Become a sponsor"
