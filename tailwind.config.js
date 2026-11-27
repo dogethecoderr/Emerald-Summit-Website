@@ -118,6 +118,11 @@ module.exports = {
         glint: 'glint 4.5s linear infinite',
         'gradient-pan': 'gradient-pan 12s ease-in-out infinite',
       },
+      // Named so `ease-brand-out` doesn't collide with tailwindcss-animate's
+      // own arbitrary-value `ease-[...]` utility (the ambiguous-class build warning).
+      transitionTimingFunction: {
+        'brand-out': 'var(--ease-out)',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

@@ -86,6 +86,9 @@
   }
   html {
     scroll-behavior: smooth;
+    /* framer-motion's useScroll measures offsets against this element by
+       default; static position makes that measurement unreliable (dev warning). */
+    position: relative;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;

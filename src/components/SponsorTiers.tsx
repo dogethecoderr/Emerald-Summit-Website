@@ -175,7 +175,7 @@ export default function SponsorTiers({ sponsors = SPONSORS, focus, preview = fal
         ref={list}
         className={cn(
           'flex flex-col items-center gap-2',
-          focusing && 'relative origin-top transition-transform duration-500 ease-[var(--ease-out)] motion-reduce:transition-none',
+          focusing && 'relative origin-top transition-transform duration-500 ease-brand-out motion-reduce:transition-none',
         )}
         style={focusing ? { transform } : undefined}
         aria-label="Sponsor tiers, highest first"

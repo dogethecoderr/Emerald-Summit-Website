@@ -29,7 +29,7 @@ export default function DisciplinesCard() {
             <li key={d.name} className="min-w-0">
               <Link
                 to={`/disciplines?verse=${encodeURIComponent(d.name)}`}
-                className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-[22px] p-4 outline-none transition-transform duration-200 ease-[var(--ease-out)] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-[22px] p-4 outline-none transition-transform duration-200 ease-brand-out hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                 style={{
                   background: vibe.background,
                   color: vibe.text,

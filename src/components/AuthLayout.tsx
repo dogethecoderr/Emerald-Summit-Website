@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 /** Entrance for each block in the pane (tailwindcss-animate). */
 export const AUTH_ENTER =
-  'animate-in fade-in slide-in-from-bottom-4 duration-500 ease-[var(--ease-out)] fill-mode-both motion-reduce:animate-none';
+  'animate-in fade-in slide-in-from-bottom-4 duration-500 ease-brand-out fill-mode-both motion-reduce:animate-none';
 
 export const authStagger = (index: number, step = 60): CSSProperties => ({
   animationDelay: `${index * step}ms`,
