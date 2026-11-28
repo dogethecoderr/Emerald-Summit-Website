@@ -17,7 +17,7 @@
  * vercel.json would otherwise serve dist/index.html for every path; see the
  * explicit rewrites added there for those two routes.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { preview } from 'vite';
 import { chromium } from 'playwright';
@@ -27,6 +27,11 @@ const ROUTES = [
   { path: '/lineup', out: 'lineup.html', wait: '#sponsors-title' },
   { path: '/roles', out: 'roles.html', wait: 'text=Attending the Summit' },
 ];
+
+// The untouched SPA shell, written to any route that didn't prerender: vercel.json
+// rewrites /lineup and /roles to their .html files, so those must always exist.
+const SHELL = readFileSync(path.resolve('dist', 'index.html'), 'utf8');
+const written = new Set();
 
 async function main() {
   const server = await preview({ preview: { port: 4322, strictPort: true } });
@@ -59,6 +64,7 @@ async function main() {
     const outPath = path.resolve('dist', route.out);
     mkdirSync(path.dirname(outPath), { recursive: true });
     writeFileSync(outPath, `<!doctype html>\n${html}`);
+    written.add(route.out);
     await page.close();
   }
 
@@ -67,7 +73,13 @@ async function main() {
   await server.httpServer.close();
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// A prerender failure (e.g. no Chromium on the build machine) must not block the
+// deploy: ship the plain SPA for the routes that didn't render, and say so loudly.
+main()
+  .catch((e) => {
+    console.warn('\n  [prerender] FAILED — deploying without prerendered HTML for some routes:\n', e?.message ?? e);
+    for (const route of ROUTES) {
+      if (!written.has(route.out)) writeFileSync(path.resolve('dist', route.out), SHELL);
+    }
+  })
+  .finally(() => process.exit(0));
