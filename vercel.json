@@ -25,7 +25,7 @@
       ]
     },
     {
-      "source": "/(schedule|sessions/(.*)|account(.*)|admin(.*)|volunteer(.*)|disciplines|resources|announcements|notifications|profile|keynote-and-team|summit-27(.*))",
+      "source": "/:section(schedule|sessions|account|admin|volunteer|disciplines|resources|announcements|notifications|profile|keynote-and-team|summit-27)/:rest*",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ]
