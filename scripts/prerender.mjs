@@ -37,7 +37,14 @@ async function main() {
   const server = await preview({ preview: { port: 4322, strictPort: true } });
   const base = server.resolvedUrls.local[0].replace(/\/$/, '');
 
-  const browser = await chromium.launch();
+  // Vercel's build machine has no Chromium of its own, so it uses the
+  // serverless-packaged one (Linux-only); local builds use Playwright's.
+  const browser = process.env.VERCEL
+    ? await (async () => {
+        const { default: lambdaChromium } = await import('@sparticuz/chromium');
+        return chromium.launch({ args: lambdaChromium.args, executablePath: await lambdaChromium.executablePath() });
+      })()
+    : await chromium.launch();
   const context = await browser.newContext({ reducedMotion: 'reduce' });
 
   for (const route of ROUTES) {
