@@ -258,7 +258,6 @@ function VersePanel({
           )}
           aria-hidden={expanded}
         >
-          <VerseBadge vibe={vibe} size={40} />
           <span
             className="font-display text-[26px] font-extrabold tracking-tight [writing-mode:vertical-rl] rotate-180 xl:text-[30px]"
             style={{ color: vibe.text }}
