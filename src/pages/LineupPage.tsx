@@ -17,9 +17,26 @@ import { SPONSOR_TIERS } from '../models/sponsors';
 import { useIsPhoneScreen } from '../lib/device';
 import { cn } from '@/lib/utils';
 import '../landing/landing.css';
+import { usePageMeta, useJsonLd } from '../lib/pageMeta';
 
 export default function LineupPage() {
   const location = useLocation();
+
+  usePageMeta({
+    title: "Lineup — Emerald Summit 2027: Keynote, Sponsors, Experts & Team",
+    description: "Who makes Emerald Summit happen: the keynote speaker, sponsors, visiting industry experts, and the student team running the Jan 23, 2027 event at Emerald High School, Dublin, CA.",
+    path: '/lineup',
+  });
+  useJsonLd([
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Emerald Summit', item: 'https://emerald-summit.vercel.app/' },
+        { '@type': 'ListItem', position: 2, name: 'Lineup', item: 'https://emerald-summit.vercel.app/lineup' },
+      ],
+    },
+  ]);
 
   // The nav and the landing previews send { scrollTo: 'sponsors' } (or another section) when they bring you here.
   useEffect(() => {

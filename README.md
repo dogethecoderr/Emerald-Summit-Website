@@ -141,7 +141,7 @@ The website uses **Google's own sign-in button** (Google Identity Services), the
 
 ```bash
 npm run dev       # Start the Vite dev server
-npm run build     # Type-check (tsc) and build for production
+npm run build     # Type-check (tsc), build for production, then prerender the public routes (see "SEO")
 npm run preview   # Preview the production build locally
 npm run test      # Run the Vitest component tests
 ```
@@ -623,6 +623,20 @@ The site's motion follows the animation skills in `.agents/skills/` (Emil Kowals
 - **Prefer `transform` and `opacity`.** The dashboard's drifting gradient is a layer three cards wide, slid with `transform` (`gradient-pan`), not `background-position`, which forces a repaint every frame. The framer-motion entrances on the landing page animate a `transform` string instead of `y`. framer-motion 11 runs `x`/`y` on the main thread.
 - **Loaded content fades in.** When a page swaps its loading skeleton for content, the portal's `<main>` fades in over 200ms (opacity only, `useFadeInAfterSkeleton` in `src/components/ui/skeleton.tsx`). Plain navigations with no skeleton show at once.
 - **Reduced motion** removes movement but keeps fades. The landing page's blanket rule in `base.css` only stops keyframe loops. Transitions that move things are switched off one by one in `landing.css`.
+
+---
+
+## SEO
+
+An audit (Nov 27, 2026) found the public pages invisible to anything that doesn't run JavaScript — search crawlers, most AI answer engines, and link-unfurlers all saw an empty `<div id="root">` — plus no structured data and no per-route metadata. Fixed:
+
+- **Prerendering.** `scripts/prerender.mjs` runs after `vite build` (wired into `npm run build`): a headless Chromium (Playwright) visits `/`, `/lineup` and `/roles` against the built `dist/` output with `prefers-reduced-motion` emulated (skips the landing page's intro animation) and writes the rendered HTML back to `dist/index.html`, `dist/lineup.html` and `dist/roles.html`. The original module script tag is kept, so the SPA still hydrates and takes over normally once the bundle loads. `vercel.json` rewrites `/lineup` and `/roles` to their `.html` files explicitly, ahead of the SPA catch-all, since that catch-all would otherwise serve `index.html` for every path.
+- **`robots.txt` / `sitemap.xml` / `llms.txt`.** These used to be swallowed by the SPA catch-all rewrite too (any path not `/assets/`, `favicon.svg` or `favicon.ico` fell through to `index.html`, so `/robots.txt` served the app shell). The rewrite's exclusion list now also excludes `robots.txt`, `sitemap.xml`, `llms.txt` and `.well-known/`, and `public/robots.txt` / `public/sitemap.xml` are real files, listing only the three genuinely public, unauthenticated routes (`/`, `/lineup`, `/roles` — `/summit-27/:tab` looked public but is gated behind `useRequireProfile`, so it's `Disallow`'d, not listed).
+- **Gated routes get `X-Robots-Tag: noindex`.** Every path previously returned HTTP 200 with the same generic shell, authenticated routes (`/schedule`, `/admin`, `/account`, etc.) included, with no signal telling crawlers to skip them. A Vercel header rule now sends `noindex` for those path prefixes.
+- **Per-route metadata and JSON-LD.** `src/lib/pageMeta.ts` (`usePageMeta` / `useJsonLd`, no new dependency — just `useEffect` upserting `<head>` tags) sets a distinct title, description, canonical and OG/Twitter tags per route instead of the one static `<title>Emerald Summit</title>` every page used to share. The homepage carries `EducationEvent` + `WebSite` JSON-LD (date, venue, organizer, free price); `/lineup` carries a `BreadcrumbList`. Person schema was deliberately **not** added for the team roster (`/lineup`'s Team section) — they're current high-school students, and there's no ranking benefit that offsets making a minor's name more machine-extractable. FAQPage was also skipped — Google retired FAQ rich results for all sites on May 7, 2026.
+- **All six disciplines and all six "day" steps are now in the DOM, not just the active one.** `OrbitalUniverses.tsx`'s scroll-driven orbit only ever rendered the currently-active discipline's track list (and `WelcomePage.tsx`'s day-schedule hover panel only the current step); the other five of each were invisible to crawlers entirely. Both now also render a visually-hidden (`sr-only`) block listing every discipline/step, so the interactive UI is unchanged for sighted visitors.
+
+**Known, not fixed here (needs account/DNS access, not code):** the production URL is the bare `emerald-summit.vercel.app` subdomain. The Foundation's own links point to `emeraldsummit27.ehsacademics.org`, which currently 302-redirects to it through Squarespace and drops the path in the process — that domain needs to be added as a custom domain directly in the Vercel project instead.
 
 ---
 

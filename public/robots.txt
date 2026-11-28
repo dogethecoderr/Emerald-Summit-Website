@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /login/
+Disallow: /schedule
+Disallow: /sessions/
+Disallow: /account
+Disallow: /admin
+Disallow: /volunteer
+Disallow: /disciplines
+Disallow: /resources
+Disallow: /announcements
+Disallow: /notifications
+Disallow: /profile
+Disallow: /keynote-and-team
+Disallow: /summit-27
+
+Sitemap: https://emerald-summit.vercel.app/sitemap.xml

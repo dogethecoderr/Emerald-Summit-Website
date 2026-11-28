@@ -26,6 +26,27 @@ function sessionTitles(discipline: string): string[] {
   return landingTrackTitles(discipline, MOCK_SESSIONS);
 }
 
+/** A discipline's track list: TechVerse's own table, or a plain list for the rest. */
+function DisciplineTracks({
+  d,
+  listClassName,
+  techClassName,
+}: {
+  d: (typeof USER_DISCIPLINES)[number];
+  listClassName?: string;
+  techClassName?: string;
+}) {
+  return d.name === 'techverse' ? (
+    <TechVerseTracks columns={techVerseTrackColumns(MOCK_SESSIONS)} className={techClassName} />
+  ) : (
+    <ul className={listClassName} aria-label={`${d.label} tracks`}>
+      {sessionTitles(d.name).map((t) => (
+        <li key={t}>{t}</li>
+      ))}
+    </ul>
+  );
+}
+
 // The planets as 3D spheres, loaded on demand so three.js stays out of the first paint.
 const OrbitPlanets3D = lazy(() => import('./OrbitPlanets3D'));
 
@@ -101,7 +122,6 @@ function UniverseOrbit() {
   };
 
   const d = USER_DISCIPLINES[active];
-  const tracks = sessionTitles(d.name);
 
   return (
     <section
@@ -188,17 +208,21 @@ function UniverseOrbit() {
             >
               <h3 className="lp-orbit__name">{d.label}</h3>
               <p className="lp-orbit__desc">{d.description}</p>
-              {d.name === 'techverse' ? (
-                <TechVerseTracks columns={techVerseTrackColumns(MOCK_SESSIONS)} className="lp-orbit__tech-tracks" />
-              ) : (
-                <ul className="lp-orbit__tracks" aria-label={`${d.label} tracks`}>
-                  {tracks.map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              )}
+              <DisciplineTracks d={d} listClassName="lp-orbit__tracks" techClassName="lp-orbit__tech-tracks" />
             </motion.div>
           </div>
+        </div>
+
+        {/* All six disciplines and their tracks, for crawlers and pre-rendering:
+            the orbit above only ever shows the one currently scrolled to. */}
+        <div className="sr-only">
+          {USER_DISCIPLINES.map((u) => (
+            <div key={u.name}>
+              <h3>{u.label}</h3>
+              <p>{u.description}</p>
+              <DisciplineTracks d={u} />
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -222,15 +246,7 @@ function UniverseIndex() {
             >
               <h3 className="lp-uni__name">{d.label}</h3>
               <p className="lp-uni__desc">{d.description}</p>
-              {d.name === 'techverse' ? (
-                <TechVerseTracks columns={techVerseTrackColumns(MOCK_SESSIONS)} className="lp-uni__tech-tracks" />
-              ) : (
-                <ul className="lp-uni__tracks" aria-label={`${d.label} tracks`}>
-                  {sessionTitles(d.name).map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              )}
+              <DisciplineTracks d={d} listClassName="lp-uni__tracks" techClassName="lp-uni__tech-tracks" />
             </li>
           ))}
         </ul>

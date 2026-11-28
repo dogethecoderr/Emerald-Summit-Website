@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { CHOOSER_ROLES, roleByName, roleLabelFor, type RoleInfo } from '../models/roles';
 import { cn } from '@/lib/utils';
 import BackButton from '../components/BackButton';
+import { usePageMeta } from '../lib/pageMeta';
 
 const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
@@ -28,6 +29,12 @@ export default function RolesPage() {
   const navigate = useNavigate();
   const { session, profile, signInError, clearSignInError } = useAuth();
   const signedIn = session != null;
+
+  usePageMeta({
+    title: 'Sign In — Emerald Summit 2027',
+    description: 'Sign in or sign up for Emerald Summit 2027 as a participant, spectator, volunteer, expert, or organizer.',
+    path: '/roles',
+  });
   const currentRole = signedIn ? ((profile?.role as string | undefined) ?? null) : null;
 
   const go = (roleName: string, signUp = false) => {

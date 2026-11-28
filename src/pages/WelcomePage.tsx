@@ -20,6 +20,7 @@ import { useIsTouchScreen } from '../lib/device';
 import '../landing/landing.css';
 import { SUMMIT_ABOUT, SUMMIT_DATE_LABEL, SUMMIT_HOURS, VENUE } from '../models/summitFacts';
 import LineupPreview from '../landing/LineupPreview';
+import { usePageMeta, useJsonLd } from '../lib/pageMeta';
 
 const CONTACT_EMAIL = 'contact@ehsacademics.org';
 
@@ -109,6 +110,53 @@ export default function WelcomePage() {
   const location = useLocation();
   const reduceMotion = useReducedMotion();
   const touch = useIsTouchScreen();
+
+  usePageMeta({
+    title: 'Emerald Summit 2027: Free Student STEAM Conference, Dublin CA, Jan 23',
+    description: `${SUMMIT_ABOUT} ${SUMMIT_DATE_LABEL}, ${SUMMIT_HOURS}, ${VENUE}. Free to attend.`,
+    path: '/',
+  });
+  useJsonLd([
+    {
+      '@context': 'https://schema.org',
+      '@type': 'EducationEvent',
+      name: "Emerald Summit '27",
+      description: SUMMIT_ABOUT,
+      startDate: '2027-01-23T09:00:00-08:00',
+      endDate: '2027-01-23T17:00:00-08:00',
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: {
+        '@type': 'Place',
+        name: 'Emerald High School',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '3600 Central Pkwy',
+          addressLocality: 'Dublin',
+          addressRegion: 'CA',
+          addressCountry: 'US',
+        },
+      },
+      organizer: {
+        '@type': 'NGO',
+        name: 'Emerald Academic Foundation',
+        url: 'https://www.ehsacademics.org',
+      },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+        availability: 'https://schema.org/InStock',
+      },
+      isAccessibleForFree: true,
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Emerald Summit',
+      url: 'https://emerald-summit.vercel.app/',
+    },
+  ]);
 
   // When the sequence plays, the page holds still and the copy waits for it.
   const [playingIntro] = useState(shouldPlayIntro);
@@ -428,6 +476,22 @@ export default function WelcomePage() {
               </figcaption>
             </figure>
             <DayPanel part={DAY_PARTS[part]} index={part} />
+          </div>
+          {/* All six parts of the day, for crawlers and pre-rendering: the
+              panel above only ever shows the one the figure has out. */}
+          <div className="sr-only">
+            {DAY_PARTS.map((p, i) => (
+              <div key={p.name}>
+                <h3>
+                  {i + 1} of {DAY_PARTS.length}: {p.name}
+                </h3>
+                <ul>
+                  {p.points.map((pt) => (
+                    <li key={pt}>{pt}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </section>
 
